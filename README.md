@@ -1,5 +1,7 @@
 # 台股 AI 分析與量化研究工具庫
 
+[GitHub專案分類總覽](docs/github-catalog.md) · [股票來源與歷史資料待評估清單](docs/source-review.md)
+
 Windows 安全安裝位置固定為：
 
 ```text
