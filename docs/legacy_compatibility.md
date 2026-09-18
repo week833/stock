@@ -1,3 +1,10 @@
+> [!WARNING]
+> **歷史文件／待更新**
+>
+> 本頁記載的 `D:\stock` 舊安裝位置與資料夾備份／搬移描述，已不適用目前 README 指定的 `D:\stock\GitHub` 安裝流程。以下原文完整保留作歷史參考；目前操作請以[根 README](../README.md)為準。
+>
+> 待整理項目集中見[股票來源與歷史資料待評估清單](source-review.md)。
+
 # D:\stock 與舊路徑相容說明
 
 本 repository 的正式 Windows 安裝位置已改為：
