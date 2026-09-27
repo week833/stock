@@ -7,3 +7,5 @@
 - [05_indicators_factors_portfolio — 技術指標、因子、績效與投組風控](./05_indicators_factors_portfolio/)（10 個來源）
 
 每個來源均有自己的資料夾與 `README.md`。實際原始碼由下載腳本 clone 到相同分類的 `external_repos/` 路徑。
+
+> Optional AI/reference inventory (not installer sources): the function catalog lists 10 canonical repositories (2 stock-related and 8 general AI/Agent), including `finmind-twstock-research-skill`. See [the local worktree function catalog](../docs/repository_function_catalog.md).

@@ -2,6 +2,8 @@
 
 共 **36 個**來源，已依用途分為五類；每個來源在 `sources/` 下都有獨立資料夾。
 
+> Scope note: this origin/main installer catalog remains 36 primary sources (6 + 2 + 12 + 6 + 10). The separate 2026-09-27 local workspace inventory has 124 physical external worktrees (49 canonical + 75 direct-root); it includes the local `stocktw` checkout and AI/reference repositories such as the FinMind research skill, neither of which is added to this 36-primary installer list. See the [function catalog](./repository_function_catalog.md) and [duplicate matrix](./repository_duplicate_matrix.md).
+
 | 分類 | 數量 | Repository | 本機 clone 位置 |
 |---|---:|---|---|
 | 台股與既有股票分析來源 | 6 | `FinMind/FinMind` | `external_repos/01_taiwan_stock_data/FinMind/` |

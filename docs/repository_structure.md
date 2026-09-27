@@ -74,3 +74,10 @@ external_stock_repositories.md
 ```text
 STOCK_SETUP_MANAGER.cmd
 ```
+
+## 2026-09-27 外部 repository inventory
+
+- [本機 repository 功能目錄](./repository_function_catalog.md)
+- [本機 repository duplicate matrix](./repository_duplicate_matrix.md)
+
+這份 124-worktree 清冊（49 canonical + 75 direct-root）是本機 snapshot，與本文件所列的 36-primary installer catalog 分屬不同範圍；分類不代表 source-tree migration 或正式 runtime 依賴。
