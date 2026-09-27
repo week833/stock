@@ -55,4 +55,4 @@
 
 [Zipline Reloaded](https://github.com/stefan-jansen/zipline-reloaded/blob/main/README.md) 明示延續 Quantopian 關閉後的維護；`alphalens-reloaded`、`pyfolio-reloaded`、`empyrical-reloaded` 亦未封存，應保留現有研究用途。`voidful/tw_stocker` 則已被 legacy 下載腳本明確排除，僅保留可能既存目錄的相容路徑，不是目前自動下載的第 39 個上游。
 
-+> 範圍註記：本文件的來源審查範圍是 36 個 primary 與 2 個 legacy identities，不是完整的本機外部 Git worktree 清冊。2026-09-27 snapshot 共 124 rows（49 canonical + 75 direct-root），詳見 [功能目錄](./repository_function_catalog.md) 與 [duplicate matrix](./repository_duplicate_matrix.md)。
+> 範圍註記：本文件的來源審查範圍是 36 個 primary 與 2 個 legacy identities，不是完整的本機外部 Git worktree 清冊。2026-09-27 snapshot 共 124 rows（49 canonical + 75 direct-root），詳見 [功能目錄](./repository_function_catalog.md) 與 [duplicate matrix](./repository_duplicate_matrix.md)。
