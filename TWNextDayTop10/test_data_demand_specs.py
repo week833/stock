@@ -10,6 +10,7 @@ from mix_price_features import (
 from supplemental_features import SUPPLEMENTAL_FEATURE_COLUMNS
 from top10_data_demand_specs import (
     LEGACY_FEATURE_ORIGIN,
+    ORDER21_RETENTION_CALENDAR_MONTHS,
     ORDER21_ROUTE,
     PRICE_ROUTE,
     order21_report_requirement,
@@ -123,11 +124,12 @@ class Top10DemandSpecTests(unittest.TestCase):
         resolved = resolve_feature_requirements(["mix_return_1"], specs)
         self.assertEqual(set(resolved), {PRICE_ROUTE})
 
-    def test_order21_remains_separate_report_only_full_history_demand(self):
+    def test_order21_remains_separate_report_only_retention_window_demand(self):
         requirement = order21_report_requirement()
         self.assertEqual(requirement["route"], ORDER21_ROUTE)
         self.assertEqual(requirement["unit"], "sessions")
-        self.assertTrue(requirement["full_history"])
+        self.assertFalse(requirement["full_history"])
+        self.assertEqual(requirement["calendar_months"], ORDER21_RETENTION_CALENDAR_MONTHS)
         self.assertEqual(requirement["display_windows"], [1, 5, 20, 60])
 
     def test_unknown_feature_fails_closed(self):

@@ -213,7 +213,11 @@ def test_tampered_derived_cache_is_invalidated_and_rebuilt(tmp_path):
     root = tmp_path / "published"
     calendar = history_calendar(count=12)
     universe = build_universe(stocks())
-    descriptor = pinned_route(root, history_rows(calendar["open_dates"]))
+    # An unparseable date makes the projection's date filter lossy (raw fallback);
+    # keep the fixture lossless so the rebuild exercises the projection path.
+    descriptor = pinned_route(
+        root, history_rows(calendar["open_dates"], include_unparseable_date=False)
+    )
     parent = hashlib.sha256(b"tampered derived cache manifest").hexdigest()
     build_projection(root, descriptor, universe, parent)
     cache_dir = tmp_path / "derived-cache"

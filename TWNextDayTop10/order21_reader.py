@@ -6,6 +6,7 @@ import hashlib
 import itertools
 import json
 import re
+import shutil
 from datetime import date
 from pathlib import Path
 
@@ -227,14 +228,63 @@ def _projection_descriptor(descriptor, source_root):
     return root, entry
 
 
-def _append_verified_shards(con, query_result):
-    """Stream verified JSONL shards into DuckDB without collecting their rows in Python."""
-    con.execute("""CREATE TEMP TABLE order21_raw (
-        source_ordinal UBIGINT, date VARCHAR, stock_id VARCHAR, market VARCHAR,
-        securities_trader_id VARCHAR, broker_id VARCHAR, broker VARCHAR,
-        price VARCHAR, buy VARCHAR, sell VARCHAR, available_at VARCHAR,
-        published_at VARCHAR, publication_time_verified JSON,
-        availability_basis VARCHAR, unit VARCHAR, volume_unit VARCHAR)""")
+class Order21ResourceUnavailable(RuntimeError):
+    """Bounded memory or disk cannot derive report-only Order21 support on this run."""
+
+
+# Date-partitioned staging holds typed parquet rows: about 9% of the raw JSON (2.9 GiB for the
+# 36 GB source). The ratio and margin leave room for DuckDB spill files and the derived cache.
+STAGE_SPACE_RATIO = 0.25
+STAGE_SPACE_MARGIN_BYTES = 2 * 1024 ** 3
+
+
+def _require_stage_space(cache_dir, source_bytes):
+    needed = int(max(int(source_bytes or 0), 0) * STAGE_SPACE_RATIO) + STAGE_SPACE_MARGIN_BYTES
+    free = shutil.disk_usage(cache_dir).free
+    if free < needed:
+        raise Order21ResourceUnavailable(f"insufficient_stage_disk_space:free={free}<required={needed}")
+
+
+_RAW_FIELDS = ["date", "stock_id", "market", "securities_trader_id", "broker_id", "broker", "price", "buy", "sell",
+    "available_at", "published_at", "publication_time_verified", "availability_basis", "unit", "volume_unit"]
+# Typed per-row columns shared by the raw-JSON and verified-shard readers. Staging only
+# filters and types rows: DuckDB cannot estimate a JSON scan's size, so a join there can
+# pick the whole source as the hash-join build side. The universe join runs per session.
+_STAGE_SELECT = """
+    SELECT r.source_ordinal,r.stock_id,r.market,
+      try_cast(substr(r.date,1,10) AS DATE) AS part_date,
+      CASE WHEN regexp_matches(substr(r.date,1,10),'^[0-9]{4}-[0-9]{2}-[0-9]{2}$') THEN try_cast(substr(r.date,1,10) AS DATE) ELSE NULL END AS date,
+      trim(coalesce(nullif(r.securities_trader_id,''),nullif(r.broker_id,''),r.broker,'')) AS broker_id,
+      try_cast(r.price AS DOUBLE) AS price,
+      try_cast(r.buy AS DOUBLE) AS buy,
+      try_cast(r.sell AS DOUBLE) AS sell,
+      coalesce(nullif(r.available_at,''),r.published_at) AS available_text,
+      coalesce(json_type(r.publication_time_verified)='BOOLEAN' AND try_cast(r.publication_time_verified AS BOOLEAN),false) AS proof,
+      coalesce(r.availability_basis,'unknown') AS basis,
+      coalesce(nullif(r.unit,''),nullif(r.volume_unit,''),'unknown') AS unit
+    FROM ({source}) r
+    WHERE try_cast(substr(r.date,1,10) AS DATE) BETWEEN ?::DATE AND ?::DATE"""
+
+
+# Each open partition file buffers one row group; small row groups and a capped number of
+# open files keep a ~90-session window far below the 2GB limit in any input order.
+STAGE_ROW_GROUP_ROWS = 32768
+STAGE_MAX_OPEN_FILES = 16
+STAGE_FLUSH_THRESHOLD_ROWS = 65536
+
+
+def _stage_rows(con, source_sql, stage_dir, start_date, end_date, *, append):
+    """Write projected rows to date partitions so no step holds the whole window in memory."""
+    con.execute(f"SET partitioned_write_max_open_files={STAGE_MAX_OPEN_FILES}")
+    con.execute(f"SET partitioned_write_flush_threshold={STAGE_FLUSH_THRESHOLD_ROWS}")
+    mode = "APPEND" if append else "OVERWRITE_OR_IGNORE"
+    con.execute("COPY (" + _STAGE_SELECT.replace("{source}", source_sql) + ") TO " + _quoted(stage_dir)
+                + f" (FORMAT PARQUET, PARTITION_BY (part_date), ROW_GROUP_SIZE {STAGE_ROW_GROUP_ROWS}, "
+                + mode + ")", [start_date, end_date])
+
+
+def _append_verified_shards(con, query_result, stage_dir, start_date, end_date):
+    """Stream verified JSONL shards into date partitions without collecting their rows in Python."""
     columns = {
         "__sequence": "UBIGINT", "__date": "VARCHAR", "__stock": "VARCHAR",
         "row": "JSON",
@@ -242,6 +292,7 @@ def _append_verified_shards(con, query_result):
     rows_scanned = 0
     projection_bytes_read = 0
     shards = iter(query_result.iter_verified_shards())
+    staged = False
     while True:
         batch = list(itertools.islice(shards, 128))
         if not batch:
@@ -251,24 +302,24 @@ def _append_verified_shards(con, query_result):
             format="newline_delimited",
             columns=columns,
         ).create_view("order21_verified_shard")
-        con.execute("""INSERT INTO order21_raw
-            SELECT __sequence,
-                json_extract_string("row", '$.date'),
-                json_extract_string("row", '$.stock_id'),
-                json_extract_string("row", '$.market'),
-                json_extract_string("row", '$.securities_trader_id'),
-                json_extract_string("row", '$.broker_id'),
-                json_extract_string("row", '$.broker'),
-                json_extract_string("row", '$.price'),
-                json_extract_string("row", '$.buy'),
-                json_extract_string("row", '$.sell'),
-                json_extract_string("row", '$.available_at'),
-                json_extract_string("row", '$.published_at'),
-                json_extract("row", '$.publication_time_verified'),
-                json_extract_string("row", '$.availability_basis'),
-                json_extract_string("row", '$.unit'),
-                json_extract_string("row", '$.volume_unit')
-            FROM order21_verified_shard""")
+        _stage_rows(con, """SELECT __sequence AS source_ordinal,
+                json_extract_string("row", '$.date') AS date,
+                json_extract_string("row", '$.stock_id') AS stock_id,
+                json_extract_string("row", '$.market') AS market,
+                json_extract_string("row", '$.securities_trader_id') AS securities_trader_id,
+                json_extract_string("row", '$.broker_id') AS broker_id,
+                json_extract_string("row", '$.broker') AS broker,
+                json_extract_string("row", '$.price') AS price,
+                json_extract_string("row", '$.buy') AS buy,
+                json_extract_string("row", '$.sell') AS sell,
+                json_extract_string("row", '$.available_at') AS available_at,
+                json_extract_string("row", '$.published_at') AS published_at,
+                json_extract("row", '$.publication_time_verified') AS publication_time_verified,
+                json_extract_string("row", '$.availability_basis') AS availability_basis,
+                json_extract_string("row", '$.unit') AS unit,
+                json_extract_string("row", '$.volume_unit') AS volume_unit
+            FROM order21_verified_shard""", stage_dir, start_date, end_date, append=staged)
+        staged = True
         con.execute("DROP VIEW order21_verified_shard")
         rows_scanned += sum(int(shard["rows"]) for shard in batch)
         projection_bytes_read += sum(int(shard["size_bytes"]) for shard in batch)
@@ -285,109 +336,117 @@ def _project(con, descriptor, universe, asof, cutoff, cache_path, *,
 
     Aggregated rows are used only for the v1 helper's daily net/count statistics;
     original source status, unit ambiguity and rejection counts remain attached.
+    Natural keys include the date, so each staged date partition is reduced on its
+    own; memory is bounded by one session's rows rather than the whole window.
     """
-    fields = ["date", "stock_id", "market", "securities_trader_id", "broker_id", "broker", "price", "buy", "sell",
-        "available_at", "published_at", "publication_time_verified", "availability_basis", "unit", "volume_unit"]
     con.register("order21_universe", universe[["market", "stock_id"]])
-    if projection_result is None:
-        before = Path(descriptor["path"]).stat()
-        con.read_json(descriptor["path"], format="array", columns={name: "JSON" if name=="publication_time_verified" else "VARCHAR" for name in fields}).create_view("order21_raw")
-        con.execute("SET preserve_insertion_order=true")
-        con.execute("SET threads=1")
-        con.execute("""CREATE TEMP TABLE ordinal_rows AS
-            SELECT row_number() OVER () AS source_ordinal,* FROM order21_raw
-            WHERE try_cast(substr(date,1,10) AS DATE) BETWEEN ?::DATE AND ?::DATE""",
-            [start_date, end_date])
-    else:
-        before = None
-        _append_verified_shards(con, projection_result)
-        con.execute("""CREATE TEMP TABLE ordinal_rows AS SELECT * FROM order21_raw
-            WHERE try_cast(substr(date,1,10) AS DATE) BETWEEN ?::DATE AND ?::DATE""",
-            [start_date, end_date])
-    con.execute("SET threads=2")
-    con.execute("""CREATE TEMP TABLE projected AS
-        WITH pool AS (SELECT *, count(*) OVER (PARTITION BY stock_id) AS markets FROM order21_universe)
-        SELECT r.source_ordinal,p.market,r.stock_id,CASE WHEN regexp_matches(substr(r.date,1,10),'^[0-9]{4}-[0-9]{2}-[0-9]{2}$') THEN try_cast(substr(r.date,1,10) AS DATE) ELSE NULL END AS date,
-          trim(coalesce(nullif(r.securities_trader_id,''),nullif(r.broker_id,''),r.broker,'')) AS broker_id,
-          try_cast(r.price AS DOUBLE) AS price,
-          try_cast(r.buy AS DOUBLE) AS buy,
-          try_cast(r.sell AS DOUBLE) AS sell,
-          coalesce(nullif(r.available_at,''),r.published_at) AS available_text,
-          coalesce(json_type(r.publication_time_verified)='BOOLEAN' AND try_cast(r.publication_time_verified AS BOOLEAN),false) AS proof,
-          coalesce(r.availability_basis,'unknown') AS basis,
-          coalesce(nullif(r.unit,''),nullif(r.volume_unit,''),'unknown') AS unit
-        FROM ordinal_rows r JOIN pool p ON r.stock_id=p.stock_id
-          AND ((nullif(r.market,'') IS NULL AND p.markets=1) OR upper(r.market)=p.market)
-        WHERE try_cast(substr(r.date,1,10) AS DATE) BETWEEN ?::DATE AND ?::DATE""",
-        [start_date, end_date])
-    if before is not None:
-        after = Path(descriptor["path"]).stat()
-        if (before.st_size,before.st_mtime_ns,before.st_ctime_ns) != (after.st_size,after.st_mtime_ns,after.st_ctime_ns):
-            raise ValueError("pinned Order21 object changed while projecting")
-    con.execute("""CREATE TEMP TABLE normalized AS SELECT *,
-        CASE WHEN regexp_matches(available_text,'(Z|[+-][0-9]{2}:[0-9]{2})$')
-             THEN try_cast(available_text AS TIMESTAMPTZ) ELSE NULL END AS available_at,
-        (date IS NOT NULL AND broker_id<>'' AND buy IS NOT NULL AND sell IS NOT NULL
-         AND isfinite(buy) AND isfinite(sell) AND buy>=0 AND sell>=0) AS valid
-        FROM projected""")
-    con.execute("""CREATE TEMP TABLE scoped AS SELECT *,
-        valid AND (available_at IS NULL OR available_at<=?::TIMESTAMPTZ) AS usable
-        FROM normalized WHERE date<=?::DATE OR date IS NULL""", [cutoff, asof])
-    con.execute("""CREATE TEMP TABLE natural_keys AS SELECT market,stock_id,date,broker_id,
-        CASE WHEN isfinite(price) THEN price ELSE NULL END AS price,
-        min(buy) AS buy,min(sell) AS sell,first(available_at ORDER BY source_ordinal) AS available_at,
-        first(available_at ORDER BY source_ordinal) IS NOT NULL
-            AND first(proof ORDER BY source_ordinal)
-            AND first(basis ORDER BY source_ordinal)<>'estimated_conservative_lag' AS verified,
-        first(basis ORDER BY source_ordinal)='estimated_conservative_lag' AS estimated,
-        first(unit ORDER BY source_ordinal) AS unit,count(DISTINCT unit)>1 AS unit_conflict,
-        count(*) AS source_row_count,
-        count(DISTINCT buy)>1 OR count(DISTINCT sell)>1 AS conflict
-        FROM scoped WHERE usable GROUP BY market,stock_id,date,broker_id,
-            CASE WHEN isfinite(price) THEN price ELSE NULL END""")
-    con.execute("""CREATE TEMP TABLE day_units AS SELECT market,stock_id,date,
-        count(DISTINCT unit)>1 OR bool_or(unit_conflict) AS conflict
-        FROM natural_keys WHERE NOT conflict GROUP BY market,stock_id,date""")
-    con.execute("""CREATE TEMP TABLE daily AS SELECT n.market,n.stock_id,n.date,
-        sum(n.buy) AS buy,sum(n.sell) AS sell,max(n.available_at) AS available_at,
-        bool_and(n.verified) AS publication_time_verified,
-        CASE WHEN bool_and(n.verified) THEN 'verified_published_at'
-             WHEN bool_or(n.estimated) THEN 'estimated_conservative_lag' ELSE 'unknown' END AS availability_basis,
-        n.unit,count(*) AS natural_key_count,sum(n.source_row_count) AS source_row_count
-        FROM natural_keys n WHERE NOT n.conflict GROUP BY n.market,n.stock_id,n.date,n.unit""")
-    stats = {}
-    for market, code, count in con.execute("SELECT market,stock_id,count(*) FROM projected GROUP BY market,stock_id").fetchall():
-        stats.setdefault(f"{market}:{code}", {})["source_rows_seen"] = count
-    for market, code, count in con.execute("SELECT market,stock_id,count(*) FROM normalized WHERE date>?::DATE GROUP BY market,stock_id", [asof]).fetchall():
-        stats.setdefault(f"{market}:{code}", {})["outside_asof_rows"] = count
-    for market, code, count in con.execute("SELECT market,stock_id,count(*) FROM scoped WHERE NOT coalesce(usable,false) GROUP BY market,stock_id").fetchall():
-        stats.setdefault(f"{market}:{code}", {})["rejected_source_rows"] = count
-    for market, code, count in con.execute("SELECT market,stock_id,count(*) FROM natural_keys WHERE conflict GROUP BY market,stock_id").fetchall():
-        stats.setdefault(f"{market}:{code}", {})["conflicting_natural_keys"] = count
-    for market, code, count in con.execute("SELECT market,stock_id,count(*) FROM day_units WHERE conflict GROUP BY market,stock_id").fetchall():
-        stats.setdefault(f"{market}:{code}", {})["conflicting_unit_days"] = count
-    for market, code, count, keys, days in con.execute("SELECT market,stock_id,sum(source_row_count),sum(natural_key_count),count(DISTINCT date) FROM daily GROUP BY market,stock_id").fetchall():
-        stats.setdefault(f"{market}:{code}", {}).update(valid_source_rows=count,
-            distinct_natural_keys=keys,distinct_valid_days=days)
-    # Report actual broker totals for the latest usable day, not synthetic Q rows.
-    con.execute("""CREATE TEMP TABLE latest_brokers AS SELECT n.market,n.stock_id,n.date,n.broker_id,
-        sum(n.buy) AS buy,sum(n.sell) AS sell,sum(n.buy-n.sell) AS net,n.unit,
-        sum(n.source_row_count) AS source_row_count,count(*) AS price_level_keys
-        FROM natural_keys n JOIN (SELECT market,stock_id,max(date) AS date FROM daily GROUP BY market,stock_id) d
-          USING(market,stock_id,date)
-        WHERE NOT n.conflict AND NOT n.unit_conflict GROUP BY n.market,n.stock_id,n.date,n.broker_id,n.unit""")
-    for side, direction, predicate in [("net_buy", "DESC", "net>0"), ("net_sell", "ASC", "net<0")]:
-        query = f"""SELECT * FROM latest_brokers WHERE {predicate}
-            QUALIFY row_number() OVER(PARTITION BY market,stock_id,unit ORDER BY net {direction},broker_id)<=3
-            ORDER BY market,stock_id,net {direction},broker_id"""
-        for market, code, day, broker, buy, sell, net, unit, count, levels in con.execute(query).fetchall():
-            stats.setdefault(f"{market}:{code}", {}).setdefault("latest_branch_distribution", []).append(dict(
-                side=side,date=str(day),broker_id=broker,buy=buy,sell=sell,net=net,unit=unit,
-                source_row_count=count,distinct_price_level_keys=levels,aggregation="same_broker_day_across_price_levels"))
-    temporary = cache_path.with_suffix(".parquet.tmp")
-    con.execute("COPY (SELECT * FROM daily ORDER BY market,stock_id,date) TO " + _quoted(temporary) + " (FORMAT PARQUET)")
-    temporary.replace(cache_path)
-    return stats
+    stage_dir = cache_path.parent / "tmp" / (cache_path.stem + "_stage")
+    shutil.rmtree(stage_dir, ignore_errors=True)
+    stage_dir.mkdir(parents=True)
+    try:
+        if projection_result is None:
+            before = Path(descriptor["path"]).stat()
+            con.read_json(descriptor["path"], format="array", columns={name: "JSON" if name=="publication_time_verified" else "VARCHAR" for name in _RAW_FIELDS}).create_view("order21_raw")
+            con.execute("SET preserve_insertion_order=true")
+            con.execute("SET threads=1")
+            _stage_rows(con, "SELECT row_number() OVER () AS source_ordinal,* FROM order21_raw "
+                        "WHERE try_cast(substr(date,1,10) AS DATE) BETWEEN " + _quoted(start_date)
+                        + "::DATE AND " + _quoted(end_date) + "::DATE",
+                        stage_dir, start_date, end_date, append=False)
+            after = Path(descriptor["path"]).stat()
+            if (before.st_size,before.st_mtime_ns,before.st_ctime_ns) != (after.st_size,after.st_mtime_ns,after.st_ctime_ns):
+                raise ValueError("pinned Order21 object changed while projecting")
+        else:
+            _append_verified_shards(con, projection_result, stage_dir, start_date, end_date)
+        con.execute("SET threads=2")
+        con.execute("""CREATE TEMP TABLE daily (market VARCHAR, stock_id VARCHAR, date DATE, buy DOUBLE,
+            sell DOUBLE, available_at TIMESTAMPTZ, publication_time_verified BOOLEAN,
+            availability_basis VARCHAR, unit VARCHAR, natural_key_count BIGINT, source_row_count HUGEINT)""")
+        con.execute("CREATE TEMP TABLE row_counts (kind VARCHAR, market VARCHAR, stock_id VARCHAR, n BIGINT)")
+        con.execute("""CREATE TEMP TABLE broker_tops (side VARCHAR, market VARCHAR, stock_id VARCHAR, date DATE,
+            broker_id VARCHAR, buy DOUBLE, sell DOUBLE, net DOUBLE, unit VARCHAR,
+            source_row_count HUGEINT, price_level_keys BIGINT)""")
+        for partition in sorted(stage_dir.glob("part_date=*")):
+            con.execute("""CREATE OR REPLACE TEMP VIEW day_rows AS
+                WITH pool AS (SELECT *, count(*) OVER (PARTITION BY stock_id) AS markets FROM order21_universe)
+                SELECT r.source_ordinal,p.market,r.stock_id,r.date,r.broker_id,r.price,r.buy,r.sell,
+                  r.available_text,r.proof,r.basis,r.unit
+                FROM read_parquet(""" + _quoted(partition / "*.parquet") + """, hive_partitioning=false) r
+                JOIN pool p ON r.stock_id=p.stock_id
+                  AND ((nullif(r.market,'') IS NULL AND p.markets=1) OR upper(r.market)=p.market)""")
+            con.execute("""CREATE OR REPLACE TEMP TABLE scoped AS SELECT *,
+                valid AND (available_at IS NULL OR available_at<=?::TIMESTAMPTZ) AS usable
+                FROM (SELECT *,
+                    CASE WHEN regexp_matches(available_text,'(Z|[+-][0-9]{2}:[0-9]{2})$')
+                         THEN try_cast(available_text AS TIMESTAMPTZ) ELSE NULL END AS available_at,
+                    (date IS NOT NULL AND broker_id<>'' AND buy IS NOT NULL AND sell IS NOT NULL
+                     AND isfinite(buy) AND isfinite(sell) AND buy>=0 AND sell>=0) AS valid
+                    FROM day_rows) normalized""", [cutoff])
+            con.execute("""INSERT INTO row_counts
+                SELECT 'source_rows_seen',market,stock_id,count(*) FROM scoped GROUP BY market,stock_id
+                UNION ALL SELECT 'outside_asof_rows',market,stock_id,count(*) FROM scoped WHERE date>?::DATE GROUP BY market,stock_id
+                UNION ALL SELECT 'rejected_source_rows',market,stock_id,count(*) FROM scoped
+                    WHERE (date<=?::DATE OR date IS NULL) AND NOT coalesce(usable,false) GROUP BY market,stock_id""",
+                [asof, asof])
+            # Equivalent to first(... ORDER BY source_ordinal) and count(DISTINCT ...)>1 on the
+            # non-null usable values, using aggregates that do not buffer every group's rows.
+            con.execute("""CREATE OR REPLACE TEMP TABLE natural_keys AS SELECT market,stock_id,date,broker_id,
+                CASE WHEN isfinite(price) THEN price ELSE NULL END AS price,
+                min(buy) AS buy,min(sell) AS sell,arg_min_null(available_at,source_ordinal) AS available_at,
+                arg_min_null(available_at,source_ordinal) IS NOT NULL
+                    AND arg_min_null(proof,source_ordinal)
+                    AND arg_min_null(basis,source_ordinal)<>'estimated_conservative_lag' AS verified,
+                arg_min_null(basis,source_ordinal)='estimated_conservative_lag' AS estimated,
+                arg_min_null(unit,source_ordinal) AS unit,min(unit)<>max(unit) AS unit_conflict,
+                count(*) AS source_row_count,
+                min(buy)<>max(buy) OR min(sell)<>max(sell) AS conflict
+                FROM scoped WHERE (date<=?::DATE OR date IS NULL) AND usable GROUP BY market,stock_id,date,broker_id,
+                    CASE WHEN isfinite(price) THEN price ELSE NULL END""", [asof])
+            con.execute("""INSERT INTO row_counts
+                SELECT 'conflicting_natural_keys',market,stock_id,count(*) FROM natural_keys WHERE conflict GROUP BY market,stock_id
+                UNION ALL SELECT 'conflicting_unit_days',market,stock_id,count(*) FROM (
+                    SELECT market,stock_id,date,min(unit)<>max(unit) OR bool_or(unit_conflict) AS conflict
+                    FROM natural_keys WHERE NOT conflict GROUP BY market,stock_id,date) WHERE conflict GROUP BY market,stock_id""")
+            con.execute("""INSERT INTO daily SELECT n.market,n.stock_id,n.date,
+                sum(n.buy) AS buy,sum(n.sell) AS sell,max(n.available_at) AS available_at,
+                bool_and(n.verified) AS publication_time_verified,
+                CASE WHEN bool_and(n.verified) THEN 'verified_published_at'
+                     WHEN bool_or(n.estimated) THEN 'estimated_conservative_lag' ELSE 'unknown' END AS availability_basis,
+                n.unit,count(*) AS natural_key_count,sum(n.source_row_count) AS source_row_count
+                FROM natural_keys n WHERE NOT n.conflict GROUP BY n.market,n.stock_id,n.date,n.unit""")
+            # Broker totals per day; only each security's latest daily-rollup date is reported.
+            con.execute("""CREATE OR REPLACE TEMP TABLE day_brokers AS SELECT n.market,n.stock_id,n.date,n.broker_id,
+                sum(n.buy) AS buy,sum(n.sell) AS sell,sum(n.buy-n.sell) AS net,n.unit,
+                sum(n.source_row_count) AS source_row_count,count(*) AS price_level_keys
+                FROM natural_keys n WHERE NOT n.conflict AND NOT n.unit_conflict
+                GROUP BY n.market,n.stock_id,n.date,n.broker_id,n.unit""")
+            for side, direction, predicate in [("net_buy", "DESC", "net>0"), ("net_sell", "ASC", "net<0")]:
+                con.execute(f"""INSERT INTO broker_tops SELECT '{side}',market,stock_id,date,broker_id,buy,sell,net,unit,
+                    source_row_count,price_level_keys FROM day_brokers WHERE {predicate}
+                    QUALIFY row_number() OVER(PARTITION BY market,stock_id,unit ORDER BY net {direction},broker_id)<=3""")
+        stats = {}
+        for kind, market, code, count in con.execute(
+                "SELECT kind,market,stock_id,sum(n) FROM row_counts GROUP BY kind,market,stock_id ORDER BY kind,market,stock_id").fetchall():
+            stats.setdefault(f"{market}:{code}", {})[kind] = count
+        for market, code, count, keys, days in con.execute("SELECT market,stock_id,sum(source_row_count),sum(natural_key_count),count(DISTINCT date) FROM daily GROUP BY market,stock_id").fetchall():
+            stats.setdefault(f"{market}:{code}", {}).update(valid_source_rows=count,
+                distinct_natural_keys=keys,distinct_valid_days=days)
+        # Report actual broker totals for the latest usable day, not synthetic Q rows.
+        for side, direction in [("net_buy", "DESC"), ("net_sell", "ASC")]:
+            query = f"""SELECT b.market,b.stock_id,b.date,b.broker_id,b.buy,b.sell,b.net,b.unit,b.source_row_count,b.price_level_keys
+                FROM broker_tops b JOIN (SELECT market,stock_id,max(date) AS date FROM daily GROUP BY market,stock_id) d
+                  USING(market,stock_id,date) WHERE b.side='{side}'
+                ORDER BY b.market,b.stock_id,b.net {direction},b.broker_id"""
+            for market, code, day, broker, buy, sell, net, unit, count, levels in con.execute(query).fetchall():
+                stats.setdefault(f"{market}:{code}", {}).setdefault("latest_branch_distribution", []).append(dict(
+                    side=side,date=str(day),broker_id=broker,buy=buy,sell=sell,net=net,unit=unit,
+                    source_row_count=count,distinct_price_level_keys=levels,aggregation="same_broker_day_across_price_levels"))
+        temporary = cache_path.with_suffix(".parquet.tmp")
+        con.execute("COPY (SELECT * FROM daily ORDER BY market,stock_id,date) TO " + _quoted(temporary) + " (FORMAT PARQUET)")
+        temporary.replace(cache_path)
+        return stats
+    finally:
+        shutil.rmtree(stage_dir, ignore_errors=True)
 
 
 def load_order21_support(cache_dir, descriptor, universe, *, asof, calendar_contract,
@@ -499,6 +558,8 @@ def load_order21_support(cache_dir, descriptor, universe, *, asof, calendar_cont
                     cache_dir.mkdir(parents=True, exist_ok=True)
                     (cache_dir / "tmp").mkdir(exist_ok=True)
                     con.execute("SET temp_directory=" + _quoted(cache_dir / "tmp"))
+                    _require_stage_space(cache_dir, artifact_size if artifact_size is not None
+                                         else Path(descriptor["path"]).stat().st_size)
                     if source_root is not None:
                         root, artifact_entry = _projection_descriptor(
                             descriptor, source_root
@@ -672,6 +733,15 @@ def load_order21_support(cache_dir, descriptor, universe, *, asof, calendar_cont
                         window["reason"] = "incompatible_original_units"
                         window["unit"] = "mixed_original_units"
                 rows_by_identity[identity] = value
+        except (duckdb.OutOfMemoryException, Order21ResourceUnavailable) as exc:
+            # Order21 is report-only (never a ranking input): exhausting the bounded
+            # memory/disk budget leaves support empty with the reason recorded, while
+            # integrity, lock and caller errors below still stop strict runs.
+            error = f"{type(exc).__name__}: {exc}"
+            read_mode = "resource_unavailable"
+            external_read = dict(external_read, mode=read_mode)
+            rows_by_identity = {}
+            stats = {}
         except (OSError, ValueError, duckdb.Error) as exc:
             if strict_projection_mode:
                 raise
@@ -726,7 +796,7 @@ def load_order21_support(cache_dir, descriptor, universe, *, asof, calendar_cont
     }
     return dict(order21_support_by_identity=support, order21_support_by_code=by_code, order21_text_by_identity=texts,
         order21_reader=dict(version=VERSION,snapshot_id=snapshot_id,source_descriptor=source or None,
-            optional_error=optional_error,cache_path=str(cache_path) if cache_path else None,cache_hit=cache_hit,
+            optional_error=optional_error,reader_error=error,cache_path=str(cache_path) if cache_path else None,cache_hit=cache_hit,
         derived_cache_key=derived_cache_key, retention_window=retention_window,
         query_demand=query_demand,
             cache_invalidated_reason=cache_invalidated_reason,
