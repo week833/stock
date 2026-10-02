@@ -181,7 +181,11 @@ def build_universe(records):
     frame["stock_id"] = frame["stock_id"].astype(str)
     frame["date"] = frame["date"].map(_date)
     frame["market"] = frame.get("market", frame.get("type")).fillna("").astype(str).str.upper()
-    frame = frame[frame["date"].notna() & frame["market"].isin(["TWSE", "TPEX"])].copy()
+    frame = frame[frame["date"].notna()].copy()
+    # A code whose newest snapshot has no TWSE/TPEX row (e.g. back to 興櫃) is not listed now.
+    newest = frame[frame["date"].eq(frame.groupby("stock_id")["date"].transform("max"))]
+    listed = set(newest.loc[newest["market"].isin(["TWSE", "TPEX"]), "stock_id"])
+    frame = frame[frame["market"].isin(["TWSE", "TPEX"]) & frame["stock_id"].isin(listed)].copy()
     frame = frame[frame["date"].eq(frame.groupby(["market", "stock_id"])["date"].transform("max"))]
     output = []
     for (market, code), rows in frame.groupby(["market", "stock_id"], sort=True):
@@ -190,7 +194,13 @@ def build_universe(records):
         types = {_text(row.get("security_type")).casefold() for _, row in rows.iterrows()}
         excluded = any(item in {"etf", "etn", "preferred_share", "depositary_receipt", "warrant", "fund"} for item in types)
         excluded |= bool(pd.Series([industries]).str.contains("ETF|ETN|存託憑證|受益證券", case=False, regex=True).iloc[0])
-        excluded |= bool(pd.Series([name]).str.contains("特別股|特[甲乙丙丁戊己]|特[0-9A-Z]", regex=True).iloc[0])
+        # Preferred names put the series before 特 (乙特/甲特); warrants end in 購/售 plus a series.
+        excluded |= bool(pd.Series([name]).str.contains(
+            r"特別股|特[甲乙丙丁戊己]|特[0-9A-Z]|[甲乙丙丁戊己庚辛壬癸]特|[購售]\d{2}$", regex=True).iloc[0])
+        # A letter-suffixed four-digit code is a preferred-share series (2881A, 2887Z1).
+        excluded |= bool(pd.Series([code]).str.fullmatch(r"\d{4}[A-Z]\d?").iloc[0])
+        # Codes beginning with 0 are ETF/ETN/beneficiary securities even when industry is blank.
+        excluded |= code.startswith("0")
         if excluded or not code.strip():
             continue
         proofs = []
