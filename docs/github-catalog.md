@@ -18,13 +18,15 @@ week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://
 | `market-intel` | **唯讀市場情報**：財經事件快照與分組新聞 | [ai-trader/skills/market-intel](https://github.com/week833/ai-trader/tree/main/skills/market-intel) |
 | `polymarket-public-data` | **讀取 Polymarket 預測市場**公開資料與訂單簿價格 | [ai-trader/skills/polymarket](https://github.com/week833/ai-trader/tree/main/skills/polymarket) |
 
+> ⚠️ 6 個 AI-Trader Skill 搭配第三方平台 [ai4trade.ai](https://ai4trade.ai)（需註冊取得 token）：**只支援美股、加密貨幣與 Polymarket，不支援台股**，交易使用平台的**模擬資金**。研究台股請用 `finmind-twstock-research`。
+
 ### 儲存庫
 
 | 專案 | 用途 | 型態 |
 |---|---|---|
 | [stock](https://github.com/week833/stock) | **一鍵安裝／修復 Windows 股票研究環境**，並整理外部股票分析來源索引；不是完整股票預測應用 | 工具／安裝包 |
 | [finmind-twstock-research-skill](https://github.com/week833/finmind-twstock-research-skill) | **FinMind 台股研究 Skill**；不是正式行情或下單系統 | Skill |
-| [ai-trader](https://github.com/week833/ai-trader) | **AI 代理交易平台**（內含上述 6 個交易 Skill）；不是台股專用 | Fork（上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)） |
+| [ai-trader](https://github.com/week833/ai-trader) | **AI 代理交易平台**（內含上述 6 個交易 Skill）；**只支援美股、加密貨幣與 Polymarket，不支援台股**，使用模擬資金 | Fork（上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)） |
 | [stock-mitake-ui-reference](https://github.com/week833/stock-mitake-ui-reference) | **三竹股市介面導航與操作安全規範**；不是 API、不下單 | 參考文件 |
 
 股票外部來源、歷史文件與待評估刪除候選，集中見 **[股票來源與歷史資料待評估清單](source-review.md)**。`stock` 內的 36 個外部來源是本庫維護的來源索引，不是帳號另外擁有的 36 個儲存庫。
