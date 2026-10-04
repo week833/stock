@@ -1,41 +1,55 @@
 # GitHub 專案分類總覽
 
-查核日期：2026-09-18
+查核日期：2026-10-04
 
-依主要用途集中列出 week833 的 6 個公開儲存庫，並區分研究工具、Skill、Fork 與參考文件。Fork 表示來源關係；是否過時或是否保留副本，另依具體證據評估。
+week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://github.com/week833/skills-index)**。本頁列出相同的分類，方便在 stock 內查看。帳號共有 7 個公開儲存庫。
 
-## 金融與量化研究
+## 📈 股票與交易
 
-| 專案 | 用途與型態 | 整理狀態 |
+### Skill
+
+| Skill | 用途 | 來源 |
 |---|---|---|
-| [stock](https://github.com/week833/stock) | Windows 股票研究環境的安裝、設定、修復與外部來源整理工具；不是完整股票預測應用。 | 保留使用；歷史文件與外部來源另列待評估。 |
-| [finmind-twstock-research-skill](https://github.com/week833/finmind-twstock-research-skill) | Codex 台股研究 Skill，提供 FinMind 資料路由、查詢規劃、資料品質與時間點一致性（PIT）研究規則。 | 保留 Skill／研究參考；不是正式行情或下單系統。 |
-| [ai-trader](https://github.com/week833/ai-trader) | [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 的研究 Fork，涵蓋 AI agent 交易平台與模擬交易；不是台股專用。 | 研究參考；交叉列入下方「副本保留待評估」。 |
-| [stock-mitake-ui-reference](https://github.com/week833/stock-mitake-ui-reference) | 三竹股市介面導航、操作合約與去識別化觀察參考包。 | 保留參考；未見被替代的證據，不列為已過時。 |
+| `finmind-twstock-research` | **用 FinMind 資料研究台股**：選資料集、規劃查詢、檢查資料品質與時間點一致性（PIT） | [finmind-twstock-research-skill](https://github.com/week833/finmind-twstock-research-skill/tree/main/skills/finmind-twstock-research) |
+| `ai-trader` | **交易訊號平台主 Skill**：發布交易訊號、追蹤交易者 | [ai-trader/skills/ai4trade](https://github.com/week833/ai-trader/tree/main/skills/ai4trade) |
+| `ai-trader-copytrade` | **跟單**：追蹤高手並自動複製其部位 | [ai-trader/skills/copytrade](https://github.com/week833/ai-trader/tree/main/skills/copytrade) |
+| `ai-trader-tradesync` | **同步自己的部位與交易紀錄**給追蹤者 | [ai-trader/skills/tradesync](https://github.com/week833/ai-trader/tree/main/skills/tradesync) |
+| `ai-trader-heartbeat` | **定期輪詢平台通知與任務**（心跳機制） | [ai-trader/skills/heartbeat](https://github.com/week833/ai-trader/tree/main/skills/heartbeat) |
+| `market-intel` | **唯讀市場情報**：財經事件快照與分組新聞 | [ai-trader/skills/market-intel](https://github.com/week833/ai-trader/tree/main/skills/market-intel) |
+| `polymarket-public-data` | **讀取 Polymarket 預測市場**公開資料與訂單簿價格 | [ai-trader/skills/polymarket](https://github.com/week833/ai-trader/tree/main/skills/polymarket) |
 
-用途依據：[stock README](../README.md)、[FinMind Skill README](https://github.com/week833/finmind-twstock-research-skill/blob/main/README.md)、[AI-Trader README](https://github.com/week833/ai-trader/blob/main/README.md)、[三竹參考包 README](https://github.com/week833/stock-mitake-ui-reference/blob/codex/mitake-ui-reference-initial/README.md)。
+### 儲存庫
+
+| 專案 | 用途 | 型態 |
+|---|---|---|
+| [stock](https://github.com/week833/stock) | **一鍵安裝／修復 Windows 股票研究環境**，並整理外部股票分析來源索引；不是完整股票預測應用 | 工具／安裝包 |
+| [finmind-twstock-research-skill](https://github.com/week833/finmind-twstock-research-skill) | **FinMind 台股研究 Skill**；不是正式行情或下單系統 | Skill |
+| [ai-trader](https://github.com/week833/ai-trader) | **AI 代理交易平台**（內含上述 6 個交易 Skill）；不是台股專用 | Fork（上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)） |
+| [stock-mitake-ui-reference](https://github.com/week833/stock-mitake-ui-reference) | **三竹股市介面導航與操作安全規範**；不是 API、不下單 | 參考文件 |
 
 股票外部來源、歷史文件與待評估刪除候選，集中見 **[股票來源與歷史資料待評估清單](source-review.md)**。`stock` 內的 36 個外部來源是本庫維護的來源索引，不是帳號另外擁有的 36 個儲存庫。
 
-## AI 簡報與文件製作
+## 📊 簡報製作
 
-| 專案 | 用途與型態 | 整理狀態 |
+| 專案 | 用途 | 型態 |
 |---|---|---|
-| [ppt-master](https://github.com/week833/ppt-master) | [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master) 的 Agent Skill 工具包 Fork；由文件或主題生成原生可編輯 PPTX，並支援範本填入與簡報修改。 | 保留 Skill／研究參考。 |
+| [ppt-master](https://github.com/week833/ppt-master) | **`ppt-master` Skill：用 AI 生成可編輯 PPTX 簡報**，支援範本填入、重建與美化既有簡報 | Fork（上游 [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)） |
 
-用途依據：[PPT Master README](https://github.com/week833/ppt-master/blob/main/README.md)、[SKILL.md](https://github.com/week833/ppt-master/blob/main/skills/ppt-master/SKILL.md)。
+## 🖥️ Windows 桌面自動化
 
-## Windows 桌面自動化
-
-| 專案 | 用途與型態 | 整理狀態 |
+| 專案 | 用途 | 型態 |
 |---|---|---|
-| [windows-local-action-recorder](https://github.com/week833/windows-local-action-recorder) | Windows 本機操作錄製、Codex 工作流程交接、審核與受控重播示範工具。 | 保留工具；按 README 的示範範圍使用。 |
+| [windows-local-action-recorder](https://github.com/week833/windows-local-action-recorder) | **錄製 Windows 本機操作並安全重播**，整理成 Codex 可學習的工作流程 | 工具（非 Skill） |
 
-用途依據：[Windows Local Action Recorder README](https://github.com/week833/windows-local-action-recorder/blob/main/README.md)。
+## 🗂️ 索引
+
+| 專案 | 用途 | 型態 |
+|---|---|---|
+| [skills-index](https://github.com/week833/skills-index) | **全部 Skill 與儲存庫的功能分類索引**（原 `week833/week833`） | 文件 |
 
 ## 副本保留待評估
 
-| 專案 | 已確認的證據 | 待評估事項 |
+| 專案 | 已確認的證據（查核日期 2026-09-18） | 待評估事項 |
 |---|---|---|
 | [ai-trader](https://github.com/week833/ai-trader) | 查核時 Fork 僅有 `main` 分支，與上游 `main` 同為 `d03ff6c056b32ced735adf7c19ed8175adb1c8df`，最後提交為 2026-06-11。 | 評估是否仍需保留 Fork，或以直接連結上游作研究參考；尚未確認部署或其他工作流程是否依賴此副本。 |
 
