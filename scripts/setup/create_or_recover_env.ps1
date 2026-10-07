@@ -82,15 +82,23 @@ function Test-DotEnvFile {
     return $true
 }
 
-function Backup-ExistingEnv {
-    if (-not (Test-Path -LiteralPath $TargetEnv -PathType Leaf)) {
-        return $null
-    }
+function New-EnvTemporaryPath {
+    $name = ".env.tmp.$PID.$([Guid]::NewGuid().ToString('N'))"
+    return Join-Path (Split-Path -Parent $TargetEnv) $name
+}
 
-    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-    $backup = "$TargetEnv.backup_$stamp"
-    Copy-Item -LiteralPath $TargetEnv -Destination $backup -Force
-    return $backup
+function Commit-EnvFile {
+    param([Parameter(Mandatory = $true)][string]$PreparedPath)
+
+    if (-not (Test-DotEnvFile -Path $PreparedPath)) {
+        throw 'The prepared .env failed validation.'
+    }
+    if (Test-Path -LiteralPath $TargetEnv -PathType Leaf) {
+        [IO.File]::Replace($PreparedPath, $TargetEnv, $null)
+    }
+    else {
+        [IO.File]::Move($PreparedPath, $TargetEnv)
+    }
 }
 
 function Add-Candidate {
@@ -150,15 +158,17 @@ function Restore-EnvCandidate {
     param([Parameter(Mandatory = $true)][string]$SourcePath)
 
     if (-not (Test-DotEnvFile -Path $SourcePath)) {
-        throw 'The selected backup is not a valid .env file.'
+        throw 'The selected source is not a valid .env file.'
     }
 
-    $backup = Backup-ExistingEnv
-    if ($backup) {
-        Write-Info "[BACKUP] Existing .env copied to $backup" ([ConsoleColor]::Yellow)
+    $temporary = New-EnvTemporaryPath
+    try {
+        Copy-Item -LiteralPath $SourcePath -Destination $temporary -Force
+        Commit-EnvFile -PreparedPath $temporary
     }
-
-    Copy-Item -LiteralPath $SourcePath -Destination $TargetEnv -Force
+    finally {
+        Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
+    }
     Write-Info "[OK] Recovered .env to $TargetEnv" ([ConsoleColor]::Green)
 }
 
@@ -166,7 +176,7 @@ function Create-NewEnv {
     $values = [ordered]@{}
 
     $values['STOCK_HOME'] = $RepoRoot
-    $values['STOCK_EXTERNAL_REPOS'] = (Join-Path $RepoRoot 'external_repos')
+    $values['STOCK_EXTERNAL_REPOS'] = (Join-Path $RepoRoot 'repos')
     $values['PYTHONUTF8'] = '1'
     $values['PYTHONIOENCODING'] = 'utf-8'
     $values['TZ'] = 'Asia/Taipei'
@@ -204,16 +214,14 @@ function Create-NewEnv {
         $lines.Add("$($entry.Key)=$formatted")
     }
 
-    $backup = Backup-ExistingEnv
-    if ($backup) {
-        Write-Info "[BACKUP] Existing .env copied to $backup" ([ConsoleColor]::Yellow)
+    $temporary = New-EnvTemporaryPath
+    try {
+        $encoding = New-Object Text.UTF8Encoding($false)
+        [IO.File]::WriteAllLines($temporary, $lines, $encoding)
+        Commit-EnvFile -PreparedPath $temporary
     }
-
-    $encoding = New-Object Text.UTF8Encoding($false)
-    [IO.File]::WriteAllLines($TargetEnv, $lines, $encoding)
-
-    if (-not (Test-DotEnvFile -Path $TargetEnv)) {
-        throw 'The newly created .env failed validation.'
+    finally {
+        Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
     }
 
     Write-Info "[OK] Created $TargetEnv" ([ConsoleColor]::Green)

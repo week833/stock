@@ -1,446 +1,197 @@
 [CmdletBinding()]
-param(
-    [switch]$Full,
-    [switch]$SelfTest
-)
+param([switch]$Full, [switch]$Preflight, [switch]$DryRun, [switch]$ConfigureOnly)
 
-Set-StrictMode -Version 2.0
-$ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
-$global:LASTEXITCODE = 0
-
-$SharedRoot = 'D:\stock'
-$InstallRoot = 'D:\stock\GitHub'
-$LegacyRoot = 'D:\Downloads\stock'
-$RepoUrl = 'https://github.com/week833/stock.git'
-$LogFile = Join-Path $env:TEMP 'install_d_stock_env.log'
-
-"============================================================" | Set-Content -LiteralPath $LogFile -Encoding UTF8
-"Stock toolkit installation started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Add-Content -LiteralPath $LogFile -Encoding UTF8
-"============================================================" | Add-Content -LiteralPath $LogFile -Encoding UTF8
-
-function Write-Status {
-    param(
-        [AllowEmptyString()]
-        [string]$Message = '',
-        [ConsoleColor]$Color = [ConsoleColor]::Gray
-    )
-
-    Write-Host $Message -ForegroundColor $Color
-    $Message | Add-Content -LiteralPath $LogFile -Encoding UTF8
+function Assert-StockPath {
+    param([string]$Path, [switch]$Directory)
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        ($Directory -and -not $item.PSIsContainer) -or
+        (-not $Directory -and $item.PSIsContainer)) {
+        throw "Managed path is not an ordinary $(if($Directory){'directory'}else{'file'}): $Path"
+    }
 }
 
-function Invoke-Native {
-    param(
-        [Parameter(Mandatory = $true)][string]$FilePath,
-        [string[]]$Arguments = @()
-    )
-
-    Write-Status ("> {0} {1}" -f $FilePath, ($Arguments -join ' ')) ([ConsoleColor]::DarkGray)
-
-    $previousPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
-    try {
-        $output = & $FilePath @Arguments 2>&1
-        $exitCode = $LASTEXITCODE
-    }
-    finally {
-        $ErrorActionPreference = $previousPreference
-    }
-
-    if ($null -ne $output) {
-        foreach ($line in $output) {
-            Write-Host $line
-            ([string]$line) | Out-File -LiteralPath $LogFile -Append -Encoding UTF8
+function Get-StockProjectState {
+    param([Parameter(Mandatory = $true)][string]$Root)
+    Assert-StockPath -Path (Split-Path -Parent $Root) -Directory
+    Assert-StockPath -Path $Root -Directory
+    if (-not (Test-Path -LiteralPath $Root)) { return 'missing' }
+    if (@(Get-ChildItem -LiteralPath $Root -Force -ErrorAction Stop).Count -eq 0) { return 'empty' }
+    foreach ($relative in @('STOCK_SETUP_MANAGER.cmd', 'scripts\setup\install_d_stock_env.ps1')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Root $relative) -PathType Leaf)) {
+            throw "Nonempty target is not this project; nothing was overwritten: $Root"
         }
     }
-
-    if ($exitCode -ne 0) {
-        throw "Command failed with exit code ${exitCode}: $FilePath"
-    }
+    return 'project'
 }
 
-function Invoke-CmdScript {
-    param([Parameter(Mandatory = $true)][string]$ScriptPath)
-
-    if (-not (Test-Path -LiteralPath $ScriptPath)) {
-        throw "Required CMD script was not found: $ScriptPath"
-    }
-
-    Invoke-Native -FilePath $env:ComSpec -Arguments @('/d', '/c', "call `"$ScriptPath`"")
-}
-
-function Test-IsAdministrator {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Find-Git {
-    $command = Get-Command git.exe -ErrorAction SilentlyContinue
-    if ($command) { return $command.Source }
-
-    $candidates = @(
-        (Join-Path $env:ProgramFiles 'Git\cmd\git.exe'),
-        (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe')
-    )
-
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate) { return $candidate }
-    }
-
-    return $null
-}
-
-function Test-SupportedPython {
-    param([Parameter(Mandatory = $true)][string]$PythonPath)
-
+function Invoke-StockProbe {
+    param([string]$Executable, [string[]]$Arguments)
     try {
-        $raw = & $PythonPath -c "import sys; print('%d.%d.%d' % sys.version_info[:3])" 2>$null
-        if ($LASTEXITCODE -ne 0 -or -not $raw) { return $false }
-        $version = [version](([string]($raw | Select-Object -Last 1)).Trim())
-        return ($version -ge [version]'3.10.0' -and $version -lt [version]'3.13.0')
+        $output = @(& $Executable @Arguments 2>$null | ForEach-Object { [string]$_ })
+        return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
     }
-    catch {
-        return $false
-    }
+    catch { return [pscustomobject]@{ ExitCode = 1; Output = @() } }
 }
 
-function Find-Python {
-    $launcher = Get-Command py.exe -ErrorAction SilentlyContinue
+function Invoke-StockCommand {
+    param([string]$Executable, [string[]]$Arguments)
+    & $Executable @Arguments | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Executable" }
+}
+
+function Test-StockPython {
+    param([string]$Path)
+    if (-not $Path) { return $false }
+    $probe = Invoke-StockProbe -Executable $Path -Arguments @('-I', '-S', '-B', '-c', 'import sys; print("%d.%d.%d" % sys.version_info[:3])')
+    if ($probe.ExitCode -ne 0 -or $probe.Output.Count -ne 1) { return $false }
+    try { $version = [version]$probe.Output[0]; return ($version.Major -eq 3 -and $version -ge [version]'3.10') }
+    catch { return $false }
+}
+
+function Find-StockPython {
+    foreach ($name in @('python.exe', 'python3.exe')) {
+        $command = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($command -and (Test-StockPython -Path $command.Source)) { return $command.Source }
+    }
+    $launcher = Get-Command py.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($launcher) {
-        foreach ($selector in @('-3.12', '-3.11', '-3.10')) {
-            $result = & $launcher.Source $selector -c "import sys; print(sys.executable)" 2>$null
-            if ($LASTEXITCODE -eq 0 -and $result) {
-                $candidate = ([string]($result | Select-Object -Last 1)).Trim()
-                if ((Test-Path -LiteralPath $candidate) -and (Test-SupportedPython -PythonPath $candidate)) {
-                    return $candidate
-                }
-            }
-        }
+        $probe = Invoke-StockProbe -Executable $launcher.Source -Arguments @('-3', '-I', '-S', '-B', '-c', 'import sys; print(sys.executable)')
+        if ($probe.ExitCode -eq 0 -and $probe.Output.Count -eq 1 -and (Test-StockPython -Path $probe.Output[0])) { return $probe.Output[0] }
     }
-
-    $candidates = @()
-    $pythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
-    if ($pythonCommand) { $candidates += $pythonCommand.Source }
-    $candidates += @(
-        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
-        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
-        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe')
-    )
-
-    foreach ($candidate in ($candidates | Select-Object -Unique)) {
-        if ($candidate -and (Test-Path -LiteralPath $candidate) -and (Test-SupportedPython -PythonPath $candidate)) {
-            return $candidate
-        }
+    $localRoot = Join-Path $env:LOCALAPPDATA 'Programs\Python'
+    foreach ($directory in @(Get-ChildItem -LiteralPath $localRoot -Directory -Filter 'Python3*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
+        $path = Join-Path $directory.FullName 'python.exe'
+        if (Test-StockPython -Path $path) { return $path }
     }
-
     return $null
 }
 
-function Install-WithWinget {
-    param(
-        [Parameter(Mandatory = $true)][string]$PackageId,
-        [Parameter(Mandatory = $true)][string]$DisplayName
-    )
-
-    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
-    if (-not $winget) {
-        throw "$DisplayName is missing and winget is unavailable."
-    }
-
-    Write-Status "[INSTALL] Installing $DisplayName with winget..." ([ConsoleColor]::Yellow)
-    Invoke-Native -FilePath $winget.Source -Arguments @(
-        'install', '--id', $PackageId, '-e', '--source', 'winget',
-        '--accept-package-agreements', '--accept-source-agreements'
-    )
+function Install-StockTool {
+    param([string]$PackageId)
+    $winget = Get-Command winget.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $winget) { throw "Missing required tool; winget is unavailable. Install $PackageId and retry." }
+    Invoke-StockCommand -Executable $winget.Source -Arguments @('install', '--id', $PackageId, '--exact', '--accept-package-agreements', '--accept-source-agreements')
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path
 }
 
-function Add-UserPathEntries {
-    param([Parameter(Mandatory = $true)][string[]]$Entries)
-
-    $current = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $parts = @()
-    if ($current) {
-        $parts = @($current -split ';' | Where-Object { $_ -and $_.Trim() })
+function Find-StockGit {
+    $command = Get-Command git.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($command) { return $command.Source }
+    foreach ($path in @((Join-Path $env:ProgramFiles 'Git\cmd\git.exe'), (Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe'))) {
+        if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
     }
-
-    foreach ($entry in $Entries) {
-        $exists = $false
-        foreach ($part in $parts) {
-            if ($part.TrimEnd('\') -ieq $entry.TrimEnd('\')) {
-                $exists = $true
-                break
-            }
-        }
-        if (-not $exists) { $parts += $entry }
-    }
-
-    [Environment]::SetEnvironmentVariable('Path', ($parts -join ';'), 'User')
+    return $null
 }
 
-function Get-RepositoryOrigin {
-    param(
-        [Parameter(Mandatory = $true)][string]$GitPath,
-        [Parameter(Mandatory = $true)][string]$RepositoryPath
-    )
-
-    if (-not (Test-Path -LiteralPath (Join-Path $RepositoryPath '.git'))) { return $null }
-
-    $previousPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'Continue'
+function Test-StockVenv {
+    param([Parameter(Mandatory = $true)][string]$Root)
+    $venv = Join-Path $Root '.venv'
+    $python = Join-Path $venv 'Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { return $false }
+    $probe = Invoke-StockProbe -Executable $python -Arguments @('-I', '-B', '-c', 'import sys; print("%d.%d.%d" % sys.version_info[:3]); print(sys.prefix); print(sys.base_prefix)')
+    if ($probe.ExitCode -ne 0 -or $probe.Output.Count -ne 3) { return $false }
     try {
-        $output = & $GitPath -C $RepositoryPath remote get-url origin 2>$null
-        $exitCode = $LASTEXITCODE
+        $version = [version]$probe.Output[0]
+        $prefix = [IO.Path]::GetFullPath($probe.Output[1]).TrimEnd('\')
+        $base = [IO.Path]::GetFullPath($probe.Output[2]).TrimEnd('\')
+        return ($version.Major -eq 3 -and $version -ge [version]'3.10' -and
+            $prefix -ieq [IO.Path]::GetFullPath($venv).TrimEnd('\') -and $prefix -ine $base)
     }
-    finally {
-        $ErrorActionPreference = $previousPreference
-    }
-
-    if ($exitCode -ne 0 -or -not $output) { return $null }
-    return ([string]($output | Select-Object -Last 1)).Trim()
+    catch { return $false }
 }
 
-function Test-ExpectedRepository {
-    param(
-        [Parameter(Mandatory = $true)][string]$GitPath,
-        [Parameter(Mandatory = $true)][string]$RepositoryPath
-    )
-
-    $origin = Get-RepositoryOrigin -GitPath $GitPath -RepositoryPath $RepositoryPath
-    return ($origin -and $origin -match 'week833/stock(?:\.git)?$')
-}
-
-function Test-DirectoryEmpty {
-    param([Parameter(Mandatory = $true)][string]$Path)
-
-    if (-not (Test-Path -LiteralPath $Path)) { return $true }
-    return (@(Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue).Count -eq 0)
-}
-
-function Ensure-LegacyJunction {
-    param(
-        [Parameter(Mandatory = $true)][string]$LinkPath,
-        [Parameter(Mandatory = $true)][string]$TargetPath
-    )
-
-    $parent = Split-Path -Parent $LinkPath
-    if (-not (Test-Path -LiteralPath $parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+function Get-StockInterpreter {
+    param([Parameter(Mandatory = $true)][string]$Root, [switch]$Plan)
+    $venv = Join-Path $Root '.venv'
+    $scripts = Join-Path $venv 'Scripts'
+    $python = Join-Path $scripts 'python.exe'
+    Assert-StockPath -Path $venv -Directory
+    Assert-StockPath -Path $scripts -Directory
+    Assert-StockPath -Path $python
+    if (Test-Path -LiteralPath $venv) {
+        if (-not (Test-StockVenv -Root $Root)) { throw "Existing venv is incomplete or unusable; it was not replaced: $venv" }
+        return [pscustomobject]@{ Path = $python; UsesVenv = $true; NeedsPythonInstall = $false }
     }
+    $hostPython = Find-StockPython
+    if (-not $hostPython -and -not $Plan) {
+        Install-StockTool -PackageId 'Python.Python.3.12'
+        $hostPython = Find-StockPython
+        if (-not $hostPython) { throw 'Python 3.10 or newer within Python 3 was not found after installation.' }
+    }
+    return [pscustomobject]@{ Path = $hostPython; UsesVenv = $false; NeedsPythonInstall = (-not $hostPython) }
+}
 
-    if (Test-Path -LiteralPath $LinkPath) {
-        Write-Status "[KEEP] Existing legacy path was not modified: $LinkPath" ([ConsoleColor]::DarkYellow)
+function Merge-StockPath {
+    param([AllowNull()][string]$CurrentPath, [string[]]$Entries)
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $parts = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in @($CurrentPath -split ';') + $Entries) {
+        if ([string]::IsNullOrWhiteSpace($entry)) { continue }
+        if ($seen.Add($entry.Trim().TrimEnd('\'))) { $parts.Add($entry) }
+    }
+    return ($parts -join ';')
+}
+
+function Set-StockUserEnvironment {
+    param([string]$Root)
+    $venv = Join-Path $Root '.venv'
+    $values = [ordered]@{
+        STOCK_HOME = $Root; STOCK_REPO = $Root; STOCK_SHARED_ROOT = (Split-Path -Parent $Root)
+        STOCK_VENV = $venv; STOCK_PYTHON = (Join-Path $venv 'Scripts\python.exe'); STOCK_EXTERNAL_REPOS = (Join-Path $Root 'repos')
+    }
+    foreach ($name in $values.Keys) { [Environment]::SetEnvironmentVariable($name, $values[$name], 'User') }
+    $path = Merge-StockPath -CurrentPath ([Environment]::GetEnvironmentVariable('Path', 'User')) -Entries @($Root, (Join-Path $venv 'Scripts'), (Join-Path $Root 'scripts'), (Join-Path $Root 'scripts\setup'), (Join-Path $Root 'scripts\sources'), (Join-Path $Root 'scripts\compat'))
+    [Environment]::SetEnvironmentVariable('Path', $path, 'User')
+}
+
+function Invoke-StockInstall {
+    param([string]$Root = 'D:\stock\GitHub', [string]$PackageRoot, [switch]$ConfigureOnly, [switch]$Plan)
+    $state = Get-StockProjectState -Root $Root
+    if ($ConfigureOnly -and $state -ne 'project') { throw 'ConfigureOnly requires the existing project and its venv.' }
+    if ($state -ne 'project') {
+        if ([IO.Path]::GetFullPath($PackageRoot).TrimEnd('\') -ieq [IO.Path]::GetFullPath($Root).TrimEnd('\')) { throw 'Bootstrap requires the installer from an external checkout.' }
+        if ($Plan) {
+            Write-Host "[PLAN] Clone https://github.com/week833/stock.git into empty target $Root; Git is needed only for this download."
+            Write-Host '[PLAN] Reuse or create venv, install requirements, then configure User environment and PATH.'
+            return
+        }
+        $git = Find-StockGit
+        if (-not $git) { Install-StockTool -PackageId 'Git.Git'; $git = Find-StockGit }
+        if (-not $git) { throw 'Git was not found after installation.' }
+        Invoke-StockCommand -Executable $git -Arguments @('clone', 'https://github.com/week833/stock.git', $Root)
+        if ((Get-StockProjectState -Root $Root) -ne 'project') { throw 'The downloaded project is incomplete.' }
+    }
+    if ($ConfigureOnly -and -not (Test-Path -LiteralPath (Join-Path $Root '.venv') -PathType Container)) { throw 'ConfigureOnly requires a healthy existing venv; run installation first.' }
+    $requirements = Join-Path $Root 'requirements.txt'
+    if (-not $ConfigureOnly) {
+        Assert-StockPath -Path $requirements
+        if (-not (Test-Path -LiteralPath $requirements -PathType Leaf)) { throw "Required file is missing: $requirements" }
+    }
+    $interpreter = Get-StockInterpreter -Root $Root -Plan:$Plan
+    if ($Plan) {
+        Write-Host "[PLAN] Target: $Root; reuse venv: $($interpreter.UsesVenv); install Python: $($interpreter.NeedsPythonInstall)."
+        if (-not $ConfigureOnly) { Write-Host '[PLAN] Create venv if missing, then pip install requirements.txt.' }
+        Write-Host '[PLAN] Configure User environment and append/deduplicate User PATH. No changes made.'
         return
     }
+    $python = Join-Path $Root '.venv\Scripts\python.exe'
+    if (-not $interpreter.UsesVenv) {
+        Invoke-StockCommand -Executable $interpreter.Path -Arguments @('-m', 'venv', (Join-Path $Root '.venv'))
+        if (-not (Test-StockVenv -Root $Root)) { throw 'The new venv is unusable.' }
+    }
+    if (-not $ConfigureOnly) { Invoke-StockCommand -Executable $python -Arguments @('-m', 'pip', 'install', '-r', $requirements) }
+    Set-StockUserEnvironment -Root $Root
+    Write-Host "[OK] Environment ready: $python"
+}
 
+if ($MyInvocation.InvocationName -ne '.') {
+    $ErrorActionPreference = 'Stop'
     try {
-        New-Item -ItemType Junction -Path $LinkPath -Target $TargetPath -Force | Out-Null
-        Write-Status "[LINK] $LinkPath -> $TargetPath" ([ConsoleColor]::Green)
+        $package = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
+        Invoke-StockInstall -PackageRoot $package -ConfigureOnly:$ConfigureOnly -Plan:($Preflight -or $DryRun)
+        exit 0
     }
-    catch {
-        Write-Status "[WARN] Junction creation failed: $($_.Exception.Message)" ([ConsoleColor]::Yellow)
-    }
-}
-
-function Report-PreviousBackups {
-    $backups = @(Get-ChildItem -LiteralPath 'D:\' -Directory -Filter 'stock_backup_*' -ErrorAction SilentlyContinue | Sort-Object Name)
-    if ($backups.Count -eq 0) { return }
-
-    $reportPath = Join-Path $SharedRoot 'PREVIOUS_INSTALLER_BACKUPS.txt'
-    $lines = @(
-        'Previous installer backup folders were found.',
-        'No backup folder was changed by this installer.',
-        'Run RECOVER_MOVED_STOCK_PROGRAMS.cmd to copy their contents into a recovery folder.',
-        ''
-    )
-    $lines += $backups.FullName
-    $lines | Set-Content -LiteralPath $reportPath -Encoding UTF8
-
-    Write-Status '[WARN] Previous installer backup folders were found.' ([ConsoleColor]::Yellow)
-    Write-Status "       Report: $reportPath" ([ConsoleColor]::Yellow)
-}
-
-if ($SelfTest) {
-    Write-Status ''
-    Write-Status '[SELFTEST] Empty status messages are accepted.' ([ConsoleColor]::Green)
-
-    $testRoot = Join-Path $env:TEMP ("stock_safe_root_{0}" -f [guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
-    try {
-        'KEEP_ME' | Set-Content -LiteralPath (Join-Path $testRoot 'unrelated_program.txt') -Encoding ASCII
-        $testInstall = Join-Path $testRoot 'GitHub'
-        if ($testInstall -ne (Join-Path $testRoot 'GitHub')) { throw 'Install path self-test failed.' }
-        if (-not (Test-Path -LiteralPath (Join-Path $testRoot 'unrelated_program.txt'))) {
-            throw 'Unrelated file preservation self-test failed.'
-        }
-    }
-    finally {
-        Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    $testExitCode = 7
-    $testText = "Command failed with exit code ${testExitCode}: self-test"
-    if ($testText -notmatch 'exit code 7') { throw 'Message formatting self-test failed.' }
-
-    Write-Status '[SELFTEST] Safe path and runtime checks passed.' ([ConsoleColor]::Green)
-    exit 0
-}
-
-try {
-    Write-Status '============================================================' ([ConsoleColor]::Cyan)
-    Write-Status ' Stock Toolkit Installer - Safe Mode' ([ConsoleColor]::Cyan)
-    Write-Status '============================================================' ([ConsoleColor]::Cyan)
-    Write-Status "Shared folder: $SharedRoot"
-    Write-Status "Install folder: $InstallRoot"
-    Write-Status "Repository: $RepoUrl"
-    Write-Status "Log file: $LogFile"
-    Write-Status ''
-
-    if (-not (Test-Path -LiteralPath 'D:\')) { throw 'Drive D: was not found.' }
-    if (-not (Test-IsAdministrator)) {
-        Write-Status '[WARN] Administrator privileges were not detected.' ([ConsoleColor]::Yellow)
-    }
-
-    if (-not (Test-Path -LiteralPath $SharedRoot)) {
-        New-Item -ItemType Directory -Path $SharedRoot -Force | Out-Null
-    }
-
-    Report-PreviousBackups
-
-    Write-Status '[1/8] Checking Git...' ([ConsoleColor]::White)
-    $git = Find-Git
-    if (-not $git) {
-        Install-WithWinget -PackageId 'Git.Git' -DisplayName 'Git for Windows'
-        $env:Path = "$env:ProgramFiles\Git\cmd;$env:LOCALAPPDATA\Programs\Git\cmd;$env:Path"
-        $git = Find-Git
-    }
-    if (-not $git) { throw 'git.exe was not found after installation.' }
-    Write-Status "[OK] Git: $git" ([ConsoleColor]::Green)
-
-    Write-Status '[2/8] Checking Python 3.10 through 3.12...' ([ConsoleColor]::White)
-    $python = Find-Python
-    if (-not $python) {
-        Install-WithWinget -PackageId 'Python.Python.3.12' -DisplayName 'Python 3.12'
-        $env:Path = "$env:LOCALAPPDATA\Programs\Python\Python312;$env:LOCALAPPDATA\Programs\Python\Python312\Scripts;$env:LOCALAPPDATA\Programs\Python\Launcher;$env:Path"
-        $python = Find-Python
-    }
-    if (-not $python) { throw 'A supported Python 3.10 through 3.12 executable was not found.' }
-    Write-Status "[OK] Python: $python" ([ConsoleColor]::Green)
-
-    Write-Status '[3/8] Creating or updating the repository safely...' ([ConsoleColor]::White)
-    Write-Status '[SAFE] Existing files directly under D:\stock will not be moved, deleted, or renamed.' ([ConsoleColor]::Green)
-
-    if (Test-ExpectedRepository -GitPath $git -RepositoryPath $InstallRoot) {
-        $trackedChanges = & $git -C $InstallRoot status --porcelain --untracked-files=no
-        if ($LASTEXITCODE -ne 0) { throw "Unable to inspect repository status: $InstallRoot" }
-        if ($trackedChanges) {
-            Write-Status '[WARN] Tracked local changes exist. Git update was skipped.' ([ConsoleColor]::Yellow)
-        }
-        else {
-            Invoke-Native -FilePath $git -Arguments @('-C', $InstallRoot, 'fetch', '--prune')
-            Invoke-Native -FilePath $git -Arguments @('-C', $InstallRoot, 'checkout', 'main')
-            Invoke-Native -FilePath $git -Arguments @('-C', $InstallRoot, 'pull', '--ff-only', 'origin', 'main')
-        }
-    }
-    else {
-        if (Test-Path -LiteralPath $InstallRoot) {
-            if (-not (Test-DirectoryEmpty -Path $InstallRoot)) {
-                throw "D:\stock\GitHub already contains other files. Nothing was moved or deleted. Clear or rename only that subfolder, then run the installer again."
-            }
-        }
-        Invoke-Native -FilePath $git -Arguments @('clone', $RepoUrl, $InstallRoot)
-    }
-
-    Write-Status '[4/8] Creating or repairing the Python virtual environment...' ([ConsoleColor]::White)
-    $venvDir = Join-Path $InstallRoot '.venv'
-    $venvPython = Join-Path $venvDir 'Scripts\python.exe'
-
-    if (Test-Path -LiteralPath $venvDir) {
-        if (-not (Test-Path -LiteralPath $venvPython)) {
-            throw "The managed virtual environment is incomplete: $venvDir. It was not moved or deleted. Rename only this .venv folder and run again."
-        }
-        & $venvPython -c "import sys; print(sys.executable)" *> $null
-        if ($LASTEXITCODE -ne 0) {
-            throw "The managed virtual environment is invalid: $venvDir. It was not moved or deleted. Rename only this .venv folder and run again."
-        }
-    }
-    else {
-        Invoke-Native -FilePath $python -Arguments @('-m', 'venv', $venvDir)
-    }
-
-    Invoke-Native -FilePath $venvPython -Arguments @('-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel')
-    Invoke-Native -FilePath $venvPython -Arguments @('-m', 'pip', 'install', '-r', (Join-Path $InstallRoot 'requirements.txt'))
-
-    Write-Status '[5/8] Configuring user environment variables and PATH...' ([ConsoleColor]::White)
-    $environmentVariables = @{
-        STOCK_HOME = $InstallRoot
-        STOCK_REPO = $InstallRoot
-        STOCK_SHARED_ROOT = $SharedRoot
-        STOCK_VENV = $venvDir
-        STOCK_PYTHON = $venvPython
-        STOCK_EXTERNAL_REPOS = (Join-Path $InstallRoot 'external_repos')
-        PYTHONUTF8 = '1'
-        PYTHONIOENCODING = 'utf-8'
-    }
-    foreach ($name in $environmentVariables.Keys) {
-        [Environment]::SetEnvironmentVariable($name, $environmentVariables[$name], 'User')
-        Set-Item -Path "Env:$name" -Value $environmentVariables[$name]
-    }
-
-    $pathEntries = @(
-        $InstallRoot,
-        (Join-Path $venvDir 'Scripts'),
-        (Join-Path $InstallRoot 'scripts'),
-        (Join-Path $InstallRoot 'scripts\setup'),
-        (Join-Path $InstallRoot 'scripts\sources'),
-        (Join-Path $InstallRoot 'scripts\compat')
-    )
-    Add-UserPathEntries -Entries $pathEntries
-    $env:Path = (($pathEntries -join ';') + ';' + $env:Path)
-
-    Write-Status '[6/8] Creating the optional legacy path junction...' ([ConsoleColor]::White)
-    Ensure-LegacyJunction -LinkPath $LegacyRoot -TargetPath $InstallRoot
-
-    $env:STOCK_TOOLKIT_NO_PAUSE = '1'
-    $repairScript = Join-Path $InstallRoot 'scripts\compat\repair_legacy_paths.cmd'
-    if (Test-Path -LiteralPath $repairScript) { Invoke-CmdScript -ScriptPath $repairScript }
-
-    Write-Status '[7/8] Verifying the core environment...' ([ConsoleColor]::White)
-    Invoke-Native -FilePath $venvPython -Arguments @(
-        '-c',
-        "import sys, FinMind, twstock, pandas, numpy, requests, yfinance, matplotlib, openpyxl; print(sys.executable); print('D_STOCK_ENV_OK')"
-    )
-
-    if ($Full) {
-        Write-Status '[8/8] Downloading all primary, large, and legacy research repositories...' ([ConsoleColor]::White)
-        Invoke-CmdScript -ScriptPath (Join-Path $InstallRoot 'scripts\sources\clone_stock_analysis_repos.cmd')
-        $legacySourceScript = Join-Path $InstallRoot 'scripts\sources\clone_legacy_compat_repos.cmd'
-        if (Test-Path -LiteralPath $legacySourceScript) { Invoke-CmdScript -ScriptPath $legacySourceScript }
-        if (Test-Path -LiteralPath $repairScript) { Invoke-CmdScript -ScriptPath $repairScript }
-    }
-    else {
-        Write-Status '[8/8] Large external repositories were skipped.' ([ConsoleColor]::DarkYellow)
-    }
-
-    Remove-Item Env:STOCK_TOOLKIT_NO_PAUSE -ErrorAction SilentlyContinue
-    Write-Status ''
-    Write-Status '============================================================' ([ConsoleColor]::Green)
-    Write-Status ' Installation completed without modifying unrelated programs' ([ConsoleColor]::Green)
-    Write-Status '============================================================' ([ConsoleColor]::Green)
-    Write-Status "Install root: $InstallRoot"
-    Write-Status "Python: $venvPython"
-    Write-Status "Shared folder preserved: $SharedRoot"
-    Write-Status "Legacy path: $LegacyRoot"
-    Write-Status 'Restart applications to load the updated user PATH.'
-    exit 0
-}
-catch {
-    Remove-Item Env:STOCK_TOOLKIT_NO_PAUSE -ErrorAction SilentlyContinue
-    Write-Status ''
-    Write-Status '[ERROR] Installation failed safely. Unrelated files were not moved or deleted.' ([ConsoleColor]::Red)
-    Write-Status $_.Exception.Message ([ConsoleColor]::Red)
-    ($_ | Format-List * -Force | Out-String) | Add-Content -LiteralPath $LogFile -Encoding UTF8
-    Write-Status "Review the log file: $LogFile" ([ConsoleColor]::Yellow)
-    exit 1
+    catch { Write-Host ('[ERROR] ' + $_.Exception.Message); exit 1 }
 }

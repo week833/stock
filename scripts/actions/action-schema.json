@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Stock semantic action request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "action": {
+      "type": "string",
+      "enum": [
+        "environment.preflight",
+        "environment.install_core",
+        "environment.install_full",
+        "sources.check_primary",
+        "sources.sync_primary",
+        "sources.check_legacy",
+        "sources.sync_legacy",
+        "environment.configure_preflight",
+        "environment.configure",
+        "environment.verify",
+        "paths.repair_check",
+        "paths.repair_apply",
+        "terminal.open"
+      ]
+    },
+    "workflow": {
+      "type": "string",
+      "enum": ["verify-only", "safe-setup", "full-install"]
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow_repair_apply": { "type": "boolean" }
+      }
+    }
+  },
+  "required": ["schema_version"],
+  "oneOf": [
+    { "required": ["action"], "not": { "required": ["workflow"] } },
+    { "required": ["workflow"], "not": { "required": ["action"] } }
+  ]
+}

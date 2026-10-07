@@ -3,136 +3,36 @@ name: Validate Windows installers
 on:
   push:
     paths:
-      - 'INSTALL_D_STOCK_ENV.cmd'
-      - 'INSTALL_D_STOCK_ENV_FULL.cmd'
-      - 'RECOVER_MOVED_STOCK_PROGRAMS.cmd'
-      - 'CREATE_OR_RECOVER_ENV.cmd'
+      - '*.cmd'
+      - 'scripts/setup/**'
+      - 'scripts/sources/**'
+      - 'scripts/compat/**'
+      - 'scripts/actions/**'
+      - 'tests/installer/**'
       - '.env.example'
       - '.gitignore'
-      - 'OPEN_STOCK_TERMINAL.cmd'
-      - 'RUN_STOCK_PYTHON.cmd'
-      - 'scripts/setup/install_d_stock_env.ps1'
-      - 'scripts/setup/create_or_recover_env.ps1'
-      - 'scripts/setup/configure_windows_environment.cmd'
-      - 'scripts/sources/clone_stock_analysis_repos.cmd'
-      - 'scripts/sources/clone_legacy_compat_repos.cmd'
-      - 'scripts/compat/repair_legacy_paths.cmd'
-      - 'scripts/compat/recover_previous_stock_backups.ps1'
-      - 'scripts/compat/verify_stock_environment.cmd'
       - '.github/workflows/validate-windows-installers.yml'
   pull_request:
     paths:
-      - 'INSTALL_D_STOCK_ENV.cmd'
-      - 'INSTALL_D_STOCK_ENV_FULL.cmd'
-      - 'RECOVER_MOVED_STOCK_PROGRAMS.cmd'
-      - 'CREATE_OR_RECOVER_ENV.cmd'
+      - '*.cmd'
+      - 'scripts/setup/**'
+      - 'scripts/sources/**'
+      - 'scripts/compat/**'
+      - 'scripts/actions/**'
+      - 'tests/installer/**'
       - '.env.example'
       - '.gitignore'
-      - 'OPEN_STOCK_TERMINAL.cmd'
-      - 'RUN_STOCK_PYTHON.cmd'
-      - 'scripts/setup/install_d_stock_env.ps1'
-      - 'scripts/setup/create_or_recover_env.ps1'
-      - 'scripts/setup/configure_windows_environment.cmd'
-      - 'scripts/sources/clone_stock_analysis_repos.cmd'
-      - 'scripts/sources/clone_legacy_compat_repos.cmd'
-      - 'scripts/compat/repair_legacy_paths.cmd'
-      - 'scripts/compat/recover_previous_stock_backups.ps1'
-      - 'scripts/compat/verify_stock_environment.cmd'
       - '.github/workflows/validate-windows-installers.yml'
   workflow_dispatch:
 
 jobs:
   validate:
     runs-on: windows-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Parse PowerShell scripts and enforce ASCII compatibility
+      - name: Parse scripts and run private installer smoke checks
         shell: powershell
         run: |
-          $paths = @(
-            (Join-Path $env:GITHUB_WORKSPACE 'scripts\setup\install_d_stock_env.ps1'),
-            (Join-Path $env:GITHUB_WORKSPACE 'scripts\setup\create_or_recover_env.ps1'),
-            (Join-Path $env:GITHUB_WORKSPACE 'scripts\compat\recover_previous_stock_backups.ps1')
-          )
-
-          foreach ($path in $paths) {
-            $tokens = $null
-            $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors) | Out-Null
-            if ($errors.Count -gt 0) {
-              $errors | Format-List *
-              exit 1
-            }
-          }
-
-          foreach ($path in $paths[0..1]) {
-            $bytes = [System.IO.File]::ReadAllBytes($path)
-            $nonAscii = @($bytes | Where-Object { $_ -gt 127 })
-            if ($nonAscii.Count -gt 0) {
-              throw "PowerShell 5.1 compatibility requires ASCII-only content: $path"
-            }
-          }
-
-      - name: Validate env template and ignore rules
-        shell: powershell
-        run: |
-          $example = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\.env.example" -Raw
-          foreach ($name in @('FINMIND_TOKEN', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY')) {
-            $pattern = '(?m)^' + [Regex]::Escape($name) + '=\r?$'
-            if ($example -notmatch $pattern) {
-              throw ".env.example must contain an empty $name placeholder."
-            }
-          }
-
-          $ignore = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\.gitignore"
-          if (-not ($ignore -contains '.env')) {
-            throw '.gitignore must ignore .env.'
-          }
-
-      - name: Validate safe source download scripts
-        shell: powershell
-        run: |
-          $scripts = @(
-            (Join-Path $env:GITHUB_WORKSPACE 'scripts\sources\clone_stock_analysis_repos.cmd'),
-            (Join-Path $env:GITHUB_WORKSPACE 'scripts\sources\clone_legacy_compat_repos.cmd')
-          )
-
-          foreach ($path in $scripts) {
-            $text = Get-Content -LiteralPath $path -Raw
-            if ($text -match '(?im)^\s*move\s+') {
-              throw "Source downloader must not move existing folders: $path"
-            }
-            foreach ($required in @('FAILED_COUNT', 'if errorlevel 1', 'exit /b 1', 'git -C')) {
-              if ($text -notmatch [Regex]::Escape($required)) {
-                throw "Missing required failure handling '$required' in $path"
-              }
-            }
-          }
-
-      - name: Run PowerShell installer runtime and file-preservation self-test
-        shell: powershell
-        run: |
-          $global:LASTEXITCODE = 0
-          & "$env:GITHUB_WORKSPACE\scripts\setup\install_d_stock_env.ps1" -SelfTest
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
-
-      - name: Validate standard CMD launcher
-        shell: cmd
-        run: INSTALL_D_STOCK_ENV.cmd /CHECK
-
-      - name: Validate full CMD launcher
-        shell: cmd
-        run: INSTALL_D_STOCK_ENV_FULL.cmd /CHECK
-
-      - name: Validate recovery tool list mode
-        shell: powershell
-        run: |
-          & "$env:GITHUB_WORKSPACE\scripts\compat\recover_previous_stock_backups.ps1" -ListOnly
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+          & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$env:GITHUB_WORKSPACE\tests\installer\Test-InstallerIntegration.ps1" -CiMode
+          exit $LASTEXITCODE

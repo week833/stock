@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "workflow": "full-install",
+  "description": "Run the approved full installer and verify the result.",
+  "actions": ["environment.install_full", "environment.verify"]
+}

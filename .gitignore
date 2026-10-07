@@ -19,9 +19,29 @@ __pycache__/
 *.log
 install_tw_stock_ai_env.log
 
+# Semantic action session logs and last-session pointer
+/logs/sessions/
+
 # External repositories cloned locally
-external_repos/
+!/repos/
+repos/*
+!/repos/.source_provenance.json
 github_sources/
+
+# Legacy top-level external clone compatibility junctions
+/andrej-karpathy-skills/
+/audio-tldr-skill/
+/claude-code/
+/claude-code-i18n/
+/claude-code-resources/
+/de-ai-tone/
+/harness-engineering/
+/skills/
+/stocktw/
+/stock_related/
+
+# Retained duplicate checkout; keep it outside this repository's tracked scope
+/stock/
 
 # Generated outputs
 reports/

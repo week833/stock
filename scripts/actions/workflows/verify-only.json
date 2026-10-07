@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "workflow": "verify-only",
+  "description": "Run the read-only environment verifier.",
+  "actions": ["environment.verify"]
+}

@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "workflow": "safe-setup",
+  "description": "Preflight, check primary sources, and verify without writes.",
+  "actions": ["environment.preflight", "sources.check_primary", "environment.verify"]
+}

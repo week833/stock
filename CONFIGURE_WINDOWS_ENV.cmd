@@ -1,14 +1,23 @@
 @echo off
-chcp 65001 >nul
-setlocal EnableExtensions
-
-set "TARGET=D:\stock\scripts\setup\configure_windows_environment.cmd"
-if not exist "%TARGET%" (
-    echo [ERROR] 找不到：%TARGET%
-    echo 請先執行 INSTALL_D_STOCK_ENV.cmd。
-    pause
+setlocal EnableExtensions DisableDelayedExpansion
+set "ERRORLEVEL="
+set "CORE=D:\stock\GitHub\scripts\setup\install_d_stock_env.ps1"
+set "ARGS=-ConfigureOnly"
+if "%~1"=="" goto :run
+if not "%~2"=="" goto :bad_argument
+if /I "%~1"=="/PREFLIGHT" goto :check
+if /I "%~1"=="/DRY-RUN" goto :check
+if /I "%~1"=="/CHECK" goto :check
+goto :bad_argument
+:check
+set "ARGS=-ConfigureOnly -Preflight -DryRun"
+:run
+if not exist "%CORE%" (
+    echo [ERROR] Installer core is missing: %CORE%
     exit /b 1
 )
-
-call "%TARGET%" %*
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%CORE%" %ARGS%
 exit /b %ERRORLEVEL%
+:bad_argument
+echo [ERROR] Allowed: /PREFLIGHT, /DRY-RUN, /CHECK, or no option.
+exit /b 2

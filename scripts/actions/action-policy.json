@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "allowed_root": "D:\\stock\\GitHub",
+  "expected_origin": "https://github.com/week833/stock.git",
+  "origin_normalization": ["trim", "remove_trailing_slash", "remove_terminal_dot_git", "case_insensitive"],
+  "unknown_content": "stop_without_modification",
+  "high_risk_actions": ["paths.repair_apply"],
+  "high_risk_replay_default": "blocked",
+  "terminal_replay": "forbidden",
+  "raw_command_fields": ["command", "commands", "shell", "script", "script_path", "executable", "args", "arguments"]
+}

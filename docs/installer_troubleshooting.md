@@ -10,24 +10,27 @@ if !ERRORLEVEL! NEQ (
 
 缺少比較值 `0`，會觸發 CMD 語法錯誤，雙擊執行時可能只看到視窗短暫出現後關閉。
 
-目前已改為：
+## 目前使用方式
 
-- 根目錄 `INSTALL_D_STOCK_ENV.cmd` 只負責穩定啟動與保留視窗。
-- 實際安裝邏輯移至 `scripts/setup/install_d_stock_env.ps1`。
-- 發生錯誤時一定顯示錯誤碼並等待按鍵。
-- 完整紀錄寫入 `%TEMP%\install_d_stock_env.log`。
-- 若從 GitHub 單獨下載 CMD，啟動器會自動下載最新 PowerShell 安裝核心。
+下載完整專案後雙擊 `STOCK_SETUP_MANAGER.cmd`，選項 1 安裝環境，選項 6 做基本檢查。
+也可直接使用 `INSTALL_D_STOCK_ENV.cmd`；FULL 入口會在環境安裝後接著下載 core 來源。
+`/PREFLIGHT`、`/DRY-RUN`（及相容的 `/CHECK`）只顯示計畫。
+
+安裝使用 `D:\stock\GitHub\.venv`。優先沿用有效 venv；需要新建時才找 Python 3.x >= 3.10，缺少時以 winget 安裝 Python 3.12。
+wrapper 不強制 UAC；Git 只在 clone 缺少的專案或新來源時需要。已有來源目錄提示略過，不自動更新。
+基本檢查只確認專案標記與固定 Python 啟動／版本；User PATH、研究來源與完整套件檢查不是其門檻。
 
 ## 電腦中找到的舊版安裝器
 
-舊版 `install_tw_stock_ai_env.cmd` 類型的安裝器可以：
+舊版 `install_tw_stock_ai_env.cmd` 類型的安裝器（以下是歷史行為，不是目前 fixed-root
+契約）可以：
 
 - 建立 `D:\stock`。
 - 建立 `D:\stock\.venv`。
 - 安裝 FinMind、twstock、pandas、yfinance 等核心套件。
 - 下載少量早期參考 repository。
 
-但它不能完整達成目前需求，因為它不會：
+當時它未提供以下功能：
 
 - clone 或更新 `week833/stock` 到 `D:\stock`。
 - 設定 `STOCK_HOME`、`STOCK_PYTHON`、`STOCK_VENV` 等 Windows 使用者環境變數。
@@ -36,23 +39,13 @@ if !ERRORLEVEL! NEQ (
 - 依目前分類結構下載及管理完整外部來源。
 - 驗證 CMD、PowerShell、VS Code、排程器等應用程式使用環境。
 
-因此它只能作為核心 Python 套件的備用安裝器；完整安裝請使用根目錄的：
+目前請使用 `D:\stock\GitHub` 的選單與固定 venv；既有 `D:\stock\.venv` 屬於其他入口，不要替換。
 
-```cmd
-INSTALL_D_STOCK_ENV.cmd
-```
+## 常見問題
 
-## 建議排錯方式
+- 目標已有非空內容但缺少 `STOCK_SETUP_MANAGER.cmd` 或 `scripts\setup\install_d_stock_env.ps1`：停止並確認資料夾內容，不搬移、刪除或覆寫。
+- 固定 Python 無法啟動：用選單 1 安裝環境；既有損壞的 venv 不會被自動刪除或重建。
+- 新開的應用程式看不到環境：選單 4 重設 ENV/PATH，再重新開啟 CMD、PowerShell 或 VS Code。
+- 舊路徑 target 尚未下載：修復會顯示 SKIP；外部研究來源為可選，不阻擋基本 Python 檢查。
 
-不要直接依賴雙擊後消失的視窗。可以開啟 CMD 後執行：
-
-```cmd
-cd /d 下載安裝檔的資料夾
-INSTALL_D_STOCK_ENV.cmd
-```
-
-若失敗，查看：
-
-```text
-%TEMP%\install_d_stock_env.log
-```
+需要查看安裝訊息，可先開 CMD，再執行完整專案內的 `INSTALL_D_STOCK_ENV.cmd`。新版不再建立舊的 TEMP 安裝 log。

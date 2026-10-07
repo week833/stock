@@ -4,7 +4,7 @@
   "observed_at": "2026-07-28T08:07:43+08:00",
   "application": {
     "product": "三竹股市電腦版",
-    "runtime_path": "D:\\Downloads\\MitakeGU\\三竹股市.exe",
+    "runtime_path": "D:\\MitakeGU\\三竹股市.exe",
     "sha256": "d0370843407344453a12901301e6857b6d27e2b41078b2b520f359d932c99217",
     "window": {
       "width": 1400,

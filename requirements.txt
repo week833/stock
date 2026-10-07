@@ -3,6 +3,7 @@ twstock
 requests
 pandas
 numpy
+scikit-learn
 yfinance
 feedparser
 anthropic
