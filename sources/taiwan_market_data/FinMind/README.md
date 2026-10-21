@@ -5,7 +5,7 @@
 | 原始來源 | `FinMind/FinMind` |
 | GitHub | https://github.com/FinMind/FinMind |
 | 預設分支 | `master` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/FinMind/` |
 
 ## 用途

@@ -5,7 +5,7 @@
 | 原始來源 | `Nixtla/neuralforecast` |
 | GitHub | https://github.com/Nixtla/neuralforecast |
 | 預設分支 | `main` |
-| 分類 | AI、機器學習與時間序列預測 |
+| 分類 | 機器學習與時間序列預測 |
 | 本機下載位置 | `repos/machine_learning_forecasting/neuralforecast/` |
 
 ## 用途

@@ -5,7 +5,7 @@
 | 原始來源 | `dcajasn/Riskfolio-Lib` |
 | GitHub | https://github.com/dcajasn/Riskfolio-Lib |
 | 預設分支 | `master` |
-| 分類 | 技術指標、因子、績效與投組風控 |
+| 分類 | 量化工具、因子、績效與投組風控 |
 | 本機下載位置 | `repos/quant_portfolio_risk/Riskfolio-Lib/` |
 
 ## 用途

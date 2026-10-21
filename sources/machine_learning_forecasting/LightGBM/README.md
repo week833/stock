@@ -4,8 +4,8 @@
 |---|---|
 | 原始來源 | `lightgbm-org/LightGBM` |
 | GitHub | https://github.com/lightgbm-org/LightGBM |
-| 預設分支 | `master` |
-| 分類 | AI、機器學習與時間序列預測 |
+| 預設分支 | `main` |
+| 分類 | 機器學習與時間序列預測 |
 | 本機下載位置 | `repos/machine_learning_forecasting/LightGBM/` |
 
 ## 用途

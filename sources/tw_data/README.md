@@ -1,6 +1,8 @@
 # 台股與既有股票分析來源
 
-此分類共有 **6** 個外部來源。每個來源均有獨立資料夾，避免文件、程式與下載內容互相混淆。
+> 此資料夾是舊分類名稱 `tw_data` 的說明副本；現行分類為 [`taiwan_market_data`](../taiwan_market_data/)（7 個來源，含 2026-10-07 同步進本 repository 的 `stocktw`）。`repos/tw_data` 是可選的相容 junction，指向 `repos/taiwan_market_data`：只有明示執行 `REPAIR_STOCK_PATHS.cmd --apply --confirm` 且當時 target 已存在才會建立，安裝與基本檢查不會自動建立；它不是實體下載位置。
+
+此副本列出 **6** 個外部來源（不含 `stocktw`）。每個來源均有獨立資料夾，避免文件、程式與下載內容互相混淆。
 
 | 資料夾 | 原始 repository | 分支 | 用途 |
 |---|---|---:|---|
@@ -14,7 +16,9 @@
 實際 clone 的原始碼會存放在：
 
 ```txt
-repos/tw_data/
+repos/taiwan_market_data/
 ```
+
+`repos/tw_data/` 只用於可選的相容 junction；請勿直接 clone 到該路徑，否則實體資料夾會使相容路徑修復停止。
 
 `repos/` 已由 `.gitignore` 排除，不會誤提交外部原始碼。

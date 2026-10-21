@@ -1,5 +1,7 @@
 # AI、機器學習與時間序列預測
 
+> 此資料夾是舊分類名稱 `ml` 的說明副本；現行分類為 [`machine_learning_forecasting`](../machine_learning_forecasting/)（12 個來源）。`repos/ml` 是可選的相容 junction，指向 `repos/machine_learning_forecasting`：只有明示執行 `REPAIR_STOCK_PATHS.cmd --apply --confirm` 且當時 target 已存在才會建立，安裝與基本檢查不會自動建立；它不是實體下載位置。
+
 此分類共有 **12** 個外部來源。每個來源均有獨立資料夾，避免文件、程式與下載內容互相混淆。
 
 | 資料夾 | 原始 repository | 分支 | 用途 |
@@ -10,17 +12,19 @@
 | [mlforecast](./mlforecast/) | `Nixtla/mlforecast` | `main` | 以 LightGBM、XGBoost、sklearn 進行可擴展時間序列預測。 |
 | [neuralforecast](./neuralforecast/) | `Nixtla/neuralforecast` | `main` | N-BEATS、NHITS、TFT、DeepAR 等神經網路 forecasting。 |
 | [statsforecast](./statsforecast/) | `Nixtla/statsforecast` | `main` | AutoARIMA、ETS、Theta、MSTL 等統計基準模型。 |
-| [LightGBM](./LightGBM/) | `lightgbm-org/LightGBM` | `master` | 高效率梯度提升模型，適合台股分類、回歸與排序。 |
+| [LightGBM](./LightGBM/) | `lightgbm-org/LightGBM` | `main` | 高效率梯度提升模型，適合台股分類、回歸與排序。 |
 | [xgboost](./xgboost/) | `dmlc/xgboost` | `master` | 梯度提升模型，可與 LightGBM、CatBoost 建立 ensemble。 |
 | [catboost](./catboost/) | `catboost/catboost` | `master` | 可原生處理產業、族群與題材等類別特徵。 |
 | [optuna](./optuna/) | `optuna/optuna` | `master` | 模型超參數搜尋、試驗剪枝與最佳化。 |
-| [shap](./shap/) | `shap/shap` | `master` | 用 SHAP 解釋模型推薦原因與因子貢獻。 |
+| [shap](./shap/) | `shap/shap` | `main` | 用 SHAP 解釋模型推薦原因與因子貢獻。 |
 | [freqtrade](./freqtrade/) | `freqtrade/freqtrade` | `develop` | 交易系統、回測、風控、策略最佳化與 FreqAI 架構參考。 |
 
 實際 clone 的原始碼會存放在：
 
 ```txt
-repos/ml/
+repos/machine_learning_forecasting/
 ```
+
+`repos/ml/` 只用於可選的相容 junction；請勿直接 clone 到該路徑，否則實體資料夾會使相容路徑修復停止。
 
 `repos/` 已由 `.gitignore` 排除，不會誤提交外部原始碼。

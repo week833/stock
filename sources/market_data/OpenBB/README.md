@@ -6,7 +6,7 @@
 | GitHub | https://github.com/OpenBB-finance/OpenBB |
 | 預設分支 | `develop` |
 | 分類 | 金融資料與市場研究平台 |
-| 本機下載位置 | `repos/market_data/OpenBB/` |
+| 本機下載位置 | `repos/global_market_data/OpenBB/` |
 
 ## 用途
 
@@ -15,7 +15,7 @@
 ## 下載
 
 ```cmd
-git clone https://github.com/OpenBB-finance/OpenBB.git repos\market_data\OpenBB
+git clone https://github.com/OpenBB-finance/OpenBB.git repos\global_market_data\OpenBB
 ```
 
 > 本資料夾只保存來源資訊，不直接複製外部專案原始碼。請依原始 repository 的授權條款使用。

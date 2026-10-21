@@ -5,7 +5,7 @@
 | 原始來源 | `sacahan/CasualMarket` |
 | GitHub | https://github.com/sacahan/CasualMarket |
 | 預設分支 | `main` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/CasualMarket/` |
 
 ## 用途

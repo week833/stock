@@ -2,7 +2,7 @@
 
 ## 結果
 
-2026-07-28 以正在執行的 `D:\Downloads\MitakeGU\三竹股市.exe` 實機盤點：
+2026-07-28 以正在執行的三竹股市電腦版實機盤點（盤點當時執行檔位於 `D:\Downloads\MitakeGU\三竹股市.exe`；[capabilities.json](./capabilities.json) 的 `runtime_path` 已於 2026-10-07 更新為目前位置 `D:\MitakeGU\三竹股市.exe`；`sha256` 與 `observed_at` 欄位沿用 2026-07-28 盤點值，新位置未重新量測）：
 
 - 點擊目前版面全部 **34 個可見頂端導覽／快捷頁籤**。
 - 成功開啟並讀取 **24 個子視窗**，點擊錯誤 **0**。
@@ -61,7 +61,7 @@
 | 主力追蹤的焦點主力、交易高手、外資券商、官股行庫、常用、搜尋，以及五日進出、投資喜好、喜好標的 | `schema_ready` | 完成 point-in-time 回測前封鎖 |
 | 個股新聞、趨勢分析、個股診斷 | `validated_ui_open` | 只進報告與校正歷史，直接預測權重固定為 0 |
 
-可重用介面：
+可重用介面（模組位於本機 `D:\stock\programs\full_market_analysis\`，見 [capabilities.json](./capabilities.json)；不在本 repository 內）：
 
 ```python
 from tw_mitake_broker_screen import (

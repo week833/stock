@@ -31,13 +31,13 @@ week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://
 | [ai-trader](https://github.com/week833/ai-trader) | **AI 代理交易平台**（內含上述 6 個交易 Skill）；**只支援美股、加密貨幣與 Polymarket，不支援台股**，使用模擬資金 | Fork（上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)） |
 | [stock-mitake-ui-reference](https://github.com/week833/stock-mitake-ui-reference) | **三竹股市介面導航與操作安全規範**（公開包 `2.1.0`，82 項功能語意投影）；不是 API、不下單 | 參考文件 |
 
-股票外部來源、歷史文件與待評估刪除候選，集中見 **[股票來源與歷史資料待評估清單](source-review.md)**（該頁仍是 2026-09-18 查證、36 個來源時的版本）。目前 `scripts/sources/source_manifest_v1.json` 列出 39 個可選外部研究來源（37 primary＋2 legacy），這是本庫維護的來源索引，不是帳號另外擁有的 39 個儲存庫。
+股票外部來源、歷史文件與待評估刪除候選，集中見 **[股票來源與歷史資料待評估清單](source-review.md)**（該頁評估內容為 2026-09-18 查證；2026-10-21 已複查來源數量、路徑與部分上游分支 HEAD，2026-10-07 同步進本 repository 的 `stocktw` 尚未評估）。目前 `scripts/sources/source_manifest_v1.json` 列出 39 個可選外部研究來源（37 primary＋2 legacy），這是本庫維護的來源索引，不是帳號另外擁有的 39 個儲存庫。
 
 ## 📊 簡報製作
 
 | 專案 | 用途 | 型態 |
 |---|---|---|
-| [ppt-master](https://github.com/week833/ppt-master)（Skill：[skills/ppt-master](https://github.com/week833/ppt-master/tree/main/skills/ppt-master)） | **`ppt-master` Skill：用 AI 生成可編輯 PPTX 簡報**，支援範本填入、重建與美化既有簡報；本 Fork 沒有自有修改，停在上游 `5.1.0`，最新版見上游 | Fork（上游 [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)） |
+| [ppt-master](https://github.com/week833/ppt-master)（Skill：[skills/ppt-master](https://github.com/week833/ppt-master/tree/main/skills/ppt-master)） | **`ppt-master` Skill：用 AI 生成可編輯 PPTX 簡報**，支援範本填入、重建與美化既有簡報；本 Fork 沒有自有修改，`main` 已於 2026-10-21 快轉同步至上游 `main`（`604ecde`，`SKILL.md` 版本 `6.7.2`；`skills/ppt-master` 共 13,025 個檔案、約 37 MiB，其中 `templates/` 12,450 個）；Fork 的 `v6` 分支仍停在 `5.1.0`（`d6bcaf9`） | Fork（上游 [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)） |
 
 ## 🖥️ Windows 桌面自動化
 

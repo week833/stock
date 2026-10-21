@@ -5,7 +5,7 @@
 | 原始來源 | `ZhuLinsen/daily_stock_analysis` |
 | GitHub | https://github.com/ZhuLinsen/daily_stock_analysis |
 | 預設分支 | `main` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/daily_stock_analysis/` |
 
 ## 用途

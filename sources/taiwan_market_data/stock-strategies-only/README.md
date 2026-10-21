@@ -5,7 +5,7 @@
 | 原始來源 | `kevin801221/stock-strategies-only` |
 | GitHub | https://github.com/kevin801221/stock-strategies-only |
 | 預設分支 | `main` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/stock-strategies-only/` |
 
 ## 用途
