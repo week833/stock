@@ -2,7 +2,8 @@
   "schema_version": "1.0",
   "type": "semantic_action_manifest",
   "allowed_root": "D:\\stock\\GitHub",
-  "expected_origin": "https://github.com/week833/stock.git",
+  "root_markers": ["STOCK_SETUP_MANAGER.cmd", "scripts\\setup\\install_d_stock_env.ps1"],
+  "origin_check": "not_checked",
   "actions": [
     { "name": "environment.preflight", "wrapper": "INSTALL_D_STOCK_ENV.cmd", "arguments": ["/PREFLIGHT"], "risk": "safe", "replayable": true },
     { "name": "environment.install_core", "wrapper": "INSTALL_D_STOCK_ENV.cmd", "arguments": [], "risk": "write", "replayable": true },

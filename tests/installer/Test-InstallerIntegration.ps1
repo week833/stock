@@ -101,6 +101,23 @@ function Test-ExistingSource([string]$Fixture) {
     Write-Host 'existing_source_not_cloned: PASS'
 }
 
+function Test-DefaultCoreCheck([string]$Fixture) {
+    . $sourcePath
+    $manifestPath = Join-Path $projectRoot 'scripts\sources\source_manifest_v1.json'
+    $manifest = [IO.File]::ReadAllText($manifestPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $core = @($manifest.sources | Where-Object { $_.scope -eq 'primary' -and $_.default_install })
+    $externalCalls = [Collections.Generic.List[string]]::new()
+    function Resolve-SourceGit { $externalCalls.Add('resolve-git'); throw 'Check mode must not need Git' }
+    function Invoke-SourceClone { param($GitPath, $Url, $PendingPath); $externalCalls.Add('clone'); throw 'Check mode must not clone' }
+    $result = @(Invoke-SourceDownload -Root $Fixture -ManifestPath $manifestPath -Check)
+    $selectedUrls = (@($result | ForEach-Object { [string]$_.Url }) | Sort-Object) -join '|'
+    $coreUrls = (@($core | ForEach-Object { [string]$_.url }) | Sort-Object) -join '|'
+    Assert-Smoke ($core.Count -gt 0 -and $result.Count -eq $core.Count -and $selectedUrls -ceq $coreUrls) 'Default source selection is not the default_install primary set'
+    Assert-Smoke (@($result | Where-Object { $_.Status -ne 'planned' }).Count -eq 0) 'Check mode changed a missing source'
+    Assert-Smoke ($externalCalls.Count -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $Fixture 'repos'))) 'Check mode invoked Git or created repos'
+    Write-Host 'default_core_check_read_only: PASS'
+}
+
 function Test-MissingOptionalRepair([string]$Fixture) {
     . $repairPath
     $repository = Join-Path $Fixture 'repository'
@@ -150,8 +167,9 @@ try {
     Test-NonProjectTarget (Join-Path $fixture 'non-project')
     Test-HealthyVenv (Join-Path $fixture 'healthy-venv')
     Test-ExistingSource (Join-Path $fixture 'existing-source')
+    Test-DefaultCoreCheck (Join-Path $fixture 'default-core')
     Test-MissingOptionalRepair (Join-Path $fixture 'missing-optional')
-    Write-Host 'installer private smoke: PASS (4 cases + repair junction positive)' -ForegroundColor Green
+    Write-Host 'installer private smoke: PASS (5 cases + repair junction positive)' -ForegroundColor Green
     exit 0
 }
 catch {

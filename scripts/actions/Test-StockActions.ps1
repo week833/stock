@@ -84,6 +84,10 @@ try {
         $workflow = Get-Content -LiteralPath $workflowFile.FullName -Raw | ConvertFrom-Json
         Assert-Test ([string]$workflow.schema_version -eq '1.0' -and $workflow.actions.Count -gt 0) ('workflow parses: ' + $workflowFile.Name)
     }
+    $policyJson = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'action-policy.json') -Raw | ConvertFrom-Json
+    Assert-Test ([string]$policyJson.origin_check -eq 'not_checked' -and [string]$manifest.origin_check -eq 'not_checked' -and
+        (@($policyJson.root_markers) -join '|') -eq (@($manifest.root_markers) -join '|') -and
+        $null -eq $policyJson.PSObject.Properties['expected_origin'] -and $null -eq $manifest.PSObject.Properties['expected_origin']) 'policy and manifest declare marker identity without an origin check'
 
     # PowerShell 5.1 parser check for every action script.
     foreach ($scriptFile in (Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File)) {
@@ -93,6 +97,26 @@ try {
     }
 
     . $runner
+
+    # The discovery manifest mirrors the hard-coded allow-list and markers, and
+    # source actions keep the DOWNLOAD_* default selection (no --all, no sync claim).
+    Assert-Test ((@($script:ProjectMarkers) -join '|') -eq (@($manifest.root_markers) -join '|')) 'runner project markers match policy and manifest'
+    Assert-Test ($manifest.actions.Count -eq $script:ActionDefinitions.Count) 'manifest lists every allow-listed action'
+    foreach ($entry in $manifest.actions) {
+        $definition = $script:ActionDefinitions[[string]$entry.name]
+        Assert-Test ($null -ne $definition -and [string]$definition.wrapper -eq [string]$entry.wrapper -and
+            ((@($definition.arguments) -join ' ') -eq (@($entry.arguments) -join ' ')) -and
+            [string]$definition.risk -eq [string]$entry.risk -and [bool]$definition.replayable -eq [bool]$entry.replayable) ('manifest matches allow-list: ' + $entry.name)
+    }
+    foreach ($name in @('sources.check_primary', 'sources.sync_primary', 'sources.check_legacy', 'sources.sync_legacy')) {
+        $definition = $script:ActionDefinitions[$name]
+        Assert-Test (@($definition.arguments) -notcontains '--all' -and [string]$definition.description -notmatch 'synchroni') ('source action keeps default selection and wording: ' + $name)
+    }
+
+    # Identity evidence keys must not collide with the secret/PATH mask.
+    $identityEvidence = Convert-ToSafeLogValue -Value ([ordered]@{ identity = 'project_markers'; origin_check = 'not_checked'; origin_enforced = $false; markers_validated = $true })
+    Assert-Test ($identityEvidence.identity -eq 'project_markers' -and $identityEvidence.origin_check -eq 'not_checked' -and
+        $identityEvidence.origin_enforced -eq $false -and $identityEvidence.markers_validated -eq $true) 'identity and origin evidence keys are not masked'
 
     $safeRun = Invoke-RunnerTest -TestRoot $tempRoot -Arguments @('-Workflow', 'safe-setup', '-DryRun')
     Assert-Test ($safeRun.code -eq 0) 'safe-setup dry-run completes'
@@ -104,6 +128,11 @@ try {
             $record = $line | ConvertFrom-Json
             $parametersObject = $record.parameters
             Assert-Test ($parametersObject -is [pscustomobject] -and @($parametersObject.PSObject.Properties).Count -eq 0) 'fresh session parameters are an empty JSON object'
+            Assert-Test ($null -eq $record.evidence.PSObject.Properties['origin_validated'] -and
+                [string]$record.evidence.identity -eq 'project_markers' -and
+                [string]$record.evidence.origin_check -eq 'not_checked' -and $record.evidence.origin_enforced -eq $false) 'evidence records origin as not checked, never as validated'
+            Assert-Test ($null -eq $record.precondition.PSObject.Properties['origin'] -and
+                [string]$record.precondition.identity -eq 'project_markers' -and $record.precondition.markers_validated -eq $true) 'precondition records project markers only'
         }
     }
     Assert-Test $true 'every generated JSONL line parses'
@@ -155,6 +184,14 @@ try {
     $replayRecord = ([IO.File]::ReadAllLines($replaySessionPath) | Select-Object -Last 1) | ConvertFrom-Json
     Assert-Test ($freshReplayRun.code -eq 0) 'fresh successful semantic session replays in dry-run'
     Assert-Test ($replayRecord.parameters -is [pscustomobject] -and @($replayRecord.parameters.PSObject.Properties).Count -eq 0) 'replay session parameters remain an empty JSON object'
+
+    # A failing wrapper stops the runner with exit code 1; output the wrapper
+    # printed before failing is still shown after the error.
+    $checkStub = Join-Path $tempRoot 'scripts\sources\clone_stock_analysis_repos.cmd'
+    Set-Content -LiteralPath $checkStub -Value @('@echo off', 'echo STUB-WRAPPER-OUTPUT', 'exit /b 3') -Encoding ASCII
+    $failedRun = Invoke-RunnerTest -TestRoot $tempRoot -Arguments @('-Action', 'sources.check_primary')
+    Set-Content -LiteralPath $checkStub -Value '@echo off' -Encoding ASCII
+    Assert-Test ($failedRun.code -eq 1 -and $failedRun.output -match 'STUB-WRAPPER-OUTPUT') 'failed wrapper exits 1 and its output is shown'
 
     # Request schema is fail-closed for unknown actions and raw command fields.
     $unknownRequest = Join-Path $tempRoot 'unknown.json'
@@ -216,6 +253,16 @@ try {
     Set-Content -LiteralPath $replayPath -Value ($successLine | ConvertTo-Json -Compress -Depth 8) -Encoding UTF8
     $replayRun = Invoke-RunnerTest -TestRoot $tempRoot -Arguments @('-Replay', $replayPath, '-DryRun')
     Assert-Test ($replayRun.code -eq 0) 'replay reruns a semantic success action in dry-run'
+    # Records written by the earlier runner (origin null, origin_validated true)
+    # still replay; replay does not interpret precondition or evidence.
+    $earlierPath = Join-Path $replayDirectory '20260809T000005Z-ffffffffffffffffffffffffffffffff.jsonl'
+    $earlierLine = New-SessionLine -SessionId 'ffffffffffffffffffffffffffffffff' -Sequence 1 -ActionName 'environment.verify'
+    $earlierLine.workflow = 'verify-only'
+    $earlierLine.precondition = [ordered]@{ root = $tempRoot; origin = $null; validated = $true }
+    $earlierLine.evidence = [ordered]@{ wrapper = 'scripts\compat\verify_stock_environment.cmd'; mode = 'execute'; policy_root = $tempRoot; origin_validated = $true; executed = $true }
+    Set-Content -LiteralPath $earlierPath -Value ($earlierLine | ConvertTo-Json -Compress -Depth 8) -Encoding UTF8
+    $earlierRun = Invoke-RunnerTest -TestRoot $tempRoot -Arguments @('-Replay', $earlierPath, '-DryRun')
+    Assert-Test ($earlierRun.code -eq 0) 'earlier-format record with origin_validated replays in dry-run'
     $highRiskPath = Join-Path $replayDirectory '20260809T000001Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jsonl'
     $highRiskLine = New-SessionLine -SessionId 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' -Sequence 1 -ActionName 'paths.repair_apply'
     Set-Content -LiteralPath $highRiskPath -Value ($highRiskLine | ConvertTo-Json -Compress -Depth 8) -Encoding UTF8

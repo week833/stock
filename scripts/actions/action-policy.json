@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0",
   "allowed_root": "D:\\stock\\GitHub",
-  "expected_origin": "https://github.com/week833/stock.git",
-  "origin_normalization": ["trim", "remove_trailing_slash", "remove_terminal_dot_git", "case_insensitive"],
+  "root_markers": ["STOCK_SETUP_MANAGER.cmd", "scripts\\setup\\install_d_stock_env.ps1"],
+  "origin_check": "not_checked",
   "unknown_content": "stop_without_modification",
   "high_risk_actions": ["paths.repair_apply"],
   "high_risk_replay_default": "blocked",
