@@ -5,7 +5,7 @@
 | 原始來源 | `bukosabino/ta` |
 | GitHub | https://github.com/bukosabino/ta |
 | 預設分支 | `master` |
-| 分類 | 技術指標、因子、績效與投組風控 |
+| 分類 | 量化工具、因子、績效與投組風控 |
 | 本機下載位置 | `repos/quant_portfolio_risk/ta/` |
 
 ## 用途

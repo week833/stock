@@ -6,7 +6,7 @@
 | GitHub | https://github.com/skfolio/skfolio |
 | 預設分支 | `main` |
 | 分類 | 技術指標、因子、績效與投組風控 |
-| 本機下載位置 | `repos/quant_tools/skfolio/` |
+| 本機下載位置 | `repos/quant_portfolio_risk/skfolio/` |
 
 ## 用途
 
@@ -15,7 +15,7 @@
 ## 下載
 
 ```cmd
-git clone https://github.com/skfolio/skfolio.git repos\quant_tools\skfolio
+git clone https://github.com/skfolio/skfolio.git repos\quant_portfolio_risk\skfolio
 ```
 
 > 本資料夾只保存來源資訊，不直接複製外部專案原始碼。請依原始 repository 的授權條款使用。

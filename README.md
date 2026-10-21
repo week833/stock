@@ -106,8 +106,9 @@ D:\stock\GitHub\.venv\Scripts\python.exe
 
 ## 來源分類
 
-目前整理 37 個 primary 股票分析 GitHub 來源，另管理 3 個 legacy compatibility
-identities，並收錄 8 個 AI／Agent 開發研究來源（optional）：
+目前 `scripts/sources/source_manifest_v1.json` 列出 37 個 primary 股票分析 GitHub 來源與 2 個 legacy 來源
+（共 39 筆；另以 `legacy_aliases` 記錄 primary `twstock` 為舊流程共用位置），並由
+`sources/ai_agent_tools/README.md` 編目 10 個 AI／Agent 研究來源（optional，不在 manifest，下載入口不處理）：
 
 ```text
 sources/

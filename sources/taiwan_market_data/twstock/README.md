@@ -5,7 +5,7 @@
 | 原始來源 | `mlouielu/twstock` |
 | GitHub | https://github.com/mlouielu/twstock |
 | 預設分支 | `dev` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/twstock/` |
 
 ## 用途

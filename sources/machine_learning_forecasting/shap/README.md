@@ -4,8 +4,8 @@
 |---|---|
 | 原始來源 | `shap/shap` |
 | GitHub | https://github.com/shap/shap |
-| 預設分支 | `master` |
-| 分類 | AI、機器學習與時間序列預測 |
+| 預設分支 | `main`（2026-10-21 複查上游預設分支；manifest 的 `expected_branch` 仍記 `master`，但下載器不讀取該欄位） |
+| 分類 | 機器學習與時間序列預測 |
 | 本機下載位置 | `repos/machine_learning_forecasting/shap/` |
 
 ## 用途

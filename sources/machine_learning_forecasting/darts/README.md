@@ -5,7 +5,7 @@
 | 原始來源 | `unit8co/darts` |
 | GitHub | https://github.com/unit8co/darts |
 | 預設分支 | `master` |
-| 分類 | AI、機器學習與時間序列預測 |
+| 分類 | 機器學習與時間序列預測 |
 | 本機下載位置 | `repos/machine_learning_forecasting/darts/` |
 
 ## 用途

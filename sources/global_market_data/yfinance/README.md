@@ -5,7 +5,7 @@
 | 原始來源 | `ranaroussi/yfinance` |
 | GitHub | https://github.com/ranaroussi/yfinance |
 | 預設分支 | `main` |
-| 分類 | 金融資料與市場研究平台 |
+| 分類 | 全球市場資料與研究平台 |
 | 本機下載位置 | `repos/global_market_data/yfinance/` |
 
 ## 用途

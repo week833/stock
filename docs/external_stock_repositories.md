@@ -2,7 +2,7 @@
 
 共 **37 個 primary 股票研究來源**，已依用途分為五類；其中 manifest 標記 **3 個 core
 default_install**（FinMind、daily_stock_analysis、twstock），另有 **2 個 unique legacy
-compatibility sources** 與 **9 個 AI／Agent 研究來源**。每個正式股票來源在
+compatibility sources** 與 **10 個 AI／Agent 研究來源**（不在 manifest）。每個正式股票來源在
 `sources/` 下都有獨立資料夾；legacy 與 AI 不增加 primary 計數。
 
 | 分類 | 數量 | Repository | 本機 clone 位置 |
@@ -45,11 +45,12 @@ compatibility sources** 與 **9 個 AI／Agent 研究來源**。每個正式股�
 |  |  | `dcajasn/Riskfolio-Lib` | `repos/quant_portfolio_risk/Riskfolio-Lib/` |
 |  |  | `skfolio/skfolio` | `repos/quant_portfolio_risk/skfolio/` |
 
-## Legacy compatibility identities（3 identities）
+## Legacy compatibility 來源（2 個 legacy＋1 筆 alias 紀錄）
 
-其中 2 個是 unique legacy repository，由 `DOWNLOAD_LEGACY_SOURCES.cmd` 下載；第 3 個是
-primary `twstock` 的共享 alias，只做 identity 檢查，不會二次 clone/pull。它們的目的只是
-舊流程相容，不屬於 primary 研究清單：
+2 個 unique legacy repository 由 `DOWNLOAD_LEGACY_SOURCES.cmd` 下載；manifest 另以 `legacy_aliases`
+記錄 primary `twstock` 為舊流程的共用位置，但下載器不讀取此紀錄，不會二次 clone/pull，也不做
+identity 檢查。2 個 unique legacy 的目的只是舊流程相容，不屬於 primary 研究清單；表中 `twstock`
+本身是 primary core 來源，只為對照舊流程的共用位置而列出：
 
 | Repository | 本機 clone 位置 |
 |---|---|
@@ -57,10 +58,12 @@ primary `twstock` 的共享 alias，只做 identity 檢查，不會二次 clone/
 | `william911530-cmyk/python-stock-radar-` | `repos/legacy_compat/python-stock-radar-/` |
 | `k66inthesky/TW-stock` | `repos/legacy_compat/TW-stock/` |
 
-## AI／Agent 與開發方法研究來源
+## AI／Agent 與開發方法研究來源（10）
 
 | Repository | 本機 clone 位置 |
 |---|---|
+| `week833/finmind-twstock-research-skill` | `repos/ai_agent_tools/finmind-twstock-research-skill/` |
+| `week833/stock-mitake-ui-reference` | `repos/ai_agent_tools/stock-mitake-ui-reference/` |
 | `multica-ai/andrej-karpathy-skills` | `repos/ai_agent_tools/andrej-karpathy-skills/` |
 | `AugustusW/audio-tldr-skill` | `repos/ai_agent_tools/audio-tldr-skill/` |
 | `anthropics/claude-code` | `repos/ai_agent_tools/claude-code/` |
@@ -69,22 +72,27 @@ primary `twstock` 的共享 alias，只做 identity 檢查，不會二次 clone/
 | `allenloves/de-ai-tone` | `repos/ai_agent_tools/de-ai-tone/` |
 | `lopopolo/harness-engineering` | `repos/ai_agent_tools/harness-engineering/` |
 | `mattpocock/skills` | `repos/ai_agent_tools/skills/` |
-| `week833/stock-mitake-ui-reference` | `repos/ai_agent_tools/stock-mitake-ui-reference/` |
 
-AI／Agent 來源只作方法研究，不直接匯入正式台股分析。
+AI／Agent 來源只作方法研究，不直接匯入正式台股分析；它們不在 `source_manifest_v1.json`，
+`DOWNLOAD_STOCK_SOURCES.cmd`／`DOWNLOAD_LEGACY_SOURCES.cmd` 都不會 clone，清單以
+[`sources/ai_agent_tools/README.md`](../sources/ai_agent_tools/README.md) 為準。
 
 ## 操作方式
 
-下載器契約由 `scripts/sources/source_manifest_v1.json` 綁定 generation 與 SHA-256；每項來源
-都有唯一 id、分類、相對 target、URL、預期 branch、estimated bytes、用途與授權提示。manifest
-拒絕 duplicate id/target/normalized URL+target、型別錯誤與 path traversal。LightGBM 預期 branch
-為 `main`；legacy 來源標為 historical/education optional，不是 runtime/formal 依賴。
+來源清單是 `scripts/sources/source_manifest_v1.json`（39 筆：37 primary＋2 legacy，另有 1 筆
+`legacy_aliases`）。每項來源記錄 id、scope、default_install、分類、相對 target、URL、expected_branch、
+estimated_bytes、用途與授權提示。下載器 `scripts/sources/source_manager.ps1` 目前只使用 scope、
+default_install、target 與 URL；`generation`、`expected_branch`、`estimated_bytes` 與 `legacy_aliases`
+只是紀錄，不會被讀取或檢查，也沒有 SHA-256 綁定或 duplicate id／target／URL 檢查。target 必須是
+相對路徑且解析後仍在 `repos\` 內，否則停止。legacy 來源標為 historical/education optional，不是
+runtime/formal 依賴。
 
-主要與 legacy 來源正式位置固定為 `D:\stock\GitHub\repos`。下載與驗證是獨立階段；
-完整安裝器只在核心環境成功且 fixed-root identity 通過後，才呼叫固定 root 的來源腳本。
+主要與 legacy 來源正式位置固定為 `D:\stock\GitHub\repos`（`clone_stock_analysis_repos.cmd` 以固定路徑
+呼叫 `source_manager.ps1 -Root "D:\stock\GitHub"`）。`INSTALL_D_STOCK_ENV_FULL.cmd` 只在環境安裝成功
+（含本專案標記檢查）後，才呼叫固定路徑的 `D:\stock\GitHub\DOWNLOAD_STOCK_SOURCES.cmd`（只處理 3 個 core）。
 從其他資料夾啟動的 package 不會讓來源腳本改寫呼叫端複本。
 
-只檢查既有來源目錄，不建立目錄、不 clone、不 pull：
+唯讀預覽（列出缺少的 target 與既有目錄），不建立目錄、不 clone、不 pull：
 
 ```cmd
 DOWNLOAD_STOCK_SOURCES.cmd --check
@@ -102,24 +110,18 @@ DOWNLOAD_STOCK_SOURCES.cmd
 DOWNLOAD_LEGACY_SOURCES.cmd
 ```
 
-`DOWNLOAD_STOCK_SOURCES.cmd` 無參數只處理 3 個 core；`--all` 處理 37 個 primary；`--check` 與
-`--dry-run` 完全等價且只讀；`--verify`
-為嚴格 missing/identity/branch gate（可加 `--all`）。`DOWNLOAD_LEGACY_SOURCES.cmd` 無參數只處理
-2 個 unique legacy，並驗證共享的 primary `twstock` alias；不會二次 clone/pull。legacy `--check`
-純唯讀，`--verify` 為嚴格 gate。
+`DOWNLOAD_STOCK_SOURCES.cmd` 無參數只處理 3 個 core；`--all` 處理 37 個 primary。`--check`、
+`--dry-run` 與舊參數 `--verify` 目前行為相同且只讀：缺少的 target 顯示 `[PLAN] Missing`，既有目錄
+顯示 `[SKIP]`，缺少來源不會使結果失敗，也不檢查 origin、branch 或 identity。`DOWNLOAD_LEGACY_SOURCES.cmd`
+無參數只處理 2 個 unique legacy；manifest 的 `twstock` alias 紀錄不被讀取，不會二次 clone/pull。
 
-新 clone 一律使用 `--branch <expected> --single-branch --depth 1`，暫存於 canonical target 的
-sibling，驗證 origin/branch/HEAD、real `.git` 與 non-reparse scope 後才 atomic rename；失敗保留
-暫存目錄供 review，不覆蓋既有 target。既有 clean clone 僅 `pull --ff-only origin <expected>`，
-dirty repository skip；origin/branch mismatch、非 Git 目標、reparse 或外部路徑 fail-closed。
-下載前只對 missing 項估算 bytes 並加至少 30% margin；既有 clean source 不重複要求全量空間。
-成功與既有驗證會寫入 `repos/.source_provenance.json`（relative target、URL、branch、HEAD、UTC
-observed_at，不含 secrets），check/verify 零寫且 ledger 與 manifest generation/sha 綁定。
+下載只針對缺少的 target：以 `git clone --depth 1`（上游預設分支，不指定 `--branch`）先 clone 到同一
+分類目錄下的暫存資料夾 `.stock-source-pending-<GUID>`，成功後再改名為正式 target；失敗時保留暫存
+資料夾供檢查，不覆蓋既有 target。clone 後不另檢查 origin、branch 或 HEAD。寫入前確認 target 留在
+`repos\` 內，且既有上層目錄不是 reparse point（junction）。找不到 Git 時會嘗試以 winget 安裝 Git。
 
-主要與 legacy 腳本在既有 repository 為 clean 且 normalized origin identity 符合時才允許
-`git pull --ff-only`；dirty repository 會 skip，origin 不符或非 Git 目標會 fail-closed
-並保留原資料。新 clone 先放在 canonical scope 內的暫存 sibling，完成後再驗證 origin，
-最後以原子改名完成；clone 失敗或驗證失敗時不會覆蓋既有 target。
+target 已是目錄時一律顯示 `[SKIP] 既有路徑，未下載/未更新`，不 pull、不更新，也不檢查 Git 狀態；
+target 是檔案時停止。下載器不估算磁碟空間，也不寫入 provenance 紀錄檔。
 
 `--dry-run` 明確等價於 `--check`，兩者均為唯讀模式，不建立資料夾、不 clone、不 pull、不寫 config、
 不修改 User env，也不建立 junction。legacy 路徑與 junction 不由來源下載器修復；請另外
@@ -127,9 +129,9 @@ observed_at，不含 secrets），check/verify 零寫且 ledger 與 manifest gen
 
 ## 來源與正式分析的邊界
 
-這 37 個 primary、2 個 unique legacy（加上 1 個共享 alias）及 9 個 AI／Agent 來源只供
+這 37 個 primary、2 個 unique legacy（manifest 另記錄 1 個共享 alias）及 10 個 AI／Agent 來源只供
 方法、資料與工具研究；AI／Agent 來源是 optional，不屬於 installer manifest。外部
-repository 的推薦名單、模型或執行結果不會直接匯入正式台股分析。此來源驗證不等於
+repository 的推薦名單、模型或執行結果不會直接匯入正式台股分析。此來源清單與下載不等於
 第三方策略的回測、風險或盈利證明。
 
 > 第三方原始碼不會提交至本 repository；請依各來源授權條款使用。

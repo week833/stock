@@ -6,7 +6,7 @@
 | GitHub | https://github.com/QuantConnect/Lean |
 | 預設分支 | `master` |
 | 分類 | 回測引擎與策略測試 |
-| 本機下載位置 | `repos/backtests/Lean/` |
+| 本機下載位置 | `repos/backtesting_engines/Lean/` |
 
 ## 用途
 
@@ -15,7 +15,7 @@
 ## 下載
 
 ```cmd
-git clone https://github.com/QuantConnect/Lean.git repos\backtests\Lean
+git clone https://github.com/QuantConnect/Lean.git repos\backtesting_engines\Lean
 ```
 
 > 本資料夾只保存來源資訊，不直接複製外部專案原始碼。請依原始 repository 的授權條款使用。

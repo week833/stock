@@ -5,7 +5,7 @@
 | 原始來源 | `victorgau/PyConTW2018Tutorial` |
 | GitHub | https://github.com/victorgau/PyConTW2018Tutorial |
 | 預設分支 | `master` |
-| 分類 | 台股與既有股票分析來源 |
+| 分類 | 台灣市場資料與股票分析來源 |
 | 本機下載位置 | `repos/taiwan_market_data/PyConTW2018Tutorial/` |
 
 ## 用途
