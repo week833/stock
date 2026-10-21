@@ -14,7 +14,8 @@
 安裝會以本專案 Python 安裝 `requirements.txt`，再設定一次 User ENV/PATH；ConfigureOnly 只重設環境，不要求 requirements 檔。
 wrapper 不強制 UAC；個別系統工具安裝仍可能要求 Windows 權限確認。
 
-Git 只在 clone 缺少的專案或新外部來源時需要。已有專案不檢查 origin、branch、dirty 或 worktree identity。
+Git 只在 clone 缺少的專案或新外部來源時需要，找不到時以 winget 安裝 `Git.Git`。已有專案不檢查 origin、branch、dirty 或 worktree identity。
+AI 動作入口 `AI_STOCK_ACTIONS.cmd` 以相同兩個標記辨識專案根目錄，同樣不檢查 origin、branch、dirty 或 worktree identity，辨識時也不需要 Git；session 記錄以 `origin_check: not_checked` 註明（見 `docs/ai_action_workflows.md`）。
 非空目標若缺少本專案標記，會停止；不覆寫、不搬移或刪除 `D:\stock` 其他內容。
 
 ## 外部來源與舊路徑

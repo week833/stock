@@ -22,6 +22,10 @@ param(
 # manifests are provided for AI/tooling discovery, but a manifest cannot add a
 # command or a script to the executable allow-list.  PowerShell 5.1 syntax is
 # used intentionally.
+#
+# The root is identified by the same two project markers as the installer.  Git
+# origin, branch, dirty state and worktree identity are not checked, so a ZIP
+# extract or a machine without Git remains a valid root.
 
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
@@ -29,7 +33,7 @@ $ProgressPreference = 'SilentlyContinue'
 
 $script:SchemaVersion = '1.0'
 $script:ExpectedRoot = 'D:\stock\GitHub'
-$script:ExpectedOrigin = 'https://github.com/week833/stock.git'
+$script:ProjectMarkers = [string[]]@('STOCK_SETUP_MANAGER.cmd', 'scripts\setup\install_d_stock_env.ps1')
 $script:Root = $null
 $script:SessionId = $null
 $script:SessionLogPath = $null
@@ -50,23 +54,25 @@ $script:ActionDefinitions = [ordered]@{
     }
     'environment.install_full' = [ordered]@{
         wrapper = 'INSTALL_D_STOCK_ENV_FULL.cmd'; arguments = [string[]]@();
-        risk = 'write'; replayable = $true; description = 'Install the core environment and sources'
+        risk = 'write'; replayable = $true; description = 'Install the core environment, then clone missing default core sources (installs Git via winget if absent)'
     }
+    # Source actions use the DOWNLOAD_* defaults: no --all, clone missing only,
+    # skip existing, no pull.
     'sources.check_primary' = [ordered]@{
         wrapper = 'scripts\sources\clone_stock_analysis_repos.cmd'; arguments = [string[]]@('--check');
-        risk = 'safe'; replayable = $true; description = 'Read-only primary source check'
+        risk = 'safe'; replayable = $true; description = 'Read-only plan for default core sources (lists missing; existing dirs not inspected)'
     }
     'sources.sync_primary' = [ordered]@{
         wrapper = 'scripts\sources\clone_stock_analysis_repos.cmd'; arguments = [string[]]@();
-        risk = 'write'; replayable = $true; description = 'Synchronize primary research sources'
+        risk = 'write'; replayable = $true; description = 'Clone missing default core sources (installs Git via winget if absent); existing dirs skipped, never pulled'
     }
     'sources.check_legacy' = [ordered]@{
         wrapper = 'scripts\sources\clone_legacy_compat_repos.cmd'; arguments = [string[]]@('--check');
-        risk = 'safe'; replayable = $true; description = 'Read-only legacy source check'
+        risk = 'safe'; replayable = $true; description = 'Read-only plan for legacy sources (lists missing; existing dirs not inspected)'
     }
     'sources.sync_legacy' = [ordered]@{
         wrapper = 'scripts\sources\clone_legacy_compat_repos.cmd'; arguments = [string[]]@();
-        risk = 'write'; replayable = $true; description = 'Synchronize legacy research sources'
+        risk = 'write'; replayable = $true; description = 'Clone missing legacy sources (installs Git via winget if absent); existing dirs skipped, never pulled'
     }
     'environment.configure_preflight' = [ordered]@{
         wrapper = 'CONFIGURE_WINDOWS_ENV.cmd'; arguments = [string[]]@('/PREFLIGHT');
@@ -121,16 +127,6 @@ function Assert-AllowedProperties {
     }
 }
 
-function Normalize-RepoUrl {
-    param([AllowNull()][string]$Url)
-    if ([string]::IsNullOrWhiteSpace($Url)) { return '' }
-    $value = $Url.Trim().TrimEnd('/')
-    if ($value.EndsWith('.git', [StringComparison]::OrdinalIgnoreCase)) {
-        $value = $value.Substring(0, $value.Length - 4)
-    }
-    return $value.ToLowerInvariant()
-}
-
 function Resolve-ActionRoot {
     if ($TestMode) {
         if ($env:STOCK_ACTIONS_TEST_MODE -ne '1') {
@@ -145,39 +141,6 @@ function Resolve-ActionRoot {
         throw '-RootOverride is only available in self-test mode.'
     }
     return [IO.Path]::GetFullPath($script:ExpectedRoot)
-}
-
-function Test-OrdinaryGitExecutable {
-    param([AllowNull()][string]$Path)
-
-    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
-    try {
-        if (-not [IO.Path]::IsPathRooted($Path)) { return $null }
-        $full = [IO.Path]::GetFullPath($Path)
-        $leaf = Get-Item -LiteralPath $full -Force -ErrorAction Stop
-        if (-not ($leaf -is [System.IO.FileInfo]) -or $leaf.PSIsContainer -or
-            (($leaf.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
-            return $null
-        }
-        $extension = ([string]$leaf.Extension).ToLowerInvariant()
-        if (@('.exe', '.cmd', '.bat') -notcontains $extension) { return $null }
-
-        $cursor = $leaf.FullName
-        while ($true) {
-            $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
-            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
-            $parent = [IO.Directory]::GetParent($cursor)
-            if ($null -eq $parent) {
-                $pathRoot = [IO.Path]::GetPathRoot($cursor)
-                if ($null -eq $pathRoot -or $cursor -ine $pathRoot) { return $null }
-                break
-            }
-            if ($parent.FullName -ieq $cursor) { return $null }
-            $cursor = $parent.FullName
-        }
-        return [IO.Path]::GetFullPath($leaf.FullName)
-    }
-    catch { return $null }
 }
 
 function Test-OrdinaryComSpec {
@@ -265,34 +228,6 @@ function Assert-ApprovedWrapperPath {
     }
 }
 
-function Resolve-VerifiedGitExecutable {
-    $candidates = New-Object 'System.Collections.Generic.List[string]'
-    foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
-        if (-not [string]::IsNullOrWhiteSpace([string]$base)) {
-            [void]$candidates.Add((Join-Path $base 'Git\cmd\git.exe'))
-        }
-    }
-    if (-not [string]::IsNullOrWhiteSpace([string]$env:LOCALAPPDATA)) {
-        [void]$candidates.Add((Join-Path $env:LOCALAPPDATA 'Programs\Git\cmd\git.exe'))
-    }
-
-    foreach ($candidate in $candidates) {
-        $verified = Test-OrdinaryGitExecutable -Path ([string]$candidate)
-        if ($verified) { return $verified }
-    }
-
-    # Get-Command may expose an Alias/Function/ApplicationInfo.  Only an
-    # Application with a validated ordinary absolute path is executable here.
-    foreach ($command in @(Get-Command git.exe -All -ErrorAction SilentlyContinue)) {
-        if ($null -eq $command -or [string]$command.CommandType -ne 'Application') { continue }
-        $source = [string]$command.Source
-        if ([string]::IsNullOrWhiteSpace($source)) { $source = [string]$command.Path }
-        $verified = Test-OrdinaryGitExecutable -Path $source
-        if ($verified) { return $verified }
-    }
-    throw 'git.exe is required for the policy precondition, but no safe ordinary executable was found.'
-}
-
 function Assert-PolicyRoot {
     param([Parameter(Mandatory = $true)][string]$RootPath)
 
@@ -301,15 +236,14 @@ function Assert-PolicyRoot {
         (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
         throw "Project root is not an ordinary directory: $RootPath"
     }
-    foreach ($marker in @('STOCK_SETUP_MANAGER.cmd', 'scripts\setup\install_d_stock_env.ps1')) {
+    foreach ($marker in $script:ProjectMarkers) {
         if (-not (Test-Path -LiteralPath (Join-Path $RootPath $marker) -PathType Leaf)) {
             throw "Project marker is missing: $marker"
         }
     }
     return [pscustomobject]@{
         root = $RootPath
-        origin = $null
-        git = $null
+        identity = 'project_markers'
         valid = $true
     }
 }
@@ -648,7 +582,9 @@ function Invoke-SemanticAction {
         wrapper = $definition.wrapper
         mode = $(if ($script:DryRunMode) { 'dry-run' } else { 'execute' })
         policy_root = $policy.root
-        origin_validated = $true
+        identity = $policy.identity
+        origin_check = 'not_checked'
+        origin_enforced = $false
     }
     try {
         $scriptPath = Join-Path $script:Root $definition.wrapper
@@ -691,7 +627,7 @@ function Invoke-SemanticAction {
     $finished = (Get-Date).ToUniversalTime().ToString('o')
     Write-SessionEvent -ActionName $ActionName -WorkflowName $WorkflowName -StartedUtc $started -FinishedUtc $finished `
         -ExitCode $exitCode -Status $status -Parameters $Parameters `
-        -Precondition ([ordered]@{ root = $policy.root; origin = $policy.origin; validated = $true }) -Evidence $evidence
+        -Precondition ([ordered]@{ root = $policy.root; identity = $policy.identity; markers_validated = $policy.valid }) -Evidence $evidence
     if ($status -eq 'failed') { throw "Action '$ActionName' failed with exit code $exitCode." }
 }
 
@@ -853,8 +789,8 @@ function Get-ExecutionRequest {
 function Invoke-Interactive {
     Write-Host 'AI stock semantic actions'
     Write-Host '[1] verify-only (read-only)'
-    Write-Host '[2] safe-setup (preflight, source check, verify)'
-    Write-Host '[3] full-install (environment and verify)'
+    Write-Host '[2] safe-setup (preflight, default core source check, verify)'
+    Write-Host '[3] full-install (environment, missing default core sources, verify)'
     Write-Host '[4] list actions'
     Write-Host '[Q] exit'
     $choice = (Read-Host 'Select').Trim()
@@ -948,7 +884,10 @@ function Invoke-Main {
         return 0
     }
     catch {
-        Write-Error ("Action runner stopped: " + $_.Exception.Message)
+        # Continue: under the script-wide Stop preference Write-Error would
+        # throw here, skip the return below and discard the wrapper output
+        # already collected from this function.
+        Write-Error ("Action runner stopped: " + $_.Exception.Message) -ErrorAction Continue
         return 1
     }
 }
