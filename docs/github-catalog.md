@@ -2,7 +2,7 @@
 
 查核日期：2026-10-21
 
-week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://github.com/week833/skills-index)**。本頁列出相同的分類，方便在 stock 內查看。帳號共有 7 個公開儲存庫。
+week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://github.com/week833/skills-index)**。本頁列出相同的分類，方便在 stock 內查看。帳號共有 6 個公開儲存庫。
 
 ## 📈 股票與交易
 
@@ -28,8 +28,9 @@ week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://
 |---|---|---|
 | [stock](https://github.com/week833/stock) | **一鍵安裝／修復 Windows 股票研究環境**（`D:\stock\GitHub`），整理 39 個可選外部研究來源（37 primary＋2 legacy），預設下載 3 個 core；另附 AI 語意動作入口 `AI_STOCK_ACTIONS.cmd`（非 Skill）；不是完整股票預測應用 | 工具／安裝包 |
 | [finmind-twstock-research-skill](https://github.com/week833/finmind-twstock-research-skill) | **FinMind 台股研究 Skill**（week833 自行整理，非 FinMind 官方）；不是正式行情或下單系統 | Skill |
-| [ai-trader](https://github.com/week833/ai-trader) | **AI 代理交易平台**（內含上述 6 個交易 Skill）；**只支援美股、加密貨幣與 Polymarket，不支援台股**，使用模擬資金 | Fork（上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)） |
 | [stock-mitake-ui-reference](https://github.com/week833/stock-mitake-ui-reference) | **三竹股市介面導航與操作安全規範**（公開包 `2.1.0`，82 項功能語意投影）；不是 API、不下單 | 參考文件 |
+
+6 個 AI-Trader Skill 位於外部上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)（不屬於本帳號）；本帳號原有的 Fork 已於 2026-10-22 刪除，見下方「副本處理紀錄」。
 
 股票外部來源、歷史文件與待評估刪除候選，集中見 **[股票來源與歷史資料待評估清單](source-review.md)**（該頁評估內容為 2026-09-18 查證；2026-10-21 已複查來源數量、路徑與部分上游分支 HEAD，2026-10-07 同步進本 repository 的 `stocktw` 尚未評估）。目前 `scripts/sources/source_manifest_v1.json` 列出 39 個可選外部研究來源（37 primary＋2 legacy），這是本庫維護的來源索引，不是帳號另外擁有的 39 個儲存庫。
 
@@ -51,12 +52,10 @@ week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://
 |---|---|---|
 | [skills-index](https://github.com/week833/skills-index) | **全部 Skill 與儲存庫的功能分類索引**（原 `week833/week833`） | 文件 |
 
-## 副本保留待評估
+## 副本處理紀錄
 
-| 專案 | 已確認的證據（查核日期 2026-10-21） | 待評估事項 |
+| 專案 | 處理結果 | 依據 |
 |---|---|---|
-| [ai-trader](https://github.com/week833/ai-trader) | Fork 仍只有 `main` 分支，與上游 `main` 同為 `d03ff6c056b32ced735adf7c19ed8175adb1c8df`，最後提交為 2026-06-11（2026-09-18 首次確認，2026-10-21 再次確認未變）。 | 評估是否仍需保留 Fork，或以直接連結上游作研究參考；尚未確認部署或其他工作流程是否依賴此副本。 |
+| `week833/ai-trader`（Fork） | 2026-10-22 已刪除；6 個 AI-Trader Skill 的來源改為直接連到上游 [HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader)。 | 刪除前 Fork 只有 `main` 分支，與上游 `main` 同為 [`d03ff6c`](https://github.com/HKUDS/AI-Trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df)（2026-06-11），沒有自有提交、tag、PR、issue 或 Actions 紀錄；本 repository 的程式與安裝腳本都沒有引用它。 |
 
-證據：[Fork 分支清單](https://api.github.com/repos/week833/ai-trader/branches?per_page=100)、[Fork 提交](https://github.com/week833/ai-trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df)、[上游提交](https://github.com/HKUDS/AI-Trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df)。
-
-此處評估的是重複副本的保留需求，不代表 AI-Trader 已過時，也不是刪除決定。未僅因提交日期較早、Fork 身分或分支名稱，把專案判為可刪除。
+刪除的是重複副本，不代表 AI-Trader 已過時。

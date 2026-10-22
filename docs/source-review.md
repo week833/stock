@@ -9,7 +9,7 @@
 ## 盤點範圍與判讀方式
 
 - 2026-10-21 複查：[`scripts/sources/source_manifest_v1.json`](../scripts/sources/source_manifest_v1.json) 共 **39 筆**，其中 **37 個 primary** 與 `sources/` 五個現行分類資料夾下的 37 份來源 README 一致；`default_install: true`（core）有 3 個（FinMind、daily_stock_analysis、twstock）。2026-09-18 評估當時為 **36 個** primary；`paullo0106/stocktw` 於 2026-10-07（`9760d9e`）同步進本 repository（`sources/taiwan_market_data/stocktw/`；本機 manifest 在 2026-08-17 盤點時已列入，見[功能目錄](./repository_function_catalog.md)），不在本文件 2026-09-18 的評估範圍內，其預設分支 `master` [最後 commit](https://github.com/paullo0106/stocktw/commit/f254e01b621ec2d663fd47daf1acb3b653325498) 為 **2014-07-01**，尚未評估。
-- legacy 下載另有 **2 個獨有來源**：`python-stock-radar-`、`TW-stock`；manifest 另以 `legacy_aliases` 記錄 `twstock` 與 primary 共用同一位置（下載器不另處理）。因此目前合計為 **39 個獨有上游**（2026-09-18 評估時為 38 個），不含本文件另列的 `ai-trader` fork 與三竹 UI 參考庫。
+- legacy 下載另有 **2 個獨有來源**：`python-stock-radar-`、`TW-stock`；manifest 另以 `legacy_aliases` 記錄 `twstock` 與 primary 共用同一位置（下載器不另處理）。因此目前合計為 **39 個獨有上游**（2026-09-18 評估時為 38 個），不含三竹 UI 參考庫（本文件原另列的 `week833/ai-trader` fork 已於 2026-10-22 刪除）。
 - 2026-09-18 查得當時 38 個上游均為 `archived: false`，沒有整庫已封存的證據；2026-10-21 未重新查詢 archived 狀態（`stocktw` 亦未查），只以 `git ls-remote` 複查預設分支 HEAD。更新較少、用途重疊或名稱含 legacy，均不足以單獨判定專案失效。
 - 下列日期如標示「最後 commit」，均來自已查詢的**預設分支 commit**，採 UTC 日期；不將 repository 的 `pushed_at` 或 `updated_at` 當成最後 commit 日期。
 
@@ -26,7 +26,7 @@
 |---|---|---|
 | `william911530-cmyk/python-stock-radar-` | [官方 repository](https://github.com/william911530-cmyk/python-stock-radar-) 描述為手動刷新的台股雷達；根目錄有五個應用檔案、沒有 README。預設分支[最後 commit](https://github.com/william911530-cmyk/python-stock-radar-/commit/d512bbcf8014e355c1be6f0dfb7cf659474a17eb) 為 **2026-05-17**。legacy 下載位置為 `repos/legacy_compat/python-stock-radar-/`（2026-10-21 複查：預設分支 HEAD 仍為 `d512bbc`）。 | 確認是否仍供舊程式或本機介面使用，再評估保留。它是本機相容清單中的來源，沒有上游已過時或停維護的明確證據。 |
 | `k66inthesky/TW-stock` | [官方 README](https://github.com/k66inthesky/TW-stock/blob/main/README.md) 提供十年以上台股上市股資料與爬蟲，明示不支援上櫃股，並記載 2025 年持續更新；預設分支[最後 commit](https://github.com/k66inthesky/TW-stock/commit/52b8f467b4b4e298f8009161dbc7e7acff6cfa41) 為 **2025-03-02**。legacy 下載位置為 `repos/legacy_compat/TW-stock/`（2026-10-21 複查：預設分支 HEAD 仍為 `52b8f46`）。 | 與其他台股資料工具有部分用途重疊，但歷史資料可能仍有研究價值。先確認資料及舊路徑需求，再評估保留。 |
-| [`week833/ai-trader`](https://github.com/week833/ai-trader) fork | 2026-10-21 複查仍僅有 `main` 分支，與[上游 HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 的 `main` 同為 SHA `d03ff6c056b32ced735adf7c19ed8175adb1c8df`；可對照 [fork commit](https://github.com/week833/ai-trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df) 與[上游 commit](https://github.com/HKUDS/AI-Trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df)。 | **重複 fork／保留需求待確認**。已知分支沒有相對該上游提交的差異，但使用者本機用途尚未確認；不能把重複 fork 解讀成上游過時。 |
+| `week833/ai-trader` fork（已刪除） | 2026-10-21 複查仍僅有 `main` 分支，與[上游 HKUDS/AI-Trader](https://github.com/HKUDS/AI-Trader) 的 `main` 同為 SHA [`d03ff6c`](https://github.com/HKUDS/AI-Trader/commit/d03ff6c056b32ced735adf7c19ed8175adb1c8df)，沒有相對上游的差異。 | **2026-10-22 依使用者決定刪除**；研究參考改為直接連到上游。刪除的是重複副本，不代表上游過時。 |
 
 ## 保留研究參考
 
