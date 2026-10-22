@@ -37,7 +37,7 @@ week833 的完整 Skill 與專案分類索引已移到 **[skills-index](https://
 
 | 專案 | 用途 | 型態 |
 |---|---|---|
-| [ppt-master](https://github.com/week833/ppt-master)（Skill：[skills/ppt-master](https://github.com/week833/ppt-master/tree/main/skills/ppt-master)） | **`ppt-master` Skill：用 AI 生成可編輯 PPTX 簡報**，支援範本填入、重建與美化既有簡報；本 Fork 沒有自有修改，`main` 已於 2026-10-21 快轉同步至上游 `main`（`604ecde`，`SKILL.md` 版本 `6.7.2`；`skills/ppt-master` 共 13,025 個檔案、約 37 MiB，其中 `templates/` 12,450 個）；Fork 的 `v6` 分支仍停在 `5.1.0`（`d6bcaf9`） | Fork（上游 [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)） |
+| [ppt-master](https://github.com/week833/ppt-master)（Skill：[skills/ppt-master](https://github.com/week833/ppt-master/tree/main/skills/ppt-master)） | **`ppt-master` Skill：用 AI 生成可編輯 PPTX 簡報**，支援範本填入、重建與美化既有簡報；本 Fork 沒有自有修改，`main` 已於 2026-10-21 快轉同步至上游 `main`（`604ecde`，`SKILL.md` 版本 `6.7.2`；`skills/ppt-master` 共 13,025 個檔案、約 37 MiB，其中 `templates/` 12,450 個）；Fork 的 `v6` 分支也已同步到同一個提交 | Fork（上游 [hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)） |
 
 ## 🖥️ Windows 桌面自動化
 
