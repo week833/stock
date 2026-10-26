@@ -1,0 +1,38 @@
+{
+  "schema": "claude-model-training-calibrator-wording-validation-v1",
+  "date": "20261019",
+  "checked_at_taipei": "2026-10-19T08:11:57.633881+08:00",
+  "status": "PASS",
+  "scope": "僅MD／JSON提示詞單句校準時序修正與對應hash核對",
+  "handoff": {
+    "path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_HANDOFF_20261019.md",
+    "sha256": "989e0a3ceaf06c8c8d944ae8fedf174b7d857a2774fb64e8dfb232a384110e70",
+    "size_bytes": 42925
+  },
+  "evidence": {
+    "path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_EVIDENCE_20261019.json",
+    "sha256": "2963259f4c349e07402effdef434fc16188989cc7d1a8c3366c34caac9ff2235",
+    "size_bytes": 774131
+  },
+  "exactly_one_sentence_changed_in_md": true,
+  "md_json_prompt_equal": true,
+  "utf8_no_bom_LF": true,
+  "prior_numerics_metrics_tables_bindings_and_validation_plan_unchanged": true,
+  "prior_document_validation_receipt": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_VALIDATION_20261019_081002_94bd2a9f.json",
+  "research_data_checks_repeated": false,
+  "tests_training_predict_or_formal_changes": 0,
+  "backups_verified": [
+    {
+      "path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_HANDOFF_20261019_before_calibrator_wording_20261019T081140_a5cbe540.md",
+      "original_path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_HANDOFF_20261019.md",
+      "sha256": "da69fc6f6a8da3eebfb733767af4ec478ffbeba233e40b37d8bf90943902a652",
+      "size_bytes": 42827
+    },
+    {
+      "path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_EVIDENCE_20261019_before_calibrator_wording_20261019T081140_a5cbe540.json",
+      "original_path": "D:\\stock\\docs\\CLAUDE_MODEL_TRAINING_EVIDENCE_20261019.json",
+      "sha256": "20b9db1996eb715bded98341faf3bf4897655937ffbba0d24db57f7f25dbd26c",
+      "size_bytes": 772689
+    }
+  ]
+}
