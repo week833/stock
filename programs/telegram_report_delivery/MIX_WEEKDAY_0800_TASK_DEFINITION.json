@@ -1,0 +1,56 @@
+{
+  "schema_version": "mix_telegram_weekday_schedule_definition_v1",
+  "task_name": "MIX Telegram Report 08-00",
+  "purpose": "Weekday 08:00 Asia/Taipei delivery: MIX formal production report only",
+  "timezone": "Taipei Standard Time",
+  "trigger": {
+    "days_of_week": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "start_time": "08:00",
+    "start_when_available": true
+  },
+  "action": {
+    "executable": "C:\\Windows\\System32\\cmd.exe",
+    "arguments": "/d /c \"set NO_PAUSE=1&&call D:\\stock\\programs\\telegram_report_delivery\\RUN_SEND_MIX_REPORT.cmd --max-wait-seconds 0 --poll-seconds 60\"",
+    "working_directory": "D:\\stock\\programs\\telegram_report_delivery",
+    "no_pause": true,
+    "max_wait_seconds": 0,
+    "poll_seconds": 60,
+    "zero_wait_cap_seconds": 1800,
+    "zero_wait_note": "Documentation only: mix_report_sender.py treats --max-wait-seconds 0 as a 30-minute cap (ZERO_WAIT_CAP_SECONDS); when no report is ready by then it exits 4 with the report data day. An older report is sent with both the report data day and the current latest data day in the summary."
+  },
+  "settings": {
+    "multiple_instances": "IgnoreNew",
+    "execution_time_limit_seconds": 0,
+    "allow_start_if_on_batteries": true,
+    "dont_stop_if_going_on_batteries": true,
+    "dont_stop_on_idle_end": true,
+    "restart_count": 5,
+    "restart_interval_seconds": 600
+  },
+  "publication_contract": {
+    "source": "D:\\TWStockData\\program_data\\mix\\reports\\LATEST_C0_RUN.json",
+    "required_pointer_schema": "mix-stock-daily-c0-current-report-v1",
+    "required_status": "limited_baseline_effect_unverified",
+    "required_official": true,
+    "required_publishable": false,
+    "publishable_is_quality_indicator": true,
+    "required_execution_success": true,
+    "required_artifact_integrity": true,
+    "requires_central_receipt_and_registry": true,
+    "stale_report_action": "send_with_report_and_latest_data_days_labeled",
+    "integrity_failure_action": "exit_nonzero_fail_closed_no_send",
+    "failure_action_note": "Documentation of mix_report_sender.py: a report whose data day differs from the current latest data day is still sent; the summary shows the report data day and the current latest data day and records a newer_data_available/current_data_older_than_report label. Integrity, tamper (path/size/SHA-256), schema/run binding and ETF/non-ordinary exclusion failures raise MixReportIntegrityError and exit 2 without sending (fail closed). A report that is not ready yet is polled up to the zero-wait cap and then exits 4.",
+    "no_action_action": "reject_no_action_report",
+    "quality_conditions_action": "include_unmet_conditions_without_blocking",
+    "selection_policy": "formal_only",
+    "formal_unavailable_action": "exit_nonzero_no_fallback",
+    "formal_send_failure_action": "exit_nonzero_no_fallback"
+  },
+  "cutover_note": "This definition is readiness-only. A separate operator must inspect existing tasks and perform any scheduler registration/cutover."
+}

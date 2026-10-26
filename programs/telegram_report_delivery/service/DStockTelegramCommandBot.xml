@@ -1,0 +1,22 @@
+<service>
+  <id>DStockTelegramCommandBot</id>
+  <name>D-Stock Telegram Stock Command Bot</name>
+  <description>Runs the private Telegram stock-analysis command bot even when no user is logged on.</description>
+  <executable>D:\stock\.venv\Scripts\python.exe</executable>
+  <arguments>"D:\stock\programs\telegram_report_delivery\telegram_stock_command_bot.py"</arguments>
+  <workingdirectory>D:\stock\programs\telegram_report_delivery</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart />
+  <serviceaccount>
+    <user>LocalSystem</user>
+  </serviceaccount>
+  <env name="PYTHONUTF8" value="1" />
+  <env name="PYTHONIOENCODING" value="utf-8" />
+  <env name="NO_PAUSE" value="1" />
+  <stoptimeout>30 sec</stoptimeout>
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+  <onfailure action="restart" delay="1 min" />
+  <resetfailure>1 hour</resetfailure>
+  <logpath>D:\TWStockData\services\telegram\service_logs</logpath>
+  <log mode="roll" />
+</service>
