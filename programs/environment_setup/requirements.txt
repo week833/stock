@@ -1,0 +1,6 @@
+# Current D:\stock C0 analysis dependencies.
+# Keep the canonical list here; analysis-test additionally needs pytest.
+numpy
+pandas
+reportlab
+pytest

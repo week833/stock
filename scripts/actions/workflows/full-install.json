@@ -1,6 +1,0 @@
-{
-  "schema_version": "1.0",
-  "workflow": "full-install",
-  "description": "Install the environment, clone missing default core sources, and verify the result.",
-  "actions": ["environment.install_full", "environment.verify"]
-}

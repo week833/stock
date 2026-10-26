@@ -5,6 +5,7 @@ ENV/
 
 # Python cache
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *.pyo
 *.pyd
@@ -12,43 +13,48 @@ __pycache__/
 # Secrets / environment files
 .env
 .env.*
+.ENV
+!.ENV.example
+!**/.ENV.example
 *.key
 *.token
+openai-api-key.txt
 
 # Logs
+logs/
 *.log
 install_tw_stock_ai_env.log
 
-# Semantic action session logs and last-session pointer
-/logs/sessions/
-
 # External repositories cloned locally
-!/repos/
-repos/*
-!/repos/.source_provenance.json
+external_repos/
 github_sources/
+GitHub/
+GPTlogic/
+node_modules/
 
-# Legacy top-level external clone compatibility junctions
-/andrej-karpathy-skills/
-/audio-tldr-skill/
-/claude-code/
-/claude-code-i18n/
-/claude-code-resources/
-/de-ai-tone/
-/harness-engineering/
-/skills/
-/stocktw/
-/stock_related/
+# Local Codex settings
+.codex/
 
-# Retained duplicate checkout; keep it outside this repository's tracked scope
-/stock/
+# Project-external personal documents
+JoChen_LinkedIn_Profile_*.md
 
 # Generated outputs
+backup/
+.codex-tmp/
 reports/
 output/
 outputs/
 artifacts/
+data/
+single_stock_analize/
+single_stock_tomorrow_open/
+tmp/
 *.tmp
+
+# Local-only tools and git worktrees of other repositories / branches
+/record/
+/release_worktrees/
+**/.claude/worktrees/
 
 # OS / editor files
 .DS_Store

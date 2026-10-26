@@ -1,2 +1,0 @@
-# 舊檔名相容入口；實際套件清單由 requirements.txt 管理。
--r requirements.txt
