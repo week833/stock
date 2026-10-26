@@ -1,0 +1,1062 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tw-stock:mitake:navigation-collection:v1",
+  "title": "三竹股市頂端導覽背景蒐集結果",
+  "description": "tw_mitake_navigation_crawler.py 產生之 navigation_crawl.json 契約。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "generated_at",
+    "catalog_schema",
+    "catalog_schema_version",
+    "application",
+    "runtime_policy",
+    "requested_group_count",
+    "configured_item_count",
+    "group_counts",
+    "item_counts",
+    "final_cleanup_errors",
+    "initial_state_restore_errors",
+    "groups"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tw_stock.mitake.navigation_crawl"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "catalog_schema": {
+      "type": ["string", "null"]
+    },
+    "catalog_schema_version": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "application": {
+      "$ref": "#/$defs/application"
+    },
+    "runtime_policy": {
+      "$ref": "#/$defs/runtimePolicy"
+    },
+    "requested_group_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "configured_item_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "group_counts": {
+      "$ref": "#/$defs/statusCounts"
+    },
+    "item_counts": {
+      "$ref": "#/$defs/statusCounts"
+    },
+    "final_cleanup_errors": {
+      "$ref": "#/$defs/cleanupErrors"
+    },
+    "initial_state_restore_errors": {
+      "$ref": "#/$defs/cleanupErrors"
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/groupResult"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": ["validated", "validated_shell_only", "pending", "unsupported", "blocked", "error"]
+    },
+    "statusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "validated_shell_only": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "rect": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "point": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "cursor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/point"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cleanupErrors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_path", "pid", "root_hwnd"],
+      "properties": {
+        "runtime_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root_hwnd": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "runtimePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_only",
+        "physical_mouse_used",
+        "global_keyboard_used",
+        "foreground_activation_requested",
+        "window_move_or_resize_requested",
+        "fixed_screen_coordinate_fallback_used",
+        "selection",
+        "max_attempts_per_item",
+        "foreground_hwnd_before",
+        "foreground_hwnd_after",
+        "foreground_unchanged",
+        "cursor_before",
+        "cursor_after",
+        "cursor_unchanged",
+        "main_window_rect_before",
+        "main_window_rect_after",
+        "main_window_rect_unchanged"
+      ],
+      "properties": {
+        "reference_only": {
+          "const": true
+        },
+        "physical_mouse_used": {
+          "type": "boolean"
+        },
+        "global_keyboard_used": {
+          "const": false
+        },
+        "foreground_activation_requested": {
+          "type": "boolean"
+        },
+        "window_move_or_resize_requested": {
+          "type": "boolean"
+        },
+        "fixed_screen_coordinate_fallback_used": {
+          "const": false
+        },
+        "experimental_posted_pointer_enabled": {
+          "type": "boolean"
+        },
+        "foreground_activation_succeeded": {
+          "type": "boolean"
+        },
+        "main_window_was_iconic": {
+          "type": "boolean"
+        },
+        "main_window_restore_requested": {
+          "type": "boolean"
+        },
+        "previous_foreground_restore_requested": {
+          "type": "boolean"
+        },
+        "previous_foreground_restored": {
+          "type": "boolean"
+        },
+        "physical_pointer_baseline_enabled": {
+          "type": "boolean"
+        },
+        "cursor_anchored_popup_enabled": {
+          "type": "boolean"
+        },
+        "selection": {
+          "enum": [
+            "unique_normalized_ocr_text_in_current_hwnd_capture",
+            "physical_pointer_ground_truth_from_current_hwnd_ocr",
+            "current_cursor_anchored_transient_popup_from_current_hwnd_ocr"
+          ]
+        },
+        "max_attempts_per_item": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "foreground_hwnd_before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_hwnd_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_hwnd_after_before_restore": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_unchanged": {
+          "type": "boolean"
+        },
+        "cursor_before": {
+          "$ref": "#/$defs/cursor"
+        },
+        "cursor_after": {
+          "$ref": "#/$defs/cursor"
+        },
+        "cursor_unchanged": {
+          "type": "boolean"
+        },
+        "main_window_rect_before": {
+          "$ref": "#/$defs/rect"
+        },
+        "main_window_rect_after": {
+          "$ref": "#/$defs/rect"
+        },
+        "main_window_rect_unchanged": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "const": "unique_normalized_ocr_text_in_current_hwnd_capture"
+              }
+            },
+            "required": ["selection"]
+          },
+          "then": {
+            "properties": {
+              "physical_mouse_used": {"const": false},
+              "foreground_activation_requested": {"const": false},
+              "window_move_or_resize_requested": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "const": "physical_pointer_ground_truth_from_current_hwnd_ocr"
+              }
+            },
+            "required": ["selection"]
+          },
+          "then": {
+            "required": [
+              "physical_pointer_baseline_enabled",
+              "cursor_anchored_popup_enabled"
+            ],
+            "properties": {
+              "physical_mouse_used": {"const": true},
+              "foreground_activation_requested": {"const": true},
+              "window_move_or_resize_requested": {"const": false},
+              "physical_pointer_baseline_enabled": {"const": true},
+              "cursor_anchored_popup_enabled": {"const": false}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "selection": {
+                "const": "current_cursor_anchored_transient_popup_from_current_hwnd_ocr"
+              }
+            },
+            "required": ["selection"]
+          },
+          "then": {
+            "required": [
+              "physical_pointer_baseline_enabled",
+              "cursor_anchored_popup_enabled"
+            ],
+            "properties": {
+              "physical_mouse_used": {"const": false},
+              "foreground_activation_requested": {"const": false},
+              "window_move_or_resize_requested": {"const": true},
+              "physical_pointer_baseline_enabled": {"const": false},
+              "cursor_anchored_popup_enabled": {"const": true}
+            }
+          }
+        }
+      ]
+    },
+    "resultError": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string"
+            },
+            "attempt_limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            }
+          }
+        }
+      ]
+    },
+    "ocrAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant", "scale", "text", "word_count"],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "text": {
+          "type": "string"
+        },
+        "word_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_row_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "detected_row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ocr_errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "segmentation_error": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "popup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hwnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "class_name": {
+          "type": "string"
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "ocr_attempts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ocrAttempt"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "maxProperties": 0
+        },
+        {
+          "required": ["hwnd", "class_name", "rect", "ocr_attempts"]
+        }
+      ]
+    },
+    "cursorAnchoredPopupDispatchEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cursor_anchor",
+        "popup_original_rect",
+        "popup_aligned_rect",
+        "physical_pointer_used"
+      ],
+      "properties": {
+        "cursor_anchor": {
+          "$ref": "#/$defs/point"
+        },
+        "popup_original_rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "popup_aligned_rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "physical_pointer_used": {
+          "const": false
+        },
+        "popup_moved_temporarily": {
+          "const": true
+        },
+        "window_moved_temporarily": {
+          "const": true
+        },
+        "target_kind": {
+          "const": "popup"
+        },
+        "raised_to_top_without_activation": {
+          "type": "boolean"
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["popup_moved_temporarily"]
+        },
+        {
+          "required": [
+            "window_moved_temporarily",
+            "target_kind",
+            "raised_to_top_without_activation"
+          ]
+        }
+      ]
+    },
+    "physicalPointerDispatchEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screen_point",
+        "original_cursor",
+        "physical_pointer_used"
+      ],
+      "properties": {
+        "screen_point": {
+          "$ref": "#/$defs/point"
+        },
+        "original_cursor": {
+          "$ref": "#/$defs/point"
+        },
+        "physical_pointer_used": {
+          "const": true
+        }
+      }
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "enum": [
+            "unique_normalized_ocr_text_in_current_popup_hwnd",
+            "visual_row_segmentation_with_catalog_order",
+            "current_popup_equal_height_catalog_row"
+          ]
+        },
+        "aliases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ocr_variant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "box": {
+          "$ref": "#/$defs/rect"
+        },
+        "client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "coordinate_fallback_used": {
+          "const": false
+        },
+        "dispatch_method": {
+          "enum": [
+            "posted_hwnd_pointer_message",
+            "targeted_menu_keyboard",
+            "hwnd_pointer_message",
+            "cursor_anchored_popup_message",
+            "physical_pointer_baseline"
+          ]
+        },
+        "dispatch_evidence": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/cursorAnchoredPopupDispatchEvidence"
+            },
+            {
+              "$ref": "#/$defs/physicalPointerDispatchEvidence"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "maxProperties": 0
+        },
+        {
+          "required": [
+            "strategy",
+            "aliases",
+            "ocr_variant",
+            "box",
+            "client_point",
+            "coordinate_fallback_used",
+            "dispatch_method"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "cursor_anchored_popup_message"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "required": ["dispatch_evidence"],
+            "properties": {
+              "dispatch_evidence": {
+                "$ref": "#/$defs/cursorAnchoredPopupDispatchEvidence"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "physical_pointer_baseline"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "required": ["dispatch_evidence"],
+            "properties": {
+              "dispatch_evidence": {
+                "$ref": "#/$defs/physicalPointerDispatchEvidence"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "postcondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verified",
+        "title_match",
+        "ocr_marker_match",
+        "expected_title_prefixes",
+        "expected_ocr_markers"
+      ],
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "title_match": {
+          "type": "boolean"
+        },
+        "ocr_marker_match": {
+          "type": "boolean"
+        },
+        "selector_match": {
+          "type": "boolean"
+        },
+        "require_title_and_selector": {
+          "type": "boolean"
+        },
+        "verification_scope": {
+          "enum": ["leaf", "shell_only"]
+        },
+        "expected_title_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_ocr_markers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_selector_markers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "verification_basis": {
+          "const": "target_title_or_ocr_marker"
+        }
+      }
+    },
+    "ocrRegion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "word_count",
+        "source_box",
+        "scale"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "word_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_box": {
+          "$ref": "#/$defs/rect"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hwnd",
+        "title",
+        "class_name",
+        "owner_hwnd",
+        "rect",
+        "width",
+        "height",
+        "ocr_text",
+        "ocr_word_count",
+        "screenshot_path",
+        "screenshot_sha256"
+      ],
+      "properties": {
+        "hwnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "class_name": {
+          "type": "string"
+        },
+        "owner_hwnd": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ocr_text": {
+          "type": "string"
+        },
+        "ocr_word_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ocr_regions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ocrRegion"
+          }
+        },
+        "screenshot_path": {
+          "type": ["string", "null"]
+        },
+        "screenshot_sha256": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "postcondition": {
+          "$ref": "#/$defs/postcondition"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "maxProperties": 0
+        },
+        {
+          "required": ["target_count", "postcondition", "targets"]
+        }
+      ]
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt",
+        "started_at",
+        "popup",
+        "locator",
+        "transition",
+        "completed_at",
+        "error"
+      ],
+      "properties": {
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "popup": {
+          "$ref": "#/$defs/popup"
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "transition": {
+          "$ref": "#/$defs/transition"
+        },
+        "completed_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "itemStatuses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "background_interaction_status",
+        "data_extraction_status",
+        "safety_policy_status"
+      ],
+      "properties": {
+        "background_interaction_status": {
+          "type": "string",
+          "enum": [
+            "unsupported",
+            "manual_only",
+            "validated_background",
+            "validated_background_shell_only",
+            "validated_physical_baseline",
+            "error"
+          ]
+        },
+        "data_extraction_status": {
+          "type": "string",
+          "enum": ["pending", "snapshot_only"]
+        },
+        "safety_policy_status": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "itemResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_id",
+        "group_id",
+        "view_id",
+        "label",
+        "status",
+        "attempt_count",
+        "statuses",
+        "attempts",
+        "targets",
+        "limitations",
+        "error"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "group_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "view_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "statuses": {
+          "$ref": "#/$defs/itemStatuses"
+        },
+        "attempts": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/attempt"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/resultError"
+        }
+      }
+    },
+    "groupResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "label",
+        "opener_entry_id",
+        "status",
+        "configured_item_count",
+        "counts",
+        "items",
+        "error"
+      ],
+      "properties": {
+        "group_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "opener_entry_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "configured_item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "configured_catalog_item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "counts": {
+          "$ref": "#/$defs/statusCounts"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/itemResult"
+          }
+        },
+        "error": {
+          "$ref": "#/$defs/resultError"
+        },
+        "surface_inventory_only": {
+          "const": true
+        },
+        "surface_attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "surface": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "hwnd",
+                "class_name",
+                "rect",
+                "width",
+                "height",
+                "ocr_text",
+                "ocr_word_count",
+                "screenshot_path",
+                "screenshot_sha256",
+                "child_item_selected"
+              ],
+              "properties": {
+                "hwnd": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "class_name": {
+                  "type": "string"
+                },
+                "rect": {
+                  "$ref": "#/$defs/rect"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "ocr_text": {
+                  "type": "string"
+                },
+                "ocr_word_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "screenshot_path": {
+                  "type": ["string", "null"]
+                },
+                "screenshot_sha256": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "child_item_selected": {
+                  "const": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

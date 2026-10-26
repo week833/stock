@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tw-stock:mitake-responsive-profiles:v1",
+  "schema": "tw_stock.mitake.responsive_profiles",
+  "schema_version": 1,
+  "catalog_date": "2026-08-07",
+  "reference_only": true,
+  "policy": {
+    "phase_1": "先以maximized baseline蒐集全功能與後置條件。",
+    "phase_2": "第一階段完成後，再依P0/P1與各解析度／DPI重播；未有逐profile evidence不得宣稱支援。",
+    "maximized_first": true,
+    "fixed_screen_coordinates_allowed": false,
+    "non_96_dpi_validated": false,
+    "physical_mouse_fallback_only_after_five_background_failures": true
+  },
+  "evidence_boundary": {
+    "validated_physical_resolutions": [
+      [
+        1366,
+        768
+      ]
+    ],
+    "validated_dpis": [
+      96
+    ],
+    "non_96_dpi_status": "pending_environment",
+    "note": "現有實機證據只有1366x768；非96 DPI一律pending，不能標validated。"
+  },
+  "required_profiles": [
+    "maximized_baseline",
+    "P0",
+    "P1",
+    "1280x720",
+    "1366x768",
+    "1400x900",
+    "1600x900",
+    "1920x1080",
+    "minimized-start"
+  ],
+  "profiles": [
+    {
+      "profile_id": "maximized_baseline",
+      "phase": "phase_1",
+      "window_state": "maximized",
+      "resolution": null,
+      "resolution_label": "maximized_actual",
+      "resolution_match_policy": "record_actual_maximized",
+      "evidence_reference_resolution": [
+        1366,
+        768
+      ],
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "validated",
+          "support_status": "validated_maximized_background_strict/no_mouse",
+          "evidence_refs": [
+            "config/mitake_ui_research_status.json#/current_resolution/navigation/cursor_anchor/latest_safety_verification"
+          ],
+          "note": "目前唯一實機證據尺寸為1366x768；此筆僅代表96 DPI maximized baseline。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "validated_maximized_background_strict/no_mouse",
+      "claim_status": "validated",
+      "evidence_refs": [
+        "config/mitake_ui_research_status.json#/current_resolution/navigation/cursor_anchor/latest_safety_verification"
+      ],
+      "note": "第一階段基準；不可外推到其他解析度或DPI。"
+    },
+    {
+      "profile_id": "P0",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1280,
+        720
+      ],
+      "candidate_resolutions": [
+        [
+          1280,
+          720
+        ]
+      ],
+      "resolution_match_policy": "exact_client_size",
+      "resolution_label": "P0",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段 breakpoint 標籤，待實機逐項evidence。"
+    },
+    {
+      "profile_id": "P1",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1366,
+        768
+      ],
+      "candidate_resolutions": [
+        [
+          1366,
+          768
+        ]
+      ],
+      "resolution_match_policy": "exact_client_size",
+      "resolution_label": "P1",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段 breakpoint 標籤，待實機逐項evidence。"
+    },
+    {
+      "profile_id": "1280x720",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1280,
+        720
+      ],
+      "resolution_label": "1280x720",
+      "resolution_match_policy": "exact_client_size",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段解析度profile；沒有逐entry/profile/DPI evidence前保持pending。"
+    },
+    {
+      "profile_id": "1366x768",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1366,
+        768
+      ],
+      "resolution_label": "1366x768",
+      "resolution_match_policy": "exact_client_size",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段解析度profile；沒有逐entry/profile/DPI evidence前保持pending。"
+    },
+    {
+      "profile_id": "1400x900",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1400,
+        900
+      ],
+      "resolution_label": "1400x900",
+      "resolution_match_policy": "exact_client_size",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段解析度profile；沒有逐entry/profile/DPI evidence前保持pending。"
+    },
+    {
+      "profile_id": "1600x900",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1600,
+        900
+      ],
+      "resolution_label": "1600x900",
+      "resolution_match_policy": "exact_client_size",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段解析度profile；沒有逐entry/profile/DPI evidence前保持pending。"
+    },
+    {
+      "profile_id": "1920x1080",
+      "phase": "phase_2",
+      "window_state": "normal",
+      "resolution": [
+        1920,
+        1080
+      ],
+      "resolution_label": "1920x1080",
+      "resolution_match_policy": "exact_client_size",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "第二階段解析度profile；沒有逐entry/profile/DPI evidence前保持pending。"
+    },
+    {
+      "profile_id": "minimized-start",
+      "phase": "phase_2",
+      "window_state": "minimized_start",
+      "resolution": null,
+      "resolution_label": "minimized-start",
+      "dpis": [
+        {
+          "dpi": 96,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 120,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 144,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        },
+        {
+          "dpi": 192,
+          "claim_status": "pending_environment",
+          "support_status": "pending_environment",
+          "evidence_refs": [],
+          "note": "尚無此DPI的實機evidence，不得宣稱支援。"
+        }
+      ],
+      "support_status": "pending_environment",
+      "claim_status": "pending_environment",
+      "evidence_refs": [],
+      "note": "最小化啟動需明確允許暫時restore；目前未驗證。"
+    }
+  ]
+}

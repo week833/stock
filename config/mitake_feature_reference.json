@@ -1,0 +1,316 @@
+{
+  "schema": "tw_stock.mitake.feature_reference",
+  "schema_version": 1,
+  "catalog_date": "2026-07-28",
+  "purpose": "供 D:\\stock 內部程式查詢三竹股市功能、欄位、取得方式與驗證狀態。",
+  "path_contract": "D:\\stock\\config\\mitake_feature_reference.json",
+  "runtime_behavior": {
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "controls_watchlist_sync": false,
+    "reference_only": true
+  },
+  "current_status": "historical_reference_only",
+  "active_program_interfaces": false,
+  "retired_on": "2026-08-30",
+  "current_boundary": "全市場分析由 D:\\MIX All；D-stock 單股與 Telegram 依現行入口。",
+  "observed_scope": {
+    "application": "D:\\Downloads\\MitakeGU\\三竹股市.exe",
+    "application_sha256": "d0370843407344453a12901301e6857b6d27e2b41078b2b520f359d932c99217",
+    "window": "1400x900@96dpi",
+    "visible_navigation_and_shortcuts": 34,
+    "validated_feature_windows": 24,
+    "navigation_only_items": 10,
+    "click_errors": 0,
+    "local_evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728",
+    "evidence_corrections": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\inventory_corrections.json"
+  },
+  "status_definitions": {
+    "validated_ui_open": "已實機點擊並開啟視窗，可確認主要可見欄位。",
+    "clicked_no_separate_window": "已點擊但未開啟獨立子視窗，通常是導覽分類或選單。",
+    "snapshot_only": "有畫面或 OCR 證據，尚未完成可重播欄位驗證。",
+    "schema_ready": "已定義欄位或導覽規格，尚未完成逐頁蒐集。",
+    "pending": "受隱藏頁、帳號、方案、時段或版本影響，尚未驗證。",
+    "unsupported": "畫面明確顯示商品或功能不支援。"
+  },
+  "navigation": [
+    {"id": "market", "label": "大盤", "status": "clicked_no_separate_window"},
+    {"id": "global_finance", "label": "國際金融", "status": "clicked_no_separate_window"},
+    {"id": "securities", "label": "證券行情", "status": "clicked_no_separate_window"},
+    {"id": "composite_quote", "label": "綜合報價", "status": "validated_ui_open"},
+    {"id": "derivatives", "label": "期權行情", "status": "clicked_no_separate_window"},
+    {"id": "news_media", "label": "新聞影音", "status": "clicked_no_separate_window"},
+    {"id": "warrants", "label": "權證專家", "status": "validated_ui_open"},
+    {"id": "ipo_auction", "label": "申購競拍", "status": "clicked_no_separate_window"},
+    {"id": "market_activity_navigation", "label": "市場動態", "status": "clicked_no_separate_window"},
+    {"id": "main_force", "label": "主力追蹤", "status": "validated_ui_open"},
+    {"id": "etf", "label": "ETF專區", "status": "clicked_no_separate_window"},
+    {"id": "preferences", "label": "個人設定", "status": "clicked_no_separate_window"},
+    {"id": "more", "label": "更多", "status": "clicked_no_separate_window"}
+  ],
+  "features": [
+    {
+      "id": "composite_quote",
+      "label": "綜合報價",
+      "status": "validated_ui_open",
+      "fields": ["即時價", "買進", "賣出", "五檔", "成交明細", "個股報價", "個股籌碼", "個股財務", "個股資料"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "warrants",
+      "label": "權證專家",
+      "status": "validated_ui_open",
+      "fields": ["熱門權證", "權證標的", "權證比較", "條件查詢", "試算器", "排行"],
+      "preferred_access": ["Mitake SDK"]
+    },
+    {
+      "id": "main_force",
+      "label": "主力追蹤",
+      "status": "validated_ui_open",
+      "fields": ["券商分點", "交易週期", "五日進出", "買賣超金額", "買賣超張數", "連續天數", "勝率", "損益", "報酬率"],
+      "preferred_access": ["Mitake SDK", "verified UI evidence"],
+      "formal_model_policy": "blocked_until_point_in_time_backtest"
+    },
+    {
+      "id": "quote_list",
+      "label": "報價列表",
+      "status": "validated_ui_open",
+      "fields": ["商品代號", "商品名稱", "買價", "賣價", "成交價", "漲跌", "幅度", "單量", "總量", "分類"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "market_trend",
+      "label": "大盤走勢",
+      "status": "validated_ui_open",
+      "fields": ["指數", "漲跌幅", "分時走勢", "成交量", "成交值", "上漲下跌家數", "漲跌停家數"],
+      "preferred_access": ["Mitake SDK", "official exchange data"]
+    },
+    {
+      "id": "intraday_trend",
+      "label": "即時走勢",
+      "status": "validated_ui_open",
+      "fields": ["即時價", "漲跌", "分時價格", "成交量", "開盤", "最高", "最低", "均價"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "best_five",
+      "label": "最佳五檔",
+      "status": "validated_ui_open",
+      "fields": ["五檔買價", "五檔買量", "五檔賣價", "五檔賣量", "成交價", "時間", "單量"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "large_order_flow",
+      "label": "大單流向",
+      "status": "validated_ui_open",
+      "fields": ["時間", "買進", "賣出", "成交", "總量", "大單流向", "小單流向"],
+      "preferred_access": ["Mitake SDK", "verified UI evidence"]
+    },
+    {
+      "id": "support_resistance",
+      "label": "支撐壓力",
+      "status": "validated_ui_open",
+      "fields": ["關鍵價位", "支撐區", "壓力區", "目前價格"],
+      "preferred_access": ["Mitake SDK", "licensed provider feature"]
+    },
+    {
+      "id": "related_products",
+      "label": "相關商品",
+      "status": "validated_ui_open",
+      "fields": ["相關商品代號", "相關商品名稱", "成交價", "漲跌幅"],
+      "preferred_access": ["Mitake SDK"]
+    },
+    {
+      "id": "stock_finance",
+      "label": "個股財務",
+      "status": "validated_ui_open",
+      "fields": ["月營收", "月增率", "年增率", "累計年增率", "損益表", "資產負債表", "現金流量表", "獲利能力", "償債能力", "經營能力"],
+      "subtab_status": "snapshot_only",
+      "preferred_access": ["Mitake SDK", "official disclosure data"]
+    },
+    {
+      "id": "stock_news",
+      "label": "個股新聞",
+      "status": "validated_ui_open",
+      "fields": ["來源", "標題", "觀看數", "顯示時間", "最後更新時間", "相關商品"],
+      "preferred_access": ["Mitake SDK", "licensed news source"],
+      "formal_model_policy": "report_and_calibration_history_only",
+      "direct_prediction_weight": 0
+    },
+    {
+      "id": "trend_analysis",
+      "label": "趨勢分析",
+      "status": "validated_ui_open",
+      "fields": ["OHLC", "成交量", "移動平均線", "技術指標", "供應商技術摘要"],
+      "preferred_access": ["Mitake SDK", "recalculate from licensed OHLCV"],
+      "formal_model_policy": "report_and_calibration_history_only",
+      "direct_prediction_weight": 0
+    },
+    {
+      "id": "ai_selection",
+      "label": "AI智選",
+      "status": "validated_ui_open",
+      "fields": ["多空影響因子", "AI評分", "行情分析", "技術分析"],
+      "preferred_access": ["licensed provider feature"],
+      "formal_model_policy": "external_answer_not_allowed"
+    },
+    {
+      "id": "stock_screener",
+      "label": "選股專家",
+      "status": "validated_ui_open",
+      "fields": ["條件", "策略", "商品清單", "商品代號", "買價", "賣價", "更新時間"],
+      "preferred_access": ["Mitake SDK", "manual export"],
+      "formal_model_policy": "external_answer_not_allowed"
+    },
+    {
+      "id": "market_activity",
+      "label": "大盤動態",
+      "status": "validated_ui_open",
+      "fields": ["指數", "漲跌", "成交量", "成交值", "開盤", "最高", "最低", "上漲下跌家數", "漲跌停家數"],
+      "preferred_access": ["Mitake SDK", "official exchange data"]
+    },
+    {
+      "id": "trade_details",
+      "label": "即時明細",
+      "status": "validated_ui_open",
+      "fields": ["時間", "買進", "賣出", "成交價", "單量", "累計量"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "price_volume",
+      "label": "分價統計",
+      "status": "validated_ui_open",
+      "fields": ["分價量表", "內盤", "外盤", "買賣盤差", "量排序", "1分", "3分", "5分", "15分", "60分"],
+      "preferred_access": ["Mitake SDK", "recalculate from licensed tick data"]
+    },
+    {
+      "id": "technical_analysis",
+      "label": "技術分析",
+      "status": "validated_ui_open",
+      "fields": ["K線週期", "OHLCV", "技術指標", "移動平均線", "繪圖工具"],
+      "preferred_access": ["Mitake SDK", "recalculate from licensed OHLCV"]
+    },
+    {
+      "id": "odd_lot_quote",
+      "label": "零股報價",
+      "status": "validated_ui_open",
+      "fields": ["盤中零股", "盤後零股", "價格", "股數", "買價", "賣價", "成交明細", "總量", "內外盤"],
+      "preferred_access": ["DDE", "Mitake SDK"]
+    },
+    {
+      "id": "stock_chips",
+      "label": "個股籌碼",
+      "status": "validated_ui_open",
+      "fields": ["券商分點", "籌碼分佈", "三大法人", "資券當沖", "主力進出", "集保大戶", "集保餘額", "董監持股", "董監質設", "股權分佈", "持股轉讓", "庫藏股"],
+      "subtab_status": "snapshot_only",
+      "preferred_access": ["Mitake SDK", "official data", "verified UI evidence"]
+    },
+    {
+      "id": "stock_profile",
+      "label": "個股資料",
+      "status": "validated_ui_open",
+      "fields": ["公司名稱", "公司網址", "英文簡稱", "資本額", "市值", "產業", "成立日期", "上市日期", "主要業務", "股本", "股利", "除權息", "重大行事曆", "法說會", "轉投資"],
+      "subtab_status": "snapshot_only",
+      "preferred_access": ["Mitake SDK", "official disclosure data"]
+    },
+    {
+      "id": "stock_diagnosis",
+      "label": "個股診斷",
+      "status": "validated_ui_open",
+      "fields": ["個股概況", "河流圖", "同業比較", "量價區間", "財務簡表", "1日漲跌", "5日漲跌", "10日漲跌", "本益比估值區間", "股價淨值比估值區間", "成交量", "同業排名"],
+      "subtab_status": "snapshot_only",
+      "preferred_access": ["Mitake SDK", "recalculate from official data"],
+      "formal_model_policy": "report_and_calibration_history_only",
+      "direct_prediction_weight": 0
+    },
+    {
+      "id": "entry_exit_indicator",
+      "label": "進出場指標",
+      "status": "validated_ui_open",
+      "fields": ["進場訊號", "出場訊號", "報酬率", "勝率", "指標排行", "訊號歷史", "K線", "技術指標"],
+      "preferred_access": ["recalculate from licensed market data"],
+      "formal_model_policy": "provider_statistics_reference_only"
+    }
+  ],
+  "existing_adapter_coverage": {
+    "broker_branch_rank": {
+      "5d_buy": "validated_ui_open",
+      "5d_sell": "snapshot_only",
+      "1d_buy": "schema_ready",
+      "1d_sell": "schema_ready",
+      "formal_model_policy": "supplementary_watchlist_evidence_only"
+    },
+    "broker_category_scan": {
+      "subviews": ["分點排行", "買賣超", "焦點", "明細"],
+      "status": "snapshot_only",
+      "formal_model_policy": "watchlist_evidence_only"
+    },
+    "stock_chip_alternative_views": {
+      "subviews": ["三大法人／進出", "三大法人／持股", "主力進出／進出", "主力進出／集中度", "主力進出／股本比"],
+      "status": "snapshot_only",
+      "formal_model_policy": "evidence_only_not_a_broker_condition_replacement"
+    },
+    "main_force_tracking": {
+      "left_categories": ["焦點主力", "交易高手", "外資券商", "官股行庫", "常用", "搜尋"],
+      "right_subviews": ["五日進出", "投資喜好", "喜好標的"],
+      "status": "schema_ready",
+      "formal_model_policy": "blocked_until_point_in_time_backtest"
+    }
+  },
+  "program_interfaces": {
+    "capability_manifest": {
+      "module": "D:\\stock\\programs\\full_market_analysis\\src\\tw_mitake_broker_screen.py",
+      "callable": "capability_manifest",
+      "ui_side_effect": false,
+      "lifecycle": "retired",
+      "executable": false,
+      "provenance_only": true
+    },
+    "screen_collection": {
+      "module": "D:\\stock\\programs\\full_market_analysis\\src\\tw_mitake_broker_screen.py",
+      "callable": "collect_mitake_screen_results",
+      "ui_side_effect": true,
+      "lifecycle": "retired",
+      "executable": false,
+      "provenance_only": true
+    },
+    "daily_watchlist_sync": {
+      "module": "D:\\stock\\programs\\full_market_analysis\\src\\tw_mitake_daily_watchlist.py",
+      "callable": "synchronize_ranked_daily_group",
+      "ui_side_effect": true,
+      "purpose": "正式成品驗證通過後更新三竹「每日」群組；不是行情 API。",
+      "lifecycle": "retired",
+      "executable": false,
+      "provenance_only": true
+    }
+  },
+  "access_methods": {
+    "DDE": {
+      "entry": "個人設定／DDE設定",
+      "use": "本機 Excel 即時訂閱",
+      "requires_license_review": true
+    },
+    "Mitake SDK": {
+      "docs": "https://sdk.mitake.com.tw/docs.html",
+      "use": "正式程式介接",
+      "requires_account_plan_and_credentials": true
+    },
+    "UI_OCR": {
+      "use": "有限頁籤的可見補充證據",
+      "transport_interception": false,
+      "account_or_order_actions": false
+    }
+  },
+  "governance": {
+    "store_real_market_screenshots_in_git": false,
+    "store_credentials_in_git": false,
+    "use_private_intercepted_endpoint": false,
+    "external_recommendations_as_formal_answers": false,
+    "uncertain_data_statuses": ["pending", "unsupported", "verified_no_hit"],
+    "formal_adoption_requires": ["licensing review", "security review", "isolated test", "point-in-time validation", "walk-forward validation", "out-of-sample benefit"]
+  },
+  "published_research_snapshot": {
+    "local_path": "D:\\stock\\GitHub\\docs\\mitake\\capabilities.json",
+    "pull_request": "https://github.com/week833/stock/pull/12"
+  }
+}

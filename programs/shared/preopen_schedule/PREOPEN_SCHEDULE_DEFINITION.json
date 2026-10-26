@@ -1,0 +1,77 @@
+{
+  "schema_version": "preopen_daily_schedule_definition_v1",
+  "purpose": "開盤前版 H1（ADR-0008）每日流程的工作排程定義。所有任務以目前使用者（互動式登入、一般權限）執行，週一至週五，台北時間。",
+  "timezone": "Taipei Standard Time",
+  "plan_document": "D:\\stock\\docs\\PREOPEN_DAILY_SCHEDULE_PLAN_20261018.md",
+  "principal": {
+    "run_as": "current_user",
+    "logon_type": "Interactive",
+    "run_level": "Limited"
+  },
+  "common_settings": {
+    "days_of_week": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "start_when_available": true,
+    "wake_to_run": true,
+    "multiple_instances": "IgnoreNew",
+    "allow_start_if_on_batteries": true,
+    "dont_stop_if_going_on_batteries": true,
+    "dont_stop_on_idle_end": true
+  },
+  "tasks": [
+    {
+      "task_name": "TWStock Preopen 01 Central Full Update 23-00",
+      "start_time": "23:00",
+      "description": "① 中央完整更新（36 路由：價格、籌碼、國際、營收…）。失敗（結束碼不在 0、10）時等 30 分鐘重試，最多 3 次。",
+      "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "arguments": "-NoProfile -ExecutionPolicy Bypass -File \"D:\\stock\\programs\\shared\\preopen_schedule\\RUN_CENTRAL_UPDATE.ps1\" -Mode full",
+      "working_directory": "D:\\TWStockUpdater",
+      "execution_time_limit": "PT6H"
+    },
+    {
+      "task_name": "TWStock Preopen 02 Central Global Update 06-30",
+      "start_time": "06:30",
+      "description": "② 國際資料單獨更新（前一晚美股、美債、匯率、油金、日韓）。晚於 NYSE 收盤（夏令台北 04:00、冬令 05:00）。",
+      "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "arguments": "-NoProfile -ExecutionPolicy Bypass -File \"D:\\stock\\programs\\shared\\preopen_schedule\\RUN_CENTRAL_UPDATE.ps1\" -Mode global",
+      "working_directory": "D:\\TWStockUpdater",
+      "execution_time_limit": "PT40M"
+    },
+    {
+      "task_name": "TWStock Preopen 03 Snapshot 07-15",
+      "start_time": "07:15",
+      "description": "③ 開盤前版產製：結算前一日 → 每 21 個交易日自動重訓 → 產生今日快照（前一晚美股缺漏時拒絕發布，消費端自動改用 C0）。",
+      "executable": "C:\\Windows\\System32\\cmd.exe",
+      "arguments": "/d /c call D:\\stock\\programs\\shared\\RUN_PREOPEN_DAILY.cmd",
+      "working_directory": "D:\\stock\\programs\\shared",
+      "execution_time_limit": "PT30M"
+    },
+    {
+      "task_name": "TWStock Preopen 04 Top10 07-30",
+      "start_time": "07:30",
+      "description": "④ 次日 Top10（model source auto：快照新鮮時用開盤前版，否則 C0）。",
+      "executable": "C:\\Windows\\System32\\cmd.exe",
+      "arguments": "/d /c call D:\\stock\\TWNextDayTop10\\RUN_TOP10.cmd --no-pause --no-open",
+      "working_directory": "D:\\stock\\TWNextDayTop10",
+      "execution_time_limit": "PT45M"
+    },
+    {
+      "task_name": "TWStock Preopen 05 MIX 07-40",
+      "start_time": "07:40",
+      "description": "⑤ MIX 全市場報告（H1 來源 auto；H5/H20/H60 為 C0）。與 Top10 錯開，兩者寫同一個 C0 前瞻帳冊。",
+      "executable": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "arguments": "-NoProfile -ExecutionPolicy Bypass -File \"D:\\MIX All\\tools\\run_daily.ps1\"",
+      "working_directory": "D:\\MIX All",
+      "execution_time_limit": "PT1H"
+    }
+  ],
+  "external_tasks": [
+    {
+      "task_name": "MIX Telegram Report 08-00",
+      "note": "⑥ 既有定義，另以 D:\\stock\\programs\\telegram_report_delivery\\INSTALL_MIX_WEEKDAY_0800_TASK.ps1 -Register -ConfirmRegister 註冊；本腳本不重複處理。"
+    }
+  ],
+  "do_not_register": [
+    "TWStockData Central Market Update 03-00（6 路由 current-only 版會把中央 capture scope 換成沒有國際資料視窗的版本，之後②會依設計拒絕執行）",
+    "TWStockData Sequential Weekday Orchestration 04-00（依賴上述 03:00 前提）"
+  ]
+}

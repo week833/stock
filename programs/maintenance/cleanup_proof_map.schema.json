@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-cleanup-proof-map-v1",
+  "title": "Explicit cleanup duplicate/supersession proof map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "entries"],
+  "properties": {
+    "schema": { "const": "stock-cleanup-proof-map-v1" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target_path", "authority_path", "category", "evidence_paths"],
+        "properties": {
+          "target_path": { "type": "string", "pattern": "^[A-Za-z]:\\\\" },
+          "authority_path": { "type": "string", "pattern": "^[A-Za-z]:\\\\" },
+          "category": { "enum": ["A-exact-duplicate", "A-damaged-superseded"] },
+          "evidence_paths": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]:\\\\" } },
+          "superseded_by": { "type": ["string", "null"] },
+          "damage_status": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,1847 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tw-stock:mitake-operation-matrix:v1",
+  "title": "三竹逐entry/profile/DPI背景操作矩陣",
+  "description": "每一entry/profile/DPI最多五次workflow；只描述reference_only UI/OCR證據。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "reference_only",
+    "catalog_ref",
+    "profile_ref",
+    "status_enum",
+    "entries"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tw_stock.mitake.operation_matrix"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "reference_only": {
+      "const": true
+    },
+    "catalog_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status_enum": {
+      "type": "array",
+      "enum": [
+        [
+          "validated_maximized_background_strict/no_mouse",
+          "validated_at_size_background",
+          "validated_via_maximized_fallback",
+          "validated_physical_mouse_fallback",
+          "validated_shell_only",
+          "blocked_by_safety",
+          "pending_environment",
+          "unsupported_after_5",
+          "unreachable"
+        ],
+        [
+          "validated_maximized_background_strict/no_mouse",
+          "validated_at_size_background",
+          "validated_via_maximized_fallback",
+          "validated_cascade_discovery_only/no_mouse",
+          "validated_expanded_direct_background_strict/no_mouse",
+          "validated_physical_mouse_fallback",
+          "validated_shell_only",
+          "blocked_by_safety",
+          "pending_environment",
+          "unsupported_after_5",
+          "unreachable"
+        ],
+        [
+          "validated_maximized_background_strict/no_mouse",
+          "validated_at_size_background",
+          "validated_via_maximized_fallback",
+          "validated_cascade_discovery_only/no_mouse",
+          "validated_physical_mouse_fallback",
+          "validated_shell_only",
+          "blocked_by_safety",
+          "pending_environment",
+          "unsupported_after_5",
+          "unreachable"
+        ]
+      ]
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "validated_maximized_background_strict/no_mouse",
+        "validated_at_size_background",
+        "validated_via_maximized_fallback",
+        "validated_cascade_discovery_only/no_mouse",
+        "validated_expanded_direct_background_strict/no_mouse",
+        "validated_physical_mouse_fallback",
+        "validated_shell_only",
+        "blocked_by_safety",
+        "pending_environment",
+        "unsupported_after_5",
+        "unreachable"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "captured",
+        "references"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "captured": {
+          "type": "boolean"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "screenshot_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "screenshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/screenshot"
+          }
+        },
+        "ocr_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ocr_text": {
+          "type": [
+            "string",
+            "array"
+          ]
+        },
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "layout_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "layout_epoch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capture_error": {
+          "type": "string"
+        }
+      }
+    },
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        }
+      }
+    },
+    "strategy": {
+      "type": "string",
+      "enum": [
+        "targeted_hwnd_synchronous",
+        "queued_post_message",
+        "cursor_anchor_fraction_045",
+        "cursor_anchor_fraction_076",
+        "cursor_anchor_fraction_025",
+        "physical_pointer_baseline",
+        "cascade_client_relative_hover",
+        "expanded_cascade_parent_current_header_exact"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "hwnd": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "screenshot_path": {
+          "type": "string"
+        },
+        "screenshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "ocr_path": {
+          "type": "string"
+        },
+        "text_path": {
+          "type": "string"
+        },
+        "ocr_text": {
+          "type": "string"
+        },
+        "regions": {},
+        "selector": {},
+        "period": {},
+        "visible_table_rows": {}
+      }
+    },
+    "child_expectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "child_id",
+        "text"
+      ],
+      "properties": {
+        "child_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "discovery_only"
+        },
+        "observed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "label_candidate": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "text",
+        "normalized_text",
+        "source",
+        "ocr_variant"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "normalized_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "regions",
+            "words"
+          ]
+        },
+        "ocr_variant": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "foreground_scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "status",
+        "run_start_allowed",
+        "trace"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "unsupported",
+            "validated_same_process_no_physical"
+          ]
+        },
+        "root_hwnd": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "root_pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "run_start_allowed": {
+          "type": "boolean"
+        },
+        "trace": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "allowed"
+            ],
+            "properties": {
+              "allowed": {
+                "type": "boolean"
+              },
+              "hwnd": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "pid": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "owner_hwnd": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "target_evidence": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "entry_id": {
+          "type": "string"
+        },
+        "root_hwnd": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "layout_epoch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "layout_epoch_after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/target"
+          }
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/screenshot"
+          }
+        },
+        "titles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ocr_text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array"
+        },
+        "capture_error": {
+          "type": "string"
+        },
+        "direct_locator": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "entry_id",
+            "box"
+          ],
+          "properties": {
+            "entry_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "box": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {
+                "type": "integer"
+              }
+            },
+            "strategy": {
+              "const": "expanded_direct_current_header_exact"
+            },
+            "presentation_variant": {
+              "const": "expanded_direct"
+            }
+          }
+        },
+        "feature_graph": {
+          "type": "object"
+        },
+        "opener_evidence": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "screenshot_path",
+            "screenshot_sha256",
+            "ocr_path",
+            "layout_epoch"
+          ],
+          "properties": {
+            "screenshot_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "screenshot_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$"
+            },
+            "ocr_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "layout_epoch": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "child_surface_evidence": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "screenshots",
+            "targets",
+            "ocr_paths",
+            "layout_epoch"
+          ],
+          "properties": {
+            "verified": {
+              "type": "boolean"
+            },
+            "screenshots": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/screenshot"
+              }
+            },
+            "targets": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/target"
+              }
+            },
+            "ocr_paths": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "layout_epoch": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owned_hwnds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "owner_hwnds": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "process_ids": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "label_candidates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/label_candidate"
+              }
+            },
+            "ocr_preprocessing_variants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "variant"
+                ],
+                "properties": {
+                  "variant": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "scale": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "word_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "expected_children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/child_expectation"
+          }
+        },
+        "expected_children_observed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/child_expectation"
+          }
+        },
+        "expected_child_status": {
+          "const": "discovery_only"
+        },
+        "foreground_scope": {
+          "$ref": "#/$defs/foreground_scope"
+        },
+        "runtime_identity": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "runtime_path",
+            "pid",
+            "root_hwnd",
+            "executable_sha256",
+            "client_size",
+            "dpi",
+            "layout_epoch"
+          ],
+          "properties": {
+            "runtime_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pid": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "root_hwnd": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "executable_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$"
+            },
+            "client_size": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "dpi": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "layout_epoch": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "cascade_metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "const": "cascade_client_relative_hover"
+            },
+            "reference_only": {
+              "const": true
+            },
+            "data_promotion": {
+              "const": false
+            },
+            "physical_mouse_used": {
+              "const": false
+            },
+            "fixed_screen_coordinates_used": {
+              "const": false
+            },
+            "global_keyboard_used": {
+              "const": false
+            }
+          }
+        }
+      }
+    },
+    "attempt_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "feature_graph": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "priority",
+        "target",
+        "fixed_screen_coordinates_allowed",
+        "unique_match_required"
+      ],
+      "properties": {
+        "strategy": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "array",
+          "const": [
+            "text",
+            "uia",
+            "ocr"
+          ]
+        },
+        "target": {
+          "type": "string"
+        },
+        "fixed_screen_coordinates_allowed": {
+          "const": false
+        },
+        "unique_match_required": {
+          "type": "boolean"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "target_hwnd_only",
+        "physical_mouse_used",
+        "foreground_activation_requested",
+        "global_keyboard_used"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "target_hwnd_only": {
+          "type": "boolean"
+        },
+        "physical_mouse_used": {
+          "type": "boolean"
+        },
+        "foreground_activation_requested": {
+          "type": "boolean"
+        },
+        "global_keyboard_used": {
+          "const": false
+        },
+        "fixed_screen_coordinates_used": {
+          "const": false
+        },
+        "strategy": {
+          "type": "string"
+        }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "before",
+        "after",
+        "unchanged"
+      ],
+      "properties": {
+        "before": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "after": {
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "unchanged": {
+          "type": "boolean"
+        }
+      }
+    },
+    "foreground": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "before_hwnd",
+        "after_hwnd",
+        "unchanged"
+      ],
+      "properties": {
+        "before_hwnd": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "after_hwnd": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "unchanged": {
+          "type": "boolean"
+        }
+      }
+    },
+    "postcondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verified",
+        "window_title_or_ocr",
+        "details"
+      ],
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "window_title_or_ocr": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "verification_scope": {
+          "type": "string"
+        },
+        "discovery_verified": {
+          "type": "boolean"
+        },
+        "child_surface_expanded": {
+          "type": "boolean"
+        },
+        "child_not_selected": {
+          "type": "boolean"
+        },
+        "data_support": {
+          "type": "boolean"
+        }
+      }
+    },
+    "data_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared",
+        "observed",
+        "status"
+      ],
+      "properties": {
+        "declared": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "observed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "declared_only",
+            "observed",
+            "not_available",
+            "discovery_only"
+          ]
+        }
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "restored",
+        "errors"
+      ],
+      "properties": {
+        "attempted": {
+          "type": "boolean"
+        },
+        "restored": {
+          "type": "boolean"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "closed_hwnds": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          }
+        },
+        "main_process_preserved": {
+          "type": "boolean"
+        },
+        "launched_pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "physical_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "validated_expanded_direct_background_strict/no_mouse"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "strategy",
+              "target_evidence"
+            ],
+            "properties": {
+              "strategy": {
+                "const": "expanded_direct_current_header_exact"
+              },
+              "before_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "after_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "dispatch": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/dispatch"
+                  },
+                  {
+                    "properties": {
+                      "physical_mouse_used": {
+                        "const": false
+                      },
+                      "foreground_activation_requested": {
+                        "const": false
+                      },
+                      "global_keyboard_used": {
+                        "const": false
+                      },
+                      "fixed_screen_coordinates_used": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "postcondition": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/postcondition"
+                  },
+                  {
+                    "properties": {
+                      "verified": {
+                        "const": true
+                      },
+                      "window_title_or_ocr": {
+                        "const": true
+                      },
+                      "verification_scope": {
+                        "const": "expanded_direct_target"
+                      },
+                      "data_support": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "cursor": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cursor"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "foreground": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/foreground"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "cleanup": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cleanup"
+                  },
+                  {
+                    "required": [
+                      "closed_hwnds",
+                      "launched_pid",
+                      "main_process_preserved"
+                    ],
+                    "properties": {
+                      "attempted": {
+                        "const": true
+                      },
+                      "restored": {
+                        "const": true
+                      },
+                      "errors": {
+                        "maxItems": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "physical_fallback": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/physical_fallback"
+                  },
+                  {
+                    "properties": {
+                      "used": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "data_fields": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/data_fields"
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "declared_only"
+                      },
+                      "observed": {
+                        "maxItems": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "target_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/target_evidence"
+                  },
+                  {
+                    "required": [
+                      "presentation_variant",
+                      "direct_locator",
+                      "opener_evidence",
+                      "runtime_identity",
+                      "references",
+                      "screenshots",
+                      "targets"
+                    ],
+                    "properties": {
+                      "presentation_variant": {
+                        "const": "expanded_direct"
+                      },
+                      "direct_locator": {
+                        "$ref": "#/$defs/target_evidence/properties/direct_locator"
+                      },
+                      "opener_evidence": {
+                        "$ref": "#/$defs/target_evidence/properties/opener_evidence"
+                      },
+                      "runtime_identity": {
+                        "$ref": "#/$defs/target_evidence/properties/runtime_identity"
+                      },
+                      "references": {
+                        "minItems": 1
+                      },
+                      "screenshots": {
+                        "minItems": 1
+                      },
+                      "targets": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "used": {
+                "const": true
+              }
+            },
+            "required": [
+              "used"
+            ]
+          },
+          "then": {
+            "properties": {
+              "background_failures_before_use": {
+                "const": 5
+              }
+            }
+          }
+        }
+      ],
+      "required": [
+        "allowed",
+        "used",
+        "background_failures_before_use",
+        "max_background_failures"
+      ],
+      "properties": {
+        "allowed": {
+          "type": "boolean"
+        },
+        "used": {
+          "type": "boolean"
+        },
+        "background_failures_before_use": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "max_background_failures": {
+          "const": 5
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflow_id",
+        "attempt",
+        "status",
+        "before_evidence",
+        "after_evidence",
+        "locator",
+        "dispatch",
+        "cursor",
+        "foreground",
+        "postcondition",
+        "data_fields",
+        "cleanup",
+        "physical_fallback"
+      ],
+      "properties": {
+        "workflow_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "before_evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "after_evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "dispatch": {
+          "$ref": "#/$defs/dispatch"
+        },
+        "cursor": {
+          "$ref": "#/$defs/cursor"
+        },
+        "foreground": {
+          "$ref": "#/$defs/foreground"
+        },
+        "foreground_scope": {
+          "$ref": "#/$defs/foreground_scope"
+        },
+        "postcondition": {
+          "$ref": "#/$defs/postcondition"
+        },
+        "data_fields": {
+          "$ref": "#/$defs/data_fields"
+        },
+        "cleanup": {
+          "$ref": "#/$defs/cleanup"
+        },
+        "physical_fallback": {
+          "$ref": "#/$defs/physical_fallback"
+        },
+        "strategy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/strategy"
+            },
+            {
+              "const": "expanded_direct_current_header_exact"
+            }
+          ]
+        },
+        "target_evidence": {
+          "$ref": "#/$defs/target_evidence"
+        },
+        "feature_graph": {
+          "$ref": "#/$defs/feature_graph"
+        },
+        "attempt_evidence": {
+          "$ref": "#/$defs/attempt_evidence"
+        },
+        "presentation_variant": {
+          "type": "string",
+          "enum": [
+            "expanded_direct",
+            "expanded_cascade_parent",
+            "compact_cascade",
+            "unknown"
+          ]
+        },
+        "failure_fingerprint": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "validated_cascade_discovery_only/no_mouse"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "strategy",
+              "target_evidence"
+            ],
+            "properties": {
+              "strategy": {
+                "anyOf": [
+                  {
+                    "const": "cascade_client_relative_hover"
+                  },
+                  {
+                    "const": "expanded_cascade_parent_current_header_exact"
+                  }
+                ]
+              },
+              "before_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "after_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "dispatch": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/dispatch"
+                  },
+                  {
+                    "properties": {
+                      "physical_mouse_used": {
+                        "const": false
+                      },
+                      "foreground_activation_requested": {
+                        "const": false
+                      },
+                      "global_keyboard_used": {
+                        "const": false
+                      },
+                      "fixed_screen_coordinates_used": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "cursor": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cursor"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "foreground": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/foreground"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "postcondition": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/postcondition"
+                  },
+                  {
+                    "required": [
+                      "verification_scope",
+                      "child_surface_expanded",
+                      "child_not_selected",
+                      "data_support"
+                    ],
+                    "properties": {
+                      "verified": {
+                        "const": true
+                      },
+                      "verification_scope": {
+                        "const": "cascade_discovery_only"
+                      },
+                      "child_surface_expanded": {
+                        "const": true
+                      },
+                      "child_not_selected": {
+                        "const": true
+                      },
+                      "data_support": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "data_fields": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/data_fields"
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "discovery_only"
+                      },
+                      "observed": {
+                        "maxItems": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "cleanup": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cleanup"
+                  },
+                  {
+                    "required": [
+                      "closed_hwnds",
+                      "launched_pid",
+                      "main_process_preserved"
+                    ],
+                    "properties": {
+                      "attempted": {
+                        "const": true
+                      },
+                      "restored": {
+                        "const": true
+                      },
+                      "errors": {
+                        "maxItems": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "physical_fallback": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/physical_fallback"
+                  },
+                  {
+                    "properties": {
+                      "used": {
+                        "const": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "target_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/target_evidence"
+                  },
+                  {
+                    "required": [
+                      "opener_evidence",
+                      "child_surface_evidence",
+                      "runtime_identity"
+                    ],
+                    "properties": {
+                      "opener_evidence": {
+                        "$ref": "#/$defs/target_evidence/properties/opener_evidence"
+                      },
+                      "child_surface_evidence": {
+                        "$ref": "#/$defs/target_evidence/properties/child_surface_evidence"
+                      },
+                      "runtime_identity": {
+                        "$ref": "#/$defs/target_evidence/properties/runtime_identity"
+                      },
+                      "cascade_metadata": {
+                        "$ref": "#/$defs/target_evidence/properties/cascade_metadata"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "strategy": {
+                "const": "expanded_cascade_parent_current_header_exact"
+              }
+            },
+            "required": [
+              "strategy"
+            ]
+          },
+          "then": {
+            "required": [
+              "foreground_scope",
+              "target_evidence"
+            ],
+            "properties": {
+              "foreground_scope": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/foreground_scope"
+                  },
+                  {
+                    "properties": {
+                      "status": {
+                        "const": "validated_same_process_no_physical"
+                      },
+                      "run_start_allowed": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "target_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/target_evidence"
+                  },
+                  {
+                    "required": [
+                      "expected_children",
+                      "expected_child_status"
+                    ],
+                    "properties": {
+                      "expected_children": {
+                        "minItems": 1
+                      },
+                      "expected_child_status": {
+                        "const": "discovery_only"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "validated_maximized_background_strict/no_mouse",
+                  "validated_at_size_background",
+                  "validated_via_maximized_fallback",
+                  "validated_physical_mouse_fallback"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "strategy",
+              "target_evidence"
+            ],
+            "properties": {
+              "before_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "after_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/evidence"
+                  },
+                  {
+                    "properties": {
+                      "captured": {
+                        "const": true
+                      },
+                      "references": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "postcondition": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/postcondition"
+                  },
+                  {
+                    "properties": {
+                      "verified": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "cleanup": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cleanup"
+                  },
+                  {
+                    "required": [
+                      "closed_hwnds",
+                      "launched_pid",
+                      "main_process_preserved"
+                    ],
+                    "properties": {
+                      "errors": {
+                        "maxItems": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "cursor": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/cursor"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "foreground": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/foreground"
+                  },
+                  {
+                    "properties": {
+                      "unchanged": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "target_evidence": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/target_evidence"
+                  },
+                  {
+                    "required": [
+                      "references",
+                      "screenshots"
+                    ],
+                    "properties": {
+                      "references": {
+                        "minItems": 1
+                      },
+                      "screenshots": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "validated_physical_mouse_fallback"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "physical_fallback": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/physical_fallback"
+                  },
+                  {
+                    "properties": {
+                      "allowed": {
+                        "const": true
+                      },
+                      "used": {
+                        "const": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "dispatch": {
+                "properties": {
+                  "physical_mouse_used": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "physical_fallback": {
+                "properties": {
+                  "used": {
+                    "const": false
+                  }
+                }
+              },
+              "dispatch": {
+                "properties": {
+                  "physical_mouse_used": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "dpi",
+        "workflows"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dpi": {
+          "type": "integer",
+          "enum": [
+            96,
+            120,
+            144,
+            192
+          ]
+        },
+        "workflows": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/workflow"
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "profiles"
+      ],
+      "properties": {
+        "entry_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/profile"
+          }
+        }
+      }
+    }
+  }
+}

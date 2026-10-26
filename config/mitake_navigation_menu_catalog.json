@@ -1,0 +1,266 @@
+{
+  "schema": "tw_stock.mitake.navigation_menu_catalog",
+  "schema_version": 1,
+  "catalog_date": "2026-07-30",
+  "purpose": "供 Agent 以目前 popup HWND 的文字或 OCR 唯一定位三竹股市頂端導覽項目；只作 reference_only UI 證據。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "physical_mouse_allowed": false,
+    "global_keyboard_allowed": false,
+    "foreground_activation_allowed": false,
+    "fixed_screen_coordinate_allowed": false,
+    "posted_pointer_message_allowed_by_default": false,
+    "default_false_flags_can_only_be_overridden_by_named_research_mode": true,
+    "owner_drawn_popup_background_selection_status": "unsupported_without_explicit_experimental_opt_in",
+    "explicit_research_modes": {
+      "cursor_anchored_popup": {
+        "cli_flag": "--allow-cursor-anchored-popup",
+        "physical_mouse_used": false,
+        "foreground_activation_requested": false,
+        "temporarily_moves_verified_popup": true,
+        "requires_static_cursor_and_exact_hit_test": true
+      },
+      "physical_pointer_baseline": {
+        "cli_flag": "--allow-physical-pointer-baseline",
+        "diagnostic_ground_truth_only": true,
+        "requires_explicit_item_id": true
+      }
+    },
+    "max_attempts_per_item": 5
+  },
+  "evidence": {
+    "discovery_run": "D:/TWStockData/external/mitake/navigation_surface_discovery_20260729/navigation_surfaces.json",
+    "discovered_menu_count": 10,
+    "configured_direct_item_count": 51,
+    "configured_cascade_item_count": 2,
+    "configured_preferences_surface_item_count": 13,
+    "configured_total_visible_item_count": 66,
+    "top_preferences_surface_pending": false,
+    "top_preferences_surface_run": "D:/TWStockData/external/mitake/navigation_surface_20260730_preferences/navigation_crawl.json",
+    "semantic_control_reference": "config/mitake_navigation_semantic_controls.json",
+    "latest_exhaustive_run": "D:/TWStockData/external/mitake/navigation_exhaustive_all_20260730/navigation_crawl.json",
+    "latest_retry_runs": [
+      "D:/TWStockData/external/mitake/navigation_exhaustive_retry_20260730_us_adr/navigation_crawl.json",
+      "D:/TWStockData/external/mitake/navigation_exhaustive_retry_20260730_subscription/navigation_crawl.json"
+    ],
+    "latest_allowed_read_only_result": {
+      "validated_experimental_background_snapshot": 37,
+      "unsupported_background_after_5_workflows": 14,
+      "repeatable_background_dispatch": false
+    }
+  },
+  "groups": [
+    {
+      "group_id": "top_market",
+      "label": "大盤",
+      "opener_entry_id": "top_market",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {
+          "view_id": "market_live",
+          "label": "大盤動態",
+          "aliases": ["大盤動態"],
+          "ocr_aliases": ["大盤動態", "大動態"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["大盤動態"], "ocr_markers": ["大盤動態", "產業動態", "類股動態"]}
+        },
+        {
+          "view_id": "listed_index",
+          "label": "上市指數",
+          "aliases": ["上市指數"],
+          "ocr_aliases": ["上市指數", "上市指", "上指數"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["上市指數"], "ocr_markers": ["上市指數"]}
+        },
+        {
+          "view_id": "otc_index",
+          "label": "上櫃指數",
+          "aliases": ["上櫃指數"],
+          "ocr_aliases": ["上櫃指數"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["上櫃指數"], "ocr_markers": ["上櫃指數"]}
+        },
+        {
+          "view_id": "listed_otc_capital_flow",
+          "label": "上市櫃資金流向",
+          "aliases": ["上市櫃資金流向"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["上市上櫃資金流向", "上市櫃資金流向"], "ocr_markers": ["類股成交比重排行", "資金流向"]}
+        },
+        {
+          "view_id": "listed_otc_wave_analysis",
+          "label": "上市櫃江波分析",
+          "aliases": ["上市櫃江波分析"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["上市櫃江波分析"], "ocr_markers": ["江波分析"]}
+        },
+        {
+          "view_id": "institutional_net_buy_sell",
+          "label": "三大法人買賣超",
+          "aliases": ["三大法人買賣超"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["三大法人買賣超"], "ocr_markers": ["三大法人"]}
+        },
+        {
+          "view_id": "margin_balance",
+          "label": "融資融券餘額",
+          "aliases": ["融資融券餘額"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["融資融券餘額"], "ocr_markers": ["融資", "融券"]}
+        },
+        {
+          "view_id": "revenue_summary_ranking",
+          "label": "營收總表排行",
+          "aliases": ["營收總表排行"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["營收總表排行"], "ocr_markers": ["營收總表排行"]}
+        },
+        {
+          "view_id": "chip_market_ranking",
+          "label": "籌碼市場排名",
+          "aliases": ["籌碼市場排名"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["籌碼市場排名"], "ocr_markers": ["籌碼市場排名"]}
+        },
+        {
+          "view_id": "market_cap_ranking",
+          "label": "市值排行",
+          "aliases": ["市值排行"],
+          "safety_policy_status": "allowed_read_only",
+          "postconditions": {"window_title_prefixes": ["市值排行"], "ocr_markers": ["市值排行"]}
+        }
+      ]
+    },
+    {
+      "group_id": "top_global_finance",
+      "label": "國際金融",
+      "opener_entry_id": "top_global_finance",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "global_indices", "label": "全球指數", "aliases": ["全球指數"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["全球指數"], "ocr_markers": ["全球指數"]}},
+        {"view_id": "china_hk_etf_underlyings", "label": "陸港ETF標的", "aliases": ["陸港ETF標的"], "ocr_aliases": ["陸港ETF標的", "陸港ETF標"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["國際金融"], "ocr_markers": ["港ETF標的", "深圳成指", "CN-SZI.A"], "selector_markers": ["陸港ETF標的", "港ETF標的", "陸港ETF"], "require_title_and_selector": true}},
+        {"view_id": "global_fx", "label": "國際外匯", "aliases": ["國際外匯"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["國際金融"], "ocr_markers": ["際外匯", "NTBD", "台幣"], "selector_markers": ["國際外匯", "際外匯"], "require_title_and_selector": true}},
+        {"view_id": "precious_metals", "label": "貴金屬", "aliases": ["貴金屬"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["國際金融"], "ocr_markers": ["貴金屬", "HKGD", "港金現貨"], "selector_markers": ["貴金屬"], "require_title_and_selector": true}},
+        {"view_id": "us_stocks_delayed", "label": "美國個股(延遲)", "aliases": ["美國個股(延遲)", "美國個股（延遲）"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["美國個股"], "ocr_markers": ["美國個股", "延遲"]}},
+        {"view_id": "us_adr_delayed", "label": "美國ADR(延遲)", "aliases": ["美國ADR(延遲)", "美國ADR（延遲）"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["國際金融"], "ocr_markers": ["美ADR", "APWC.AB"], "selector_markers": ["美國ADR(延遲)", "美ADR", "ADR延"], "require_title_and_selector": true}},
+        {"view_id": "cryptocurrency", "label": "加密貨幣", "aliases": ["加密貨幣"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["國際金融"], "ocr_markers": ["加密貨", "BTCUSD", "比特幣"], "selector_markers": ["加密貨幣", "加密貨"], "require_title_and_selector": true}},
+        {"view_id": "global_news", "label": "國際新聞", "aliases": ["國際新聞"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["新聞匯流"], "ocr_markers": ["國際新聞"], "shell_only_if_title_matches": true}},
+        {"view_id": "us_quotes_delayed", "label": "美股報價(延遲)", "aliases": ["美股報價(延遲)", "美股報價（延遲）"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["美股報價"], "ocr_markers": ["美股報價", "延遲"]}}
+      ]
+    },
+    {
+      "group_id": "top_securities",
+      "label": "證券行情",
+      "opener_entry_id": "top_securities",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "watchlist_quotes", "label": "自選報價", "aliases": ["自選報價"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["自選報價"], "ocr_markers": ["自選報價"]}},
+        {"view_id": "sector_quotes", "label": "類股報價", "aliases": ["類股報價"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["類股報價"], "ocr_markers": ["類股報價"]}},
+        {"view_id": "popular_ranking", "label": "熱門排行", "aliases": ["熱門排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["熱門排行"], "ocr_markers": ["熱門排行"]}},
+        {"view_id": "after_hours_ranking", "label": "盤後排行", "aliases": ["盤後排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["盤後排行"], "ocr_markers": ["盤後排行"]}}
+      ]
+    },
+    {
+      "group_id": "top_derivatives",
+      "label": "期權行情",
+      "opener_entry_id": "top_derivatives",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "futures_quotes", "label": "期貨報價", "aliases": ["期貨報價"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["期貨報價"], "ocr_markers": ["期貨報價"]}},
+        {"view_id": "futures_institutions", "label": "期貨三大法人", "aliases": ["期貨三大法人"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["期貨三大法人"], "ocr_markers": ["期貨三大法人"]}},
+        {"view_id": "futures_large_open_interest", "label": "期貨大額交易未沖銷", "aliases": ["期貨大額交易未沖銷"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["期貨大額交易未沖銷"], "ocr_markers": ["大額交易未沖銷"]}},
+        {"view_id": "options_quotes", "label": "選擇權報價", "aliases": ["選擇權報價"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["選擇權報價"], "ocr_markers": ["選擇權報價"]}},
+        {"view_id": "options_institutions", "label": "選擇權三大法人", "aliases": ["選擇權三大法人"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["選擇權三大法人"], "ocr_markers": ["選擇權三大法人"]}},
+        {"view_id": "options_large_open_interest", "label": "選擇權大額交易未沖銷", "aliases": ["選擇權大額交易未沖銷"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["選擇權大額交易未沖銷"], "ocr_markers": ["大額交易未沖銷"]}},
+        {"view_id": "options_open_interest_series", "label": "選擇權未平倉序列", "aliases": ["選擇權未平倉序列"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["選擇權未平倉序列"], "ocr_markers": ["未平倉序列"]}},
+        {"view_id": "taiex_options_pc_ratio", "label": "台指權P/C Ratio", "aliases": ["台指權P/C Ratio", "台指權P／C Ratio"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["選擇權 P/C ratio", "台指權P/C Ratio"], "ocr_markers": ["成交P/C比", "未平倉P/C比", "加權指"]}}
+      ]
+    },
+    {
+      "group_id": "top_news_media",
+      "label": "新聞影音",
+      "opener_entry_id": "top_news_media",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "news_stream", "label": "新聞匯流", "aliases": ["新聞匯流"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["新聞匯流"], "ocr_markers": ["新聞匯流"]}},
+        {"view_id": "video_channel", "label": "影音頻道", "aliases": ["影音頻道"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["影音頻道"], "ocr_markers": ["影音頻道"]}}
+      ]
+    },
+    {
+      "group_id": "top_ipo_auction",
+      "label": "申購競拍",
+      "opener_entry_id": "top_ipo_auction",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "subscription_information", "label": "申購資訊", "aliases": ["申購資訊"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["申購競拍"], "ocr_markers": ["申購", "新申購上架通知", "承銷價", "可申張"]}},
+        {"view_id": "auction_information", "label": "競拍資訊", "aliases": ["競拍資訊"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["申購競拍"], "ocr_markers": ["競拍"]}}
+      ]
+    },
+    {
+      "group_id": "top_market_activity",
+      "label": "市場動態",
+      "opener_entry_id": "top_market_activity",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "financial_calendar", "label": "理財行事曆", "aliases": ["理財行事曆"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["理財行事曆"], "ocr_markers": ["理財行事曆"]}},
+        {"view_id": "ex_rights_dividend_forecast", "label": "除權息預告", "aliases": ["除權息預告"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["除權息預告"], "ocr_markers": ["除權息預告"]}},
+        {"view_id": "shareholder_gift", "label": "股東會紀念品", "aliases": ["股東會紀念品"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["股東會紀念品"], "ocr_markers": ["股東會紀念品"]}},
+        {"view_id": "shareholder_meeting_forecast", "label": "股東會預告", "aliases": ["股東會預告"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["股東會預告"], "ocr_markers": ["股東會預告"]}},
+        {"view_id": "director_supervisor_pledge", "label": "董監質設", "aliases": ["董監質設"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["董監質設"], "ocr_markers": ["董監質設"]}},
+        {"view_id": "treasury_stock_buyback", "label": "買回庫藏股", "aliases": ["買回庫藏股"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["買回庫藏股"], "ocr_markers": ["買回庫藏股"]}},
+        {"view_id": "abnormal_securities", "label": "異常有價證券", "aliases": ["異常有價證券"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["異常有價證券"], "ocr_markers": ["異常有價證券"]}},
+        {"view_id": "shareholding_transfer", "label": "持股轉讓", "aliases": ["持股轉讓"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["持股轉讓"], "ocr_markers": ["持股轉讓"]}},
+        {"view_id": "dividend_summary_ranking", "label": "股利總表排行", "aliases": ["股利總表排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["股利總表排行"], "ocr_markers": ["股利總表排行"]}}
+      ]
+    },
+    {
+      "group_id": "top_etf",
+      "label": "ETF專區",
+      "opener_entry_id": "top_etf",
+      "safety_policy_status": "allowed_read_only",
+      "items": [
+        {"view_id": "etf_ranking", "label": "ETF排行", "aliases": ["ETF排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF排行"], "ocr_markers": ["ETF排行"]}},
+        {"view_id": "etf_selection", "label": "ETF精選", "aliases": ["ETF精選"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF精選"], "ocr_markers": ["ETF精選"]}},
+        {"view_id": "etf_data", "label": "ETF數據", "aliases": ["ETF數據"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF數據"], "ocr_markers": ["ETF數據"]}},
+        {"view_id": "etf_heatmap", "label": "ETF熱力圖", "aliases": ["ETF熱力圖"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF熱力圖"], "ocr_markers": ["ETF熱力圖"]}},
+        {"view_id": "etf_profile_ranking", "label": "ETF基本資料排行", "aliases": ["ETF基本資料排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF基本資料排行"], "ocr_markers": ["ETF基本資料排行"]}},
+        {"view_id": "etf_distribution_source_ranking", "label": "ETF配息來源排行", "aliases": ["ETF配息來源排行"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["ETF配息來源排行"], "ocr_markers": ["ETF配息來源排行"]}},
+        {"view_id": "etf_video", "label": "ETF影音", "aliases": ["ETF影音"], "safety_policy_status": "allowed_read_only", "postconditions": {"window_title_prefixes": ["影音頻道"], "ocr_markers": ["ETF影音"], "shell_only_if_title_matches": true}}
+      ]
+    },
+    {
+      "group_id": "top_more",
+      "label": "更多",
+      "opener_entry_id": "top_more",
+      "safety_policy_status": "discovery_only",
+      "items": [
+        {"view_id": "customer_service_cascade", "label": "客戶服務", "aliases": ["客戶服務"], "semantic_control_name": "menuitem_customservice.service", "interaction_type": "hover_cascade", "safety_policy_status": "cascading_discovery_only", "cascade_discovery": {"enabled_by_default": false, "parent_surface_only": true, "child_selection_allowed": false, "requires_verified_popup_client_rect": true, "row_order_fallback_allowed": true, "max_attempts": 5, "observed_children": []}, "postconditions": {"ocr_markers": ["客戶服務"], "child_surface_required": true, "child_selection_forbidden": true}},
+        {"view_id": "viewing_map_cascade", "label": "看盤地圖", "aliases": ["看盤地圖"], "semantic_control_name": "menuitem_instruction.functiondic", "interaction_type": "hover_cascade", "safety_policy_status": "cascading_discovery_only", "cascade_discovery": {"enabled_by_default": false, "parent_surface_only": true, "child_selection_allowed": false, "requires_verified_popup_client_rect": true, "row_order_fallback_allowed": true, "max_attempts": 5, "observed_children": []}, "postconditions": {"ocr_markers": ["看盤地圖"], "child_surface_required": true, "child_selection_forbidden": true}}
+      ]
+    },
+    {
+      "group_id": "top_preferences",
+      "label": "個人設定",
+      "opener_entry_id": "top_preferences",
+      "safety_policy_status": "discovery_only",
+      "surface_inventory_only": true,
+      "items": [
+        {"view_id": "membership_center", "label": "會員中心", "aliases": ["會員中心"], "interaction_type": "account_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能涉及帳戶狀態或外部會員服務"},
+        {"view_id": "system_settings", "label": "系統設定", "aliases": ["系統設定"], "interaction_type": "settings_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能修改本機系統設定"},
+        {"view_id": "dde_settings", "label": "DDE設定", "aliases": ["DDE設定"], "interaction_type": "settings_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能修改 DDE 設定；不是已確認的外部自動化介面"},
+        {"view_id": "alert_settings", "label": "警示設定", "aliases": ["警示設定"], "interaction_type": "settings_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能修改警示設定"},
+        {"view_id": "message_center", "label": "訊息中心", "aliases": ["訊息中心"], "interaction_type": "account_message_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能改變訊息已讀或帳戶狀態"},
+        {"view_id": "system_information", "label": "系統資訊", "aliases": ["系統資訊"], "interaction_type": "read_only_dialog", "safety_policy_status": "manual_discovery_only", "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠"},
+        {"view_id": "personal_layout_share", "label": "個人版面分享", "aliases": ["個人版面分享"], "interaction_type": "share_surface", "safety_policy_status": "blocked_by_safety_policy", "reason": "可能上傳或分享個人版面"},
+        {"view_id": "environment_parameter_export", "label": "環境參數匯出", "aliases": ["環境參數匯出"], "interaction_type": "file_export", "safety_policy_status": "blocked_by_safety_policy", "reason": "會產生或寫入匯出檔"},
+        {"view_id": "reload_product_information", "label": "重載商品資訊", "aliases": ["重載商品資訊"], "interaction_type": "local_data_mutation", "safety_policy_status": "blocked_by_safety_policy", "reason": "會重新載入或改變本機商品資料"},
+        {"view_id": "free_disclaimer", "label": "免責聲明", "aliases": ["免責聲明", "免費聲明"], "interaction_type": "read_only_dialog", "safety_policy_status": "manual_discovery_only", "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠"},
+        {"view_id": "operation_manual", "label": "操作說明", "aliases": ["操作說明"], "interaction_type": "help_or_external_surface", "safety_policy_status": "manual_discovery_only", "reason": "可能開啟外部說明；自繪 popup 背景選擇不可靠"},
+        {"view_id": "system_logout", "label": "系統登出", "aliases": ["系統登出"], "interaction_type": "session_mutation", "safety_policy_status": "blocked_by_safety_policy", "reason": "會中斷目前登入工作階段"},
+        {"view_id": "version_release_notes", "label": "版本更新說明", "aliases": ["版本更新說明"], "interaction_type": "read_only_dialog", "safety_policy_status": "manual_discovery_only", "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠"}
+      ]
+    }
+  ]
+}

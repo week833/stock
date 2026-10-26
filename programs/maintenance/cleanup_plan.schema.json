@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "stock-cleanup-plan-v1",
+  "title": "Stock maintenance cleanup plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "tool_version",
+    "generated_at_utc",
+    "mode",
+    "allowlisted_roots",
+    "exclusions",
+    "active_run_snapshot",
+    "acceptance_snapshot",
+    "targets",
+    "skipped",
+    "summary",
+    "plan_sha256"
+  ],
+  "properties": {
+    "schema": { "const": "stock-cleanup-plan-v1" },
+    "tool_version": { "type": "string", "const": "1.0.0" },
+    "generated_at_utc": { "type": "string", "format": "date-time" },
+    "mode": { "const": "preview" },
+    "allowlisted_roots": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path", "kind"],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string", "pattern": "^[A-Za-z]:\\\\" },
+          "kind": { "enum": ["central_staging", "explicit_temp"] }
+        }
+      }
+    },
+    "exclusions": { "type": "array", "items": { "type": "string" } },
+    "active_run_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "exists", "sha256", "run_id", "pid", "status", "process_alive", "observed_at_utc"],
+      "properties": {
+        "path": { "type": "string" },
+        "exists": { "type": "boolean" },
+        "sha256": { "type": ["string", "null"] },
+        "run_id": { "type": ["string", "null"] },
+        "pid": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "process_alive": { "type": "boolean" },
+        "observed_at_utc": { "type": "string", "format": "date-time" }
+      }
+    },
+    "acceptance_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "exists", "sha256", "overall_status", "status", "blocking_failure_count", "pass", "observed_at_utc"],
+      "properties": {
+        "path": { "type": "string" },
+        "exists": { "type": "boolean" },
+        "sha256": { "type": ["string", "null"] },
+        "overall_status": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "blocking_failure_count": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "boolean" },
+        "observed_at_utc": { "type": "string", "format": "date-time" }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/target" }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "category", "reason", "evidence_path"],
+        "properties": {
+          "path": { "type": ["string", "null"] },
+          "category": { "type": "string" },
+          "reason": { "type": "string" },
+          "evidence_path": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_count", "skipped_count", "target_bytes", "category_counts"],
+      "properties": {
+        "target_count": { "type": "integer", "minimum": 0 },
+        "skipped_count": { "type": "integer", "minimum": 0 },
+        "target_bytes": { "type": "integer", "minimum": 0 },
+        "category_counts": { "type": "object" }
+      }
+    },
+    "plan_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "file_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "relative_path", "size", "sha256", "last_write_time_utc", "category", "git_tracked", "git_repository"],
+      "properties": {
+        "path": { "type": "string" },
+        "relative_path": { "type": "string" },
+        "size": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "last_write_time_utc": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "git_tracked": { "const": false },
+        "git_repository": { "type": ["string", "null"] }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "category", "path", "root", "files", "directories", "total_bytes", "reason_code", "proof"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "enum": ["file", "directory"] },
+        "category": { "enum": ["A-central-failed-staging", "A-explicit-temporary", "A-exact-duplicate", "A-damaged-superseded"] },
+        "path": { "type": "string" },
+        "root": { "type": "string" },
+        "files": { "type": "array", "items": { "$ref": "#/$defs/file_record" } },
+        "directories": { "type": "array", "items": { "type": "string" } },
+        "total_bytes": { "type": "integer", "minimum": 0 },
+        "reason_code": { "type": "string" },
+        "proof": { "type": "object" }
+      }
+    }
+  }
+}

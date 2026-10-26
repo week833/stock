@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tw_stock.mitake.agent_collection.schema.v1",
+  "title": "三竹股市 Agent 背景探測與 OCR snapshot 統一輸出",
+  "description": "僅描述 UI/OCR 參考證據；不代表正式 API、完整資料或模型可採用。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "request_id",
+    "operation",
+    "status",
+    "entrypoint_id",
+    "feature_id",
+    "view_path",
+    "parameters",
+    "statuses",
+    "application",
+    "interaction",
+    "started_at",
+    "completed_at",
+    "probe",
+    "collection",
+    "evidence",
+    "limitations",
+    "error"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tw_stock.mitake.agent_collection"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operation": {
+      "enum": ["probe", "collect"]
+    },
+    "status": {
+      "enum": ["validated", "pending", "unsupported", "blocked", "error"]
+    },
+    "entrypoint_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "feature_id": {
+      "type": ["string", "null"]
+    },
+    "view_path": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "statuses": {
+      "$ref": "#/$defs/five_statuses"
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_path", "pid", "root_hwnd"],
+      "properties": {
+        "runtime_path": {
+          "type": "string"
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root_hwnd": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "interaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locator_strategy",
+        "coordinate_fallback_used",
+        "physical_cursor_moved_by_collector",
+        "foreground_activation_requested",
+        "window_move_or_resize_requested"
+      ],
+      "properties": {
+        "locator_strategy": {
+          "const": "unique_normalized_ocr_text"
+        },
+        "locator_box": {
+          "$ref": "#/$defs/ltrb"
+        },
+        "locator_client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "attempted_client_points": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/point"
+          }
+        },
+        "coordinate_fallback_used": {
+          "const": false
+        },
+        "physical_cursor_moved_by_collector": {
+          "const": false
+        },
+        "foreground_activation_requested": {
+          "const": false
+        },
+        "window_move_or_resize_requested": {
+          "const": false
+        },
+        "dispatch_method": {
+          "const": "SendMessageTimeoutW"
+        }
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_fields", "raw_text", "parsed_data"],
+      "properties": {
+        "declared_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "raw_text": {
+          "type": "string"
+        },
+        "parsed_data": {
+          "type": "array",
+          "items": {}
+        },
+        "unsupported_markers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "window_title",
+          "width",
+          "height",
+          "screenshot_path",
+          "screenshot_sha256",
+          "ocr_contract_version",
+          "ocr_word_count"
+        ],
+        "properties": {
+          "kind": {
+            "const": "strict_hwnd_capture"
+          },
+          "window_title": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "screenshot_path": {
+            "type": ["string", "null"]
+          },
+          "screenshot_sha256": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          },
+          "ocr_contract_version": {
+            "type": "string"
+          },
+          "ocr_word_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "ltrb": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer"},
+        {"type": "integer"},
+        {"type": "integer"},
+        {"type": "integer"}
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer"},
+        {"type": "integer"}
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "five_statuses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ui_evidence_status",
+        "background_interaction_status",
+        "data_extraction_status",
+        "product_support_status",
+        "safety_policy_status"
+      ],
+      "properties": {
+        "ui_evidence_status": {
+          "enum": [
+            "validated_ui_open",
+            "clicked_no_separate_window",
+            "snapshot_only",
+            "pending"
+          ]
+        },
+        "background_interaction_status": {
+          "enum": [
+            "untested",
+            "validated_background",
+            "manual_only",
+            "unsupported",
+            "error"
+          ]
+        },
+        "data_extraction_status": {
+          "enum": [
+            "pending",
+            "schema_ready",
+            "snapshot_only",
+            "validated_collectable",
+            "unsupported",
+            "error"
+          ]
+        },
+        "product_support_status": {
+          "enum": [
+            "pending",
+            "supported",
+            "unsupported",
+            "permission_required",
+            "not_applicable"
+          ]
+        },
+        "safety_policy_status": {
+          "enum": ["allowed_read_only", "blocked_by_safety_policy"]
+        }
+      }
+    }
+  },
+  "x-runtime-behavior": {
+    "reference_only": true,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "controls_watchlist_sync": false
+  }
+}

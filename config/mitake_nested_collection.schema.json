@@ -1,0 +1,1437 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tw-stock:mitake:nested-collection:v1",
+  "title": "三竹股市功能窗巢狀頁籤背景蒐集結果",
+  "description": "tw_mitake_nested_view_crawler.py 產生之 nested_crawl.json 契約；資料僅供 reference_only 使用。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "request_id",
+    "generated_at",
+    "reference_only",
+    "catalog_schema",
+    "catalog_schema_version",
+    "runtime_policy",
+    "application",
+    "ledger_path",
+    "max_attempts_this_run",
+    "max_cumulative_workflow_attempts",
+    "requested_feature_count",
+    "counts",
+    "results"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tw_stock.mitake.nested_crawl"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reference_only": {
+      "const": true
+    },
+    "catalog_schema": {
+      "const": "tw_stock.mitake.nested_live_catalog"
+    },
+    "catalog_schema_version": {
+      "const": 1
+    },
+    "runtime_policy": {
+      "$ref": "#/$defs/runtimePolicy"
+    },
+    "application": {
+      "$ref": "#/$defs/application"
+    },
+    "ledger_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "max_attempts_this_run": {
+      "$ref": "#/$defs/attemptLimit"
+    },
+    "max_cumulative_workflow_attempts": {
+      "$ref": "#/$defs/attemptLimit"
+    },
+    "requested_feature_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "requested_group_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "counts": {
+      "$ref": "#/$defs/statusCounts"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/featureResult"
+      }
+    }
+  },
+  "$defs": {
+    "attemptLimit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "attemptCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "statusCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "runtimePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference_only",
+        "dispatch_method",
+        "physical_mouse_used",
+        "global_keyboard_used",
+        "foreground_activation_requested",
+        "window_move_or_resize_requested",
+        "fixed_screen_coordinate_used",
+        "queued_pointer_dispatch_used",
+        "selection",
+        "preexisting_same_title_policy",
+        "unexpected_new_window_policy"
+      ],
+      "properties": {
+        "reference_only": {
+          "const": true
+        },
+        "dispatch_method": {
+          "enum": [
+            "SendMessageTimeoutW",
+            "cursor_anchored_window_posted_pointer",
+            "physical_pointer_ground_truth"
+          ]
+        },
+        "physical_mouse_used": {
+          "type": "boolean"
+        },
+        "global_keyboard_used": {
+          "const": false
+        },
+        "foreground_activation_requested": {
+          "type": "boolean"
+        },
+        "window_move_or_resize_requested": {
+          "type": "boolean"
+        },
+        "fixed_screen_coordinate_used": {
+          "const": false
+        },
+        "queued_pointer_dispatch_used": {
+          "type": "boolean"
+        },
+        "selection": {
+          "enum": [
+            "fresh_exact_unique_ocr_in_current_hwnd_scaled_region_raw_upscale3_grayscale_inverted",
+            "fresh_exact_unique_ocr_or_current_hwnd_scaled_tab_region"
+          ]
+        },
+        "preexisting_same_title_policy": {
+          "const": "stop_and_preserve"
+        },
+        "unexpected_new_window_policy": {
+          "const": "fail_closed"
+        },
+        "foreground_activation_succeeded": {
+          "type": "boolean"
+        },
+        "main_window_was_iconic": {
+          "type": "boolean"
+        },
+        "main_window_restore_requested": {
+          "type": "boolean"
+        },
+        "foreground_hwnd_before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_hwnd_after_before_restore": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_hwnd_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "foreground_unchanged": {
+          "type": "boolean"
+        },
+        "previous_foreground_restored": {
+          "type": "boolean"
+        },
+        "cursor_before": {
+          "$ref": "#/$defs/cursor"
+        },
+        "cursor_after": {
+          "$ref": "#/$defs/cursor"
+        },
+        "cursor_unchanged": {
+          "type": "boolean"
+        },
+        "main_window_rect_before": {
+          "$ref": "#/$defs/signedRect"
+        },
+        "main_window_rect_after": {
+          "$ref": "#/$defs/signedRect"
+        },
+        "main_window_rect_unchanged": {
+          "type": "boolean"
+        },
+        "initial_state_restore_errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {"const": "SendMessageTimeoutW"}
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "properties": {
+              "physical_mouse_used": {"const": false},
+              "foreground_activation_requested": {"const": false},
+              "window_move_or_resize_requested": {"const": false},
+              "queued_pointer_dispatch_used": {"const": false},
+              "selection": {
+                "const": "fresh_exact_unique_ocr_in_current_hwnd_scaled_region_raw_upscale3_grayscale_inverted"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "cursor_anchored_window_posted_pointer"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "properties": {
+              "physical_mouse_used": {"const": false},
+              "foreground_activation_requested": {"const": false},
+              "window_move_or_resize_requested": {"const": true},
+              "queued_pointer_dispatch_used": {"const": true},
+              "selection": {
+                "const": "fresh_exact_unique_ocr_or_current_hwnd_scaled_tab_region"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "physical_pointer_ground_truth"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "properties": {
+              "physical_mouse_used": {"const": true},
+              "foreground_activation_requested": {"const": true},
+              "window_move_or_resize_requested": {"const": false},
+              "queued_pointer_dispatch_used": {"const": false},
+              "selection": {
+                "const": "fresh_exact_unique_ocr_or_current_hwnd_scaled_tab_region"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_path",
+        "executable_sha256",
+        "pid",
+        "root_hwnd"
+      ],
+      "properties": {
+        "runtime_path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "executable_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root_hwnd": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "point": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "rect": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "signedRect": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "cursor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/point"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "scoreMap": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "scoreList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "screenshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "ocrEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variant",
+        "status",
+        "scale",
+        "text",
+        "word_count",
+        "locator_status",
+        "locator_box",
+        "error"
+      ],
+      "properties": {
+        "variant": {
+          "enum": [
+            "raw",
+            "upscale_3x",
+            "grayscale",
+            "inverted"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "error"
+          ]
+        },
+        "scale": {
+          "enum": [
+            1,
+            3
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "word_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "locator_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "exact_unique",
+            "not_unique",
+            "ocr_error",
+            null
+          ]
+        },
+        "locator_box": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "ocrEvidenceSet": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/ocrEvidence"
+      }
+    },
+    "errorObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "message": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "runtimeIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "exists",
+        "size",
+        "mtime_ns",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "exists": {
+          "const": true
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mtime_ns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "windowIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hwnd",
+        "pid",
+        "title",
+        "runtime_path",
+        "match_mode",
+        "runtime_identity"
+      ],
+      "properties": {
+        "hwnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "runtime_path": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "match_mode": {
+          "const": "exact_path"
+        },
+        "runtime_identity": {
+          "$ref": "#/$defs/runtimeIdentity"
+        }
+      }
+    },
+    "openingAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempt",
+        "locator_box",
+        "client_point",
+        "x_fraction_inside_exact_ocr_box",
+        "dispatch_count"
+      ],
+      "properties": {
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "locator_box": {
+          "$ref": "#/$defs/rect"
+        },
+        "locator_strategy": {
+          "enum": [
+            "exact_unique_ocr_in_current_hwnd_region",
+            "current_hwnd_scaled_catalog_tab_region_center"
+          ]
+        },
+        "locator_error": {
+          "type": ["string", "null"]
+        },
+        "client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "x_fraction_inside_exact_ocr_box": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "dispatch_count": {
+          "const": 3
+        }
+      }
+    },
+    "opening": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "expected_window_title",
+        "dispatch_count"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "opened_new_verified_window",
+            "blocked_preexisting_window_preserved"
+          ]
+        },
+        "expected_window_title": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "dispatch_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "preexisting_hwnds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "hwnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "identity": {
+          "$ref": "#/$defs/windowIdentity"
+        },
+        "attempts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/openingAttempt"
+          }
+        },
+        "locator_box": {
+          "$ref": "#/$defs/rect"
+        },
+        "client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "search_region": {
+          "$ref": "#/$defs/rect"
+        },
+        "ocr": {
+          "$ref": "#/$defs/ocrEvidenceSet"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "opened_new_verified_window"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "hwnd",
+              "identity",
+              "attempts",
+              "locator_box",
+              "client_point",
+              "search_region",
+              "ocr"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "blocked_preexisting_window_preserved"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "preexisting_hwnds"
+            ],
+            "properties": {
+              "dispatch_count": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
+    "unexpectedWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hwnd",
+        "title"
+      ],
+      "properties": {
+        "hwnd": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "beforeEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screenshot",
+        "ocr",
+        "search_region",
+        "locator_box",
+        "client_point",
+        "active_index",
+        "active_scores"
+      ],
+      "properties": {
+        "screenshot": {
+          "$ref": "#/$defs/screenshot"
+        },
+        "ocr": {
+          "$ref": "#/$defs/ocrEvidenceSet"
+        },
+        "search_region": {
+          "$ref": "#/$defs/rect"
+        },
+        "locator_box": {
+          "$ref": "#/$defs/rect"
+        },
+        "locator_strategy": {
+          "enum": [
+            "exact_unique_ocr_in_current_hwnd_region",
+            "current_hwnd_scaled_catalog_tab_region_center"
+          ]
+        },
+        "locator_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "active_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "active_scores": {
+          "$ref": "#/$defs/scoreMap"
+        }
+      }
+    },
+    "afterEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screenshot",
+        "ocr",
+        "search_region",
+        "locator_box",
+        "client_point",
+        "active_index",
+        "active_scores",
+        "unexpected_new_windows"
+      ],
+      "properties": {
+        "screenshot": {
+          "$ref": "#/$defs/screenshot"
+        },
+        "ocr": {
+          "$ref": "#/$defs/ocrEvidenceSet"
+        },
+        "search_region": {
+          "$ref": "#/$defs/rect"
+        },
+        "locator_box": {
+          "$ref": "#/$defs/rect"
+        },
+        "client_point": {
+          "$ref": "#/$defs/point"
+        },
+        "active_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "active_scores": {
+          "$ref": "#/$defs/scoreMap"
+        },
+        "unexpected_new_windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unexpectedWindow"
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target_unique_active": {
+          "type": "boolean"
+        },
+        "previous_active_released": {
+          "type": "boolean"
+        },
+        "unexpected_new_window_absent": {
+          "type": "boolean"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "oneOf": [
+        {
+          "maxProperties": 0
+        },
+        {
+          "required": [
+            "target_unique_active",
+            "previous_active_released",
+            "unexpected_new_window_absent",
+            "verified"
+          ]
+        }
+      ]
+    },
+    "verifiedTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_unique_active",
+        "previous_active_released",
+        "unexpected_new_window_absent",
+        "verified"
+      ],
+      "properties": {
+        "target_unique_active": {
+          "const": true
+        },
+        "previous_active_released": {
+          "const": true
+        },
+        "unexpected_new_window_absent": {
+          "const": true
+        },
+        "verified": {
+          "const": true
+        }
+      }
+    },
+    "cursorAnchoredWindowDispatchEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cursor_anchor",
+        "popup_original_rect",
+        "popup_aligned_rect",
+        "physical_pointer_used",
+        "window_moved_temporarily",
+        "target_kind",
+        "raised_to_top_without_activation"
+      ],
+      "properties": {
+        "cursor_anchor": {
+          "$ref": "#/$defs/point"
+        },
+        "popup_original_rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "popup_aligned_rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "physical_pointer_used": {
+          "const": false
+        },
+        "window_moved_temporarily": {
+          "const": true
+        },
+        "target_kind": {
+          "const": "verified_window"
+        },
+        "raised_to_top_without_activation": {
+          "const": true
+        }
+      }
+    },
+    "physicalPointerDispatchEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screen_point",
+        "original_cursor",
+        "physical_pointer_used"
+      ],
+      "properties": {
+        "screen_point": {
+          "$ref": "#/$defs/point"
+        },
+        "original_cursor": {
+          "$ref": "#/$defs/point"
+        },
+        "physical_pointer_used": {
+          "const": true
+        }
+      }
+    },
+    "transitionAttempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "status",
+        "target_index",
+        "target_label",
+        "dispatch_count",
+        "started_at",
+        "completed_at",
+        "before",
+        "after",
+        "verification",
+        "error"
+      ],
+      "properties": {
+        "operation": {
+          "enum": [
+            "workflow",
+            "restore"
+          ]
+        },
+        "status": {
+          "enum": [
+            "validated",
+            "error"
+          ]
+        },
+        "target_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target_label": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "dispatch_count": {
+          "enum": [
+            0,
+            3
+          ]
+        },
+        "dispatch_method": {
+          "enum": [
+            "SendMessageTimeoutW",
+            "cursor_anchored_window_posted_pointer",
+            "physical_pointer_ground_truth"
+          ]
+        },
+        "dispatch_evidence": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/cursorAnchoredWindowDispatchEvidence"
+            },
+            {
+              "$ref": "#/$defs/physicalPointerDispatchEvidence"
+            }
+          ]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "before": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/beforeEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/afterEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification": {
+          "$ref": "#/$defs/verification"
+        },
+        "error": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/errorObject"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "validated"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "before": {
+                "$ref": "#/$defs/beforeEvidence"
+              },
+              "after": {
+                "$ref": "#/$defs/afterEvidence"
+              },
+              "verification": {
+                "$ref": "#/$defs/verifiedTransition"
+              },
+              "error": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "error": {
+                "$ref": "#/$defs/errorObject"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "cursor_anchored_window_posted_pointer"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "required": ["dispatch_evidence"],
+            "properties": {
+              "dispatch_evidence": {
+                "$ref": "#/$defs/cursorAnchoredWindowDispatchEvidence"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "dispatch_method": {
+                "const": "physical_pointer_ground_truth"
+              }
+            },
+            "required": ["dispatch_method"]
+          },
+          "then": {
+            "required": ["dispatch_evidence"],
+            "properties": {
+              "dispatch_evidence": {
+                "$ref": "#/$defs/physicalPointerDispatchEvidence"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "optionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "view_path",
+        "view_path_text",
+        "ledger_key",
+        "status",
+        "prior_workflow_attempts",
+        "attempts"
+      ],
+      "properties": {
+        "view_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "view_path_text": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "ledger_key": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}::.+$"
+        },
+        "status": {
+          "enum": [
+            "validated",
+            "skipped_already_validated",
+            "blocked_after_5_attempts",
+            "unsupported_after_attempt_limit",
+            "error_unexpected_new_window"
+          ]
+        },
+        "prior_workflow_attempts": {
+          "$ref": "#/$defs/attemptCount"
+        },
+        "attempts": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/transitionAttempt"
+          }
+        },
+        "workflow_attempts_after": {
+          "$ref": "#/$defs/attemptCount"
+        },
+        "remaining_attempts": {
+          "$ref": "#/$defs/attemptCount"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "validated",
+                  "unsupported_after_attempt_limit",
+                  "error_unexpected_new_window"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "workflow_attempts_after",
+              "remaining_attempts"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "skipped_already_validated",
+                  "blocked_after_5_attempts"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "attempts": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "blocked_after_5_attempts"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "prior_workflow_attempts": {
+                "const": 5
+              }
+            }
+          }
+        }
+      ]
+    },
+    "alreadyRestored": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "dispatch_count",
+        "active_scores",
+        "screenshot",
+        "ocr"
+      ],
+      "properties": {
+        "status": {
+          "const": "already_restored"
+        },
+        "dispatch_count": {
+          "const": 0
+        },
+        "active_scores": {
+          "$ref": "#/$defs/scoreList"
+        },
+        "screenshot": {
+          "$ref": "#/$defs/screenshot"
+        },
+        "ocr": {
+          "$ref": "#/$defs/ocrEvidenceSet"
+        }
+      }
+    },
+    "restoration": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/alreadyRestored"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/transitionAttempt"
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "restore"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "groupResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "group_id",
+        "path_prefix",
+        "status",
+        "initial_active_index",
+        "active_last_order",
+        "options",
+        "restoration",
+        "error"
+      ],
+      "properties": {
+        "group_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "path_prefix": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "status": {
+          "enum": [
+            "validated",
+            "pending",
+            "error"
+          ]
+        },
+        "initial_active_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "active_last_order": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/nonEmptyString"
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/optionResult"
+          }
+        },
+        "restoration": {
+          "$ref": "#/$defs/restoration"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "initial_active_label": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "initial_active_scores": {
+          "$ref": "#/$defs/scoreMap"
+        },
+        "baseline_ocr": {
+          "$ref": "#/$defs/ocrEvidenceSet"
+        },
+        "scaled_search_regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rect"
+          }
+        }
+      }
+    },
+    "featureResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_id",
+        "label",
+        "status",
+        "opening",
+        "groups",
+        "close_status",
+        "error"
+      ],
+      "properties": {
+        "feature_id": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "label": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "status": {
+          "enum": [
+            "validated",
+            "pending",
+            "blocked",
+            "error"
+          ]
+        },
+        "opening": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/opening"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/groupResult"
+          }
+        },
+        "close_status": {
+          "oneOf": [
+            {
+              "enum": [
+                "not_opened",
+                "new_feature_window_closed"
+              ]
+            },
+            {
+              "type": "string",
+              "pattern": "^close_failed:.+$"
+            }
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

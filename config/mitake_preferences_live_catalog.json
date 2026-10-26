@@ -1,0 +1,191 @@
+{
+  "schema": "tw_stock.mitake.preferences_live_catalog",
+  "schema_version": 1,
+  "catalog_date": "2026-08-07",
+  "purpose": "三竹個人設定 13 項的 reference-only 背景開啟安全目錄；不控制正式預測或報告。",
+  "source_feature_catalog": "config/mitake_feature_catalog.json#/groups/top_preferences/items",
+  "reference_only": true,
+  "runtime_behavior": {
+    "fixed_screen_coordinates_allowed": false,
+    "physical_mouse_allowed": false,
+    "cursor_anchor_allowed": false,
+    "foreground_activation_allowed": false,
+    "global_keyboard_allowed": false,
+    "max_background_strategies": 5,
+    "background_strategies": [
+      "root_hwnd_sync_current_layout",
+      "actual_hit_hwnd_sync_current_layout",
+      "root_hwnd_queued_current_layout",
+      "actual_hit_hwnd_queued_current_layout",
+      "actual_hit_hover_move_down_up_current_layout"
+    ],
+    "artifact_isolation": {
+      "run_id_required": true,
+      "output_stem_required": true,
+      "artifact_directory_pattern": "{output_stem}.artifacts.{run_id}",
+      "screenshot_directory_pattern": "{artifact_dir}/screenshots",
+      "fail_if_output_exists": true,
+      "fail_if_ledger_exists": true,
+      "fail_if_artifact_exists": true,
+      "overwrite_allowed": false
+    },
+    "fresh_capture_and_rebind_per_attempt": true,
+    "main_window_gate": {
+      "is_window": true,
+      "is_window_visible": true,
+      "is_zoomed": true,
+      "bind_pid_before_dispatch": true
+    },
+    "preference_entry_locator": {
+      "entry_id": "top_preferences",
+      "label": "個人設定",
+      "coordinate_space": "current_hwnd_layout",
+      "text_uia_win32_ocr_only": true,
+      "no_desktop_coordinate_fallback": true,
+      "allowlist_child_count": 3,
+      "allowlist_child_ids": [
+        "system_information",
+        "free_disclaimer",
+        "version_release_notes"
+      ]
+    },
+    "physical_diagnostic_fixture": {
+      "source": "physical_parent_diagnostic_20260807_1",
+      "coordinate_data": false,
+      "visible_row_count": 12,
+      "membership_center": "not_visible_current_session",
+      "visible_preference_ids": [
+        "system_settings",
+        "dde_settings",
+        "alert_settings",
+        "message_center",
+        "system_information",
+        "personal_layout_share",
+        "environment_parameter_export",
+        "reload_product_information",
+        "free_disclaimer",
+        "operation_manual",
+        "system_logout",
+        "version_release_notes"
+      ],
+      "rows": [
+        {"preference_id": "system_settings", "label": "系統設定", "text_policy": "exact_or_structural"},
+        {"preference_id": "dde_settings", "label": "DDE設定", "text_policy": "exact_or_structural"},
+        {"preference_id": "alert_settings", "label": "警示設定", "text_policy": "exact_or_structural"},
+        {"preference_id": "message_center", "label": "訊息中心", "text_policy": "exact_or_structural"},
+        {"preference_id": "system_information", "label": "系統資訊", "text_policy": "exact_preferred"},
+        {"preference_id": "personal_layout_share", "label": "個人版面分享", "text_policy": "exact_or_structural"},
+        {"preference_id": "environment_parameter_export", "label": "環境參數匯出", "text_policy": "exact_or_structural"},
+        {"preference_id": "reload_product_information", "label": "重載商品資訊", "text_policy": "exact_or_structural"},
+        {"preference_id": "free_disclaimer", "label": "免責聲明", "text_policy": "structural_only_allowed"},
+        {"preference_id": "operation_manual", "label": "操作說明", "text_policy": "structural_only_allowed"},
+        {"preference_id": "system_logout", "label": "系統登出", "text_policy": "exact_or_structural"},
+        {"preference_id": "version_release_notes", "label": "版本更新說明", "text_policy": "structural_only_allowed"}
+      ]
+    },
+    "require_same_pid": true,
+    "require_owned_modal": true,
+    "require_new_content_hash_or_state": true,
+    "require_main_maximized_fail_closed": true,
+    "cleanup_scope": "new_owned_surface_only"
+  },
+  "allowlist": [
+    "system_information",
+    "free_disclaimer",
+    "version_release_notes",
+    "operation_manual"
+  ],
+  "preferences": [
+    {
+      "preference_id": "membership_center",
+      "label": "會員中心",
+      "aliases": ["會員中心"],
+      "background_policy": "safety_blocked",
+      "reason": "account_surface"
+    },
+    {
+      "preference_id": "system_settings",
+      "label": "系統設定",
+      "aliases": ["系統設定"],
+      "background_policy": "safety_blocked",
+      "reason": "settings_surface"
+    },
+    {
+      "preference_id": "dde_settings",
+      "label": "DDE設定",
+      "aliases": ["DDE設定", "DDE 設定"],
+      "background_policy": "safety_blocked",
+      "reason": "settings_surface"
+    },
+    {
+      "preference_id": "alert_settings",
+      "label": "警示設定",
+      "aliases": ["警示設定"],
+      "background_policy": "safety_blocked",
+      "reason": "settings_surface"
+    },
+    {
+      "preference_id": "message_center",
+      "label": "訊息中心",
+      "aliases": ["訊息中心"],
+      "background_policy": "safety_blocked",
+      "reason": "account_message_surface"
+    },
+    {
+      "preference_id": "system_information",
+      "label": "系統資訊",
+      "aliases": ["系統資訊"],
+      "background_policy": "background_allowlist",
+      "reason": "read_only_dialog"
+    },
+    {
+      "preference_id": "personal_layout_share",
+      "label": "個人版面分享",
+      "aliases": ["個人版面分享"],
+      "background_policy": "safety_blocked",
+      "reason": "share_surface"
+    },
+    {
+      "preference_id": "environment_parameter_export",
+      "label": "環境參數匯出",
+      "aliases": ["環境參數匯出"],
+      "background_policy": "safety_blocked",
+      "reason": "file_export"
+    },
+    {
+      "preference_id": "reload_product_information",
+      "label": "重載商品資訊",
+      "aliases": ["重載商品資訊", "重新載入商品資訊"],
+      "background_policy": "safety_blocked",
+      "reason": "local_data_mutation"
+    },
+    {
+      "preference_id": "free_disclaimer",
+      "label": "免責聲明",
+      "aliases": ["免責聲明", "免費聲明"],
+      "background_policy": "background_allowlist",
+      "reason": "read_only_dialog"
+    },
+    {
+      "preference_id": "operation_manual",
+      "label": "操作說明",
+      "aliases": ["操作說明", "操作手冊"],
+      "background_policy": "background_allowlist",
+      "reason": "help_or_external_surface"
+    },
+    {
+      "preference_id": "system_logout",
+      "label": "系統登出",
+      "aliases": ["系統登出"],
+      "background_policy": "safety_blocked",
+      "reason": "session_mutation"
+    },
+    {
+      "preference_id": "version_release_notes",
+      "label": "版本更新說明",
+      "aliases": ["版本更新說明", "版本更新", "版本說明"],
+      "background_policy": "background_allowlist",
+      "reason": "read_only_dialog"
+    }
+  ]
+}

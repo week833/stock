@@ -1,0 +1,616 @@
+{
+  "schema": "tw_stock.mitake.agent_catalog",
+  "schema_version": 2,
+  "catalog_date": "2026-07-29",
+  "purpose": "供其他 Agent 以語意名稱探索及蒐集三竹股市目前可見的唯讀功能；本檔不控制正式預測、報告發布或自選群組同步。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "controls_watchlist_sync": false
+  },
+  "feature_reference": {
+    "feature_reference_path": "D:\\stock\\config\\mitake_feature_reference.json",
+    "json_pointer": "/features",
+    "expected_feature_count": 24,
+    "resolution_rule": "entrypoints[].opens_feature_id resolves against features[].id in feature_reference_path"
+  },
+  "application_observation": {
+    "product": "三竹股市電腦版",
+    "runtime_path": "D:\\MitakeGU\\三竹股市.exe",
+    "sha256": "d0370843407344453a12901301e6857b6d27e2b41078b2b520f359d932c99217",
+    "observed_at": "2026-07-28T08:07:43+08:00",
+    "observed_window": {
+      "width": 1400,
+      "height": 900,
+      "dpi": 96
+    },
+    "inventory_path": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\inventory.json",
+    "corrections_path": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\inventory_corrections.json"
+  },
+  "status_dimensions": {
+    "ui_evidence_status": [
+      "validated_ui_open",
+      "clicked_no_separate_window",
+      "snapshot_only",
+      "pending"
+    ],
+    "background_interaction_status": [
+      "untested",
+      "validated_background",
+      "manual_only",
+      "unsupported",
+      "error"
+    ],
+    "data_extraction_status": [
+      "pending",
+      "schema_ready",
+      "snapshot_only",
+      "validated_collectable",
+      "unsupported",
+      "error"
+    ],
+    "product_support_status": [
+      "pending",
+      "supported",
+      "unsupported",
+      "permission_required",
+      "not_applicable"
+    ],
+    "safety_policy_status": [
+      "allowed_read_only",
+      "blocked_by_safety_policy"
+    ]
+  },
+  "locator_contract": {
+    "capture_target": "三竹股市 root HWND client area",
+    "strategy": "ocr_text",
+    "text_match_rule": "normalize full-width characters, remove whitespace and separators, then require one unique alias match inside the named search region",
+    "dispatch_target": "root HWND or deepest child HWND containing the unique match",
+    "dispatch_method": "targeted_window_message",
+    "physical_mouse_allowed": false,
+    "foreground_activation_allowed": false,
+    "fixed_screen_coordinate_allowed": false,
+    "coordinate_fallback": false,
+    "multiple_matches_policy": "fail_closed",
+    "no_match_policy": "return pending"
+  },
+  "search_regions": {
+    "top_navigation": {
+      "coordinate_space": "root_hwnd_client",
+      "x": "0..window_width",
+      "y_start": 0,
+      "y_end": 26
+    },
+    "shortcut_row_1": {
+      "coordinate_space": "root_hwnd_client",
+      "x": "0..window_width",
+      "y_start": 25,
+      "y_end": 52
+    },
+    "shortcut_row_2": {
+      "coordinate_space": "root_hwnd_client",
+      "x": "0..window_width",
+      "y_start": 50,
+      "y_end": 78
+    }
+  },
+  "entrypoints": [
+    {
+      "entry_id": "top_market",
+      "group": "top_navigation",
+      "label": "大盤",
+      "aliases": ["大盤"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_market.png"
+    },
+    {
+      "entry_id": "top_global_finance",
+      "group": "top_navigation",
+      "label": "國際金融",
+      "aliases": ["國際金融"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_global_finance.png"
+    },
+    {
+      "entry_id": "top_securities",
+      "group": "top_navigation",
+      "label": "證券行情",
+      "aliases": ["證券行情"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_securities.png"
+    },
+    {
+      "entry_id": "top_composite_quote",
+      "group": "top_navigation",
+      "label": "綜合報價",
+      "aliases": ["綜合報價"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "composite_quote",
+      "expected_window_title": "綜合報價",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_composite_quote.png"
+    },
+    {
+      "entry_id": "top_derivatives",
+      "group": "top_navigation",
+      "label": "期權行情",
+      "aliases": ["期權行情"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_derivatives.png"
+    },
+    {
+      "entry_id": "top_news_media",
+      "group": "top_navigation",
+      "label": "新聞影音",
+      "aliases": ["新聞影音"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_news_media.png"
+    },
+    {
+      "entry_id": "top_warrants",
+      "group": "top_navigation",
+      "label": "權證專家",
+      "aliases": ["權證專家"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "warrants",
+      "expected_window_title": "權證專家",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_warrants.png"
+    },
+    {
+      "entry_id": "top_ipo_auction",
+      "group": "top_navigation",
+      "label": "申購競拍",
+      "aliases": ["申購競拍"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_ipo_auction.png"
+    },
+    {
+      "entry_id": "top_market_activity",
+      "group": "top_navigation",
+      "label": "市場動態",
+      "aliases": ["市場動態"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_market_activity.png"
+    },
+    {
+      "entry_id": "top_main_force",
+      "group": "top_navigation",
+      "label": "主力追蹤",
+      "aliases": ["主力追蹤"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "main_force",
+      "expected_window_title": "主力追蹤",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_main_force.png"
+    },
+    {
+      "entry_id": "top_etf",
+      "group": "top_navigation",
+      "label": "ETF專區",
+      "aliases": ["ETF專區", "ETF*區"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_etf.png"
+    },
+    {
+      "entry_id": "top_preferences",
+      "group": "top_navigation",
+      "label": "個人設定",
+      "aliases": ["個人設定"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "blocked_by_safety_policy"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_preferences.png"
+    },
+    {
+      "entry_id": "top_more",
+      "group": "top_navigation",
+      "label": "更多",
+      "aliases": ["更多"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "top_navigation", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": null,
+      "expected_window_title": "三竹股市",
+      "statuses": {"ui_evidence_status": "clicked_no_separate_window", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\top_more.png"
+    },
+    {
+      "entry_id": "shortcut_quote_list",
+      "group": "shortcut_row_1",
+      "label": "報價列表",
+      "aliases": ["報價列表"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "quote_list",
+      "expected_window_title": "報價列表",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_quote_list.png"
+    },
+    {
+      "entry_id": "shortcut_market_trend",
+      "group": "shortcut_row_1",
+      "label": "大盤走勢",
+      "aliases": ["大盤走勢"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "market_trend",
+      "expected_window_title": "大盤走勢",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_market_trend.png"
+    },
+    {
+      "entry_id": "shortcut_intraday_trend",
+      "group": "shortcut_row_1",
+      "label": "即時走勢",
+      "aliases": ["即時走勢"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "intraday_trend",
+      "expected_window_title": "即時走勢",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_intraday_trend.png"
+    },
+    {
+      "entry_id": "shortcut_best_five",
+      "group": "shortcut_row_1",
+      "label": "最佳五檔",
+      "aliases": ["最佳五檔"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "best_five",
+      "expected_window_title": "最佳五檔",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_best_five.png"
+    },
+    {
+      "entry_id": "shortcut_large_order_flow",
+      "group": "shortcut_row_1",
+      "label": "大單流向",
+      "aliases": ["大單流向"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "large_order_flow",
+      "expected_window_title": "大單流向",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_large_order_flow.png"
+    },
+    {
+      "entry_id": "shortcut_support_resistance",
+      "group": "shortcut_row_1",
+      "label": "支撐壓力",
+      "aliases": ["支撐壓力", "支撐力"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "support_resistance",
+      "expected_window_title": "支撐壓力",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_support_resistance.png"
+    },
+    {
+      "entry_id": "shortcut_related_products",
+      "group": "shortcut_row_1",
+      "label": "相關商品",
+      "aliases": ["相關商品"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "related_products",
+      "expected_window_title": "相關商品",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_related_products.png"
+    },
+    {
+      "entry_id": "shortcut_stock_finance",
+      "group": "shortcut_row_1",
+      "label": "個股財務",
+      "aliases": ["個股財務", "個財務"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_finance",
+      "expected_window_title": "個股財務",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_finance.png"
+    },
+    {
+      "entry_id": "shortcut_stock_news",
+      "group": "shortcut_row_1",
+      "label": "個股新聞",
+      "aliases": ["個股新聞", "個新聞"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_news",
+      "expected_window_title": "個股新聞",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_news.png"
+    },
+    {
+      "entry_id": "shortcut_trend_analysis",
+      "group": "shortcut_row_1",
+      "label": "趨勢分析",
+      "aliases": ["趨勢分析"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "trend_analysis",
+      "expected_window_title": "趨勢分析",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_trend_analysis.png"
+    },
+    {
+      "entry_id": "shortcut_ai_selection",
+      "group": "shortcut_row_1",
+      "label": "AI智選",
+      "aliases": ["AI智選", "AI 智選", "IAI智選"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_1", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "ai_selection",
+      "expected_window_title": "AI智選",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_ai_selection.png"
+    },
+    {
+      "entry_id": "shortcut_stock_screener",
+      "group": "shortcut_row_2",
+      "label": "選股專家",
+      "aliases": ["選股專家", "選專家"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_screener",
+      "expected_window_title": "選股專家",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_screener.png"
+    },
+    {
+      "entry_id": "shortcut_market_activity",
+      "group": "shortcut_row_2",
+      "label": "大盤動態",
+      "aliases": ["大盤動態"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "market_activity",
+      "expected_window_title": "大盤動態",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_market_activity.png"
+    },
+    {
+      "entry_id": "shortcut_trade_details",
+      "group": "shortcut_row_2",
+      "label": "即時明細",
+      "aliases": ["即時明細"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "trade_details",
+      "expected_window_title": "即時明細",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_trade_details.png"
+    },
+    {
+      "entry_id": "shortcut_price_volume",
+      "group": "shortcut_row_2",
+      "label": "分價統計",
+      "aliases": ["分價統計"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "price_volume",
+      "expected_window_title": "分價統計",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_price_volume.png"
+    },
+    {
+      "entry_id": "shortcut_technical_analysis",
+      "group": "shortcut_row_2",
+      "label": "技術分析",
+      "aliases": ["技術分析"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "technical_analysis",
+      "expected_window_title": "技術分析",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_technical_analysis.png"
+    },
+    {
+      "entry_id": "shortcut_odd_lot_quote",
+      "group": "shortcut_row_2",
+      "label": "零股報價",
+      "aliases": ["零股報價", "容報價"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "odd_lot_quote",
+      "expected_window_title": "零股報價",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_odd_lot_quote.png"
+    },
+    {
+      "entry_id": "shortcut_stock_chips",
+      "group": "shortcut_row_2",
+      "label": "個股籌碼",
+      "aliases": ["個股籌碼", "個籌碼"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_chips",
+      "expected_window_title": "個股籌碼",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_profile.png"
+    },
+    {
+      "entry_id": "shortcut_stock_profile",
+      "group": "shortcut_row_2",
+      "label": "個股資料",
+      "aliases": ["個股資料", "個資料"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_profile",
+      "expected_window_title": "個股資料",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_diagnosis.png"
+    },
+    {
+      "entry_id": "shortcut_stock_diagnosis",
+      "group": "shortcut_row_2",
+      "label": "個股診斷",
+      "aliases": ["個股診斷", "個診斷"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "stock_diagnosis",
+      "expected_window_title": "個股診斷",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_diagnosis_corrected.png"
+    },
+    {
+      "entry_id": "shortcut_flow",
+      "group": "shortcut_row_2",
+      "label": "進出",
+      "aliases": ["進出", "進出場指標", "進"],
+      "locator": {"strategy": "ocr_text", "search_region_id": "shortcut_row_2", "match_rule": "unique_normalized_alias", "coordinate_fallback": false},
+      "opens_feature_id": "entry_exit_indicator",
+      "expected_window_title": "進出場指標",
+      "statuses": {"ui_evidence_status": "validated_ui_open", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"},
+      "evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_flow.png"
+    }
+  ],
+  "nested_view_groups": [
+    {
+      "feature_id": "composite_quote",
+      "parent_path": [],
+      "labels": ["詳細", "技術", "個股報價", "個股籌碼", "個股財務", "個股資料", "分價統計", "大單流向", "個股新聞", "相關商品", "零股報價", "趨勢分析", "個股診斷", "支撐壓力"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "warrants",
+      "parent_path": [],
+      "labels": ["熱門權證", "權證標的", "權證比較", "條件查詢", "權證試算器", "成交量排行", "漲幅排行", "自營商買超排行", "自營商賣超排行"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "main_force",
+      "parent_path": [],
+      "labels": ["焦點主力", "交易高手", "外資券商", "官股行庫", "常用", "搜尋", "五日進出", "投資喜好", "喜好標的"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "quote_list",
+      "parent_path": [],
+      "labels": ["上市", "上櫃", "熱門排行", "ETF排行", "興櫃", "產業", "概念", "盤中期貨報價", "選擇權", "國際金融"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_finance",
+      "parent_path": [],
+      "labels": ["月營收表", "損益表", "資產負債表", "現金流量表", "獲利能力", "償債能力", "經營能力"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_finance",
+      "parent_path": ["月營收表"],
+      "labels": ["月營收", "單月", "累計", "年增率", "型態"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "price_volume",
+      "parent_path": [],
+      "labels": ["分價量表", "內外盤分價", "買賣盤差", "量排序", "1分", "3分", "5分", "15分", "30分", "60分"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "odd_lot_quote",
+      "parent_path": [],
+      "labels": ["盤中零股", "盤後零股", "五檔", "成交明細", "分價"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_chips",
+      "parent_path": [],
+      "labels": ["籌碼總覽", "券商分點", "籌碼分佈", "三大法人", "資券當沖", "主力進出", "集保大戶", "集保餘額", "董監持股", "董監質設", "股權分布", "持股轉讓", "買回庫藏股"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_chips",
+      "parent_path": ["券商分點"],
+      "labels": ["分點排行", "買賣超", "焦點", "明細", "1日買超", "1日賣超", "5日買超", "5日賣超"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_chips",
+      "parent_path": ["三大法人"],
+      "labels": ["進出", "持股"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_chips",
+      "parent_path": ["主力進出"],
+      "labels": ["進出", "集中度", "股本比"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_profile",
+      "parent_path": [],
+      "labels": ["基本資料", "產業組合", "歷年股利", "除權息資訊", "股利政策", "股東會紀念品", "轉投資資訊", "重大行事曆"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_profile",
+      "parent_path": ["基本資料"],
+      "labels": ["公司資料", "聯絡資訊", "產業分類", "法說會"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_diagnosis",
+      "parent_path": [],
+      "labels": ["個股概況", "河流圖"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "stock_diagnosis",
+      "parent_path": ["個股概況"],
+      "labels": ["同業比較", "量價區間", "財務簡表"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    },
+    {
+      "feature_id": "entry_exit_indicator",
+      "parent_path": [],
+      "labels": ["指標排行", "進出明細"],
+      "statuses": {"ui_evidence_status": "snapshot_only", "background_interaction_status": "untested", "data_extraction_status": "pending", "product_support_status": "pending", "safety_policy_status": "allowed_read_only"}
+    }
+  ],
+  "agent_interface": {
+    "operation": "probe_or_collect",
+    "request_example": {
+      "operation": "probe",
+      "entrypoint_id": "shortcut_stock_chips",
+      "feature_id": "stock_chips",
+      "view_path": ["券商分點", "分點排行", "5日買超"],
+      "parameters": {"stock_id": "2330"}
+    },
+    "response_schema_path": "D:\\stock\\config\\mitake_agent_collection.schema.json"
+  },
+  "evidence_corrections": [
+    {
+      "entry_id": "shortcut_stock_chips",
+      "valid_evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_profile.png",
+      "invalid_evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_chips.png",
+      "invalid_evidence_actual_title": "零股報價"
+    },
+    {
+      "entry_id": "shortcut_stock_profile",
+      "valid_evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_diagnosis.png"
+    },
+    {
+      "entry_id": "shortcut_stock_diagnosis",
+      "valid_evidence": "D:\\TWStockData\\external\\mitake\\inventory\\mitake_ui_inventory_20260728\\shortcut_stock_diagnosis_corrected.png",
+      "valid_evidence_sha256": "3c24c0a39a7e079224d1d38558be1de793ed578b29391cb35f7e8aa1154ae611"
+    }
+  ],
+  "governance": {
+    "account_or_order_actions": false,
+    "settings_mutation": false,
+    "transport_interception": false,
+    "store_credentials_in_git": false,
+    "store_real_market_screenshots_in_git": false,
+    "uncertain_results_fail_closed": true,
+    "uncertain_statuses": ["pending", "unsupported", "permission_required", "manual_only"],
+    "formal_model_adoption_from_this_catalog": false
+  }
+}

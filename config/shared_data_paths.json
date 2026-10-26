@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "contract_path": "D:\\TWStockData\\config\\path_contract.json",
+  "managed_namespace": "canonical_shared",
+  "environment_override": null,
+  "root_relative_to_project": "D:\\TWStockData\\shared_market_data",
+  "categories": {
+    "prices_history": "D:\\TWStockData\\program_data\\dstock_daily\\prices\\history",
+    "providers_finmind_json": "providers/finmind/json",
+    "providers_global_markets": "providers/yahoo/global_markets",
+    "official_calendar": "official/calendar",
+    "official_industry_operational": "D:\\TWStockData\\program_data\\dstock_daily\\industry_operational",
+    "official_market_daily": "official/market_daily",
+    "official_sector_features": "official/sector_features",
+    "official_trading_restrictions": "official/trading_restrictions",
+    "brokers_normalized_cache": "D:\\TWStockData\\program_data\\dstock_daily\\brokers\\normalized_cache",
+    "brokers_imports": "brokers/imports",
+    "brokers_provider_raw": "brokers/provider_raw",
+    "brokers_finlab_cache": "brokers/finlab_cache"
+  },
+  "project_local_data": {
+    "expected_return_model": "D:\\TWStockData\\program_data\\dstock_daily\\model",
+    "prediction_snapshots": "D:\\TWStockData\\program_data\\dstock_daily\\prediction_snapshots",
+    "single_stock_work_and_model_results": "D:\\TWStockData\\program_data\\dstock_single\\cache",
+    "outputs": "D:\\TWStockData\\program_data\\dstock_daily\\outputs",
+    "reports": "D:\\TWStockData\\program_data\\dstock_daily\\reports",
+    "state": "D:\\TWStockData\\program_data\\dstock_daily\\state",
+    "prices_history": "D:\\TWStockData\\program_data\\dstock_daily\\prices\\history",
+    "brokers_normalized_cache": "D:\\TWStockData\\program_data\\dstock_daily\\brokers\\normalized_cache",
+    "official_industry_operational": "D:\\TWStockData\\program_data\\dstock_daily\\industry_operational"
+  },
+  "note": "categories 的中央原始層使用 canonical_shared 相對路徑；prices_history、official_industry_operational、brokers_normalized_cache 是明確標示的 dstock_daily 衍生別名，必須與 project_local_data 及中央 path contract 完全一致，不得回退 legacy 路徑。"
+}

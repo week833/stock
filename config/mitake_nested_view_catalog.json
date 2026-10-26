@@ -1,0 +1,1548 @@
+{
+  "schema": "tw_stock.mitake.nested_view_catalog",
+  "schema_version": 1,
+  "catalog_date": "2026-07-30",
+  "purpose": "供其他 Agent 以文字、OCR 或 HWND 背景操作探索三竹股市 24 個已知功能窗；本檔只描述介面階層、安全分類與待驗證缺口。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "controls_watchlist_sync": false,
+    "ui_ocr_is_supplementary_evidence_only": true
+  },
+  "classification_definitions": {
+    "clickable_read_only": "預期只切換資料視圖、篩選或期間；仍須先以文字或 OCR 唯一定位並驗證 HWND。",
+    "data_block_not_clickable": "畫面資料區塊或欄位標題，不應因看見文字就送出點擊。",
+    "forbidden_mutation": "可能修改自選、群組、版面、圖表、設定、帳務、委託或其他持久狀態，研究流程禁止操作。",
+    "needs_live_verification": "既有截圖無法確認控制型態、完整選項、點擊結果或背景操作能力。"
+  },
+  "evidence": {
+    "feature_reference": "config/mitake_feature_reference.json",
+    "agent_entrypoint_catalog": "config/mitake_agent_catalog.json",
+    "navigation_menu_catalog": "config/mitake_navigation_menu_catalog.json",
+    "nested_live_catalog": "config/mitake_nested_live_catalog.json",
+    "navigation_popup_discovery": "D:/TWStockData/external/mitake/navigation_surface_discovery_20260729/navigation_surfaces.json",
+    "preferences_surface_discovery": "D:/TWStockData/external/mitake/navigation_surface_20260730_preferences/navigation_crawl.json",
+    "nested_background_run": "D:/TWStockData/external/mitake/nested_crawl_20260730_market_core_retry2/nested_crawl.json",
+    "nested_background_ledger": "D:/TWStockData/external/mitake/nested_crawl_ledger.jsonl",
+    "inventory": "D:/TWStockData/external/mitake/inventory/mitake_ui_inventory_20260728/inventory.json",
+    "inventory_corrections": "D:/TWStockData/external/mitake/inventory/mitake_ui_inventory_20260728/inventory_corrections.json",
+    "inventory_scope": {
+      "visible_entrypoints": 34,
+      "opened_feature_windows": 24,
+      "nested_views_exhaustively_clicked": false,
+      "nested_live_paths_tested": 13,
+      "nested_live_paths_validated": 0,
+      "nested_live_paths_unsupported_after_5": 13
+    }
+  },
+  "retry_policy": {
+    "max_attempts_per_action": 5,
+    "retry_only_after_reacquiring_text_and_hwnd": true,
+    "record_each_attempt": true,
+    "final_failure_status": "unsupported_background",
+    "no_global_mouse_fallback": true
+  },
+  "shared_frame_controls": {
+    "clickable_read_only": [
+      {
+        "path": ["股票代號輸入"],
+        "control_type": "text_input",
+        "constraint": "限已驗證的三竹 Edit 子控制項"
+      },
+      {
+        "path": ["自選報價群組下拉"],
+        "control_type": "dropdown",
+        "constraint": "只選擇既有群組"
+      },
+      {
+        "path": ["股票清單", "單擊商品列"],
+        "control_type": "row_selection",
+        "constraint": "只允許單擊切換查詢標的"
+      }
+    ],
+    "forbidden_mutation": [
+      {
+        "path": ["加入自選／移除自選／星號／釘選"],
+        "reason": "會修改自選或偏好"
+      },
+      {
+        "path": ["群組新增／刪除／重新命名／排序"],
+        "reason": "會修改群組"
+      },
+      {
+        "path": ["商品列", "雙擊或右鍵"],
+        "reason": "可能開啟委託或其他狀態性功能"
+      },
+      {
+        "path": ["帳務／下單／警示／個人設定"],
+        "reason": "不屬於唯讀研究"
+      }
+    ]
+  },
+  "known_top_navigation_gaps": [
+    {
+      "navigation_id": "top_market",
+      "label": "大盤",
+      "classification": "needs_live_verification",
+      "cataloged_item_count": 10,
+      "evidence_status": "popup_discovered_and_partial_live_crawl",
+      "validated_items": ["大盤動態"],
+      "unsupported_background_after_5": ["上市指數", "上櫃指數"]
+    },
+    {
+      "navigation_ids": [
+        "top_global_finance",
+        "top_securities",
+        "top_derivatives",
+        "top_news_media",
+        "top_ipo_auction",
+        "top_market_activity",
+        "top_etf",
+        "top_more"
+      ],
+      "classification": "needs_live_verification",
+      "evidence_status": "all_popup_surfaces_discovered_but_items_not_exhaustively_opened"
+    },
+    {
+      "navigation_id": "top_preferences",
+      "label": "個人設定",
+      "classification": "surface_inventory_only",
+      "cataloged_item_count": 13,
+      "evidence_status": "popup_surface_validated_without_selecting_child_item",
+      "child_selection_status": "blocked_or_manual_only_by_safety_and_unreliable_owner_drawn_popup_dispatch"
+    }
+  ],
+  "features": [
+    {
+      "feature_id": "composite_quote",
+      "label": "綜合報價",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["主視圖"],
+          "control_type": "tab_group",
+          "known_options": ["詳細", "技術"]
+        },
+        {
+          "path": ["圖表期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["交易單位"],
+          "control_type": "toggle_group",
+          "known_options": ["整股", "零股"]
+        },
+        {
+          "path": ["市場／產業"],
+          "control_type": "selector",
+          "observed_value": "上市-金融保險"
+        },
+        {
+          "path": ["圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["五檔版型"],
+          "control_type": "toggle_group",
+          "known_options": ["橫式", "直式"]
+        },
+        {
+          "path": ["功能主頁"],
+          "control_type": "tab_group",
+          "known_options": ["個股報價", "個股籌碼", "個股財務", "個股資料"]
+        },
+        {
+          "path": ["個股報價", "子功能"],
+          "control_type": "tab_group",
+          "known_options": ["分價統計", "大單流向", "個股新聞", "相關商品", "零股報價", "趨勢分析", "個股診斷", "支撐壓力"]
+        },
+        {
+          "path": ["個股報價", "分價統計"],
+          "control_type": "tab_group",
+          "known_options": ["價格排序", "量排序", "內外盤分價", "買賣盤差"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["即時成交表"],
+          "reason": "行情資料區塊"
+        },
+        {
+          "path": ["五檔買賣盤"],
+          "reason": "行情資料區塊"
+        },
+        {
+          "path": ["分時走勢與成交量"],
+          "reason": "圖表資料區塊"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["工具列", "設定／版面／繪圖"],
+          "reason": "可能修改本機版面或圖表狀態"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["圖表期間", "完整選項"],
+          "question": "既有截圖只確認當日"
+        },
+        {
+          "path": ["市場／產業", "完整選項"],
+          "question": "既有截圖只確認目前分類"
+        },
+        {
+          "path": ["子功能列", "右側溢位箭頭"],
+          "question": "是否還有截圖外的隱藏功能"
+        }
+      ]
+    },
+    {
+      "feature_id": "warrants",
+      "label": "權證專家",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["左側功能"],
+          "control_type": "accordion_group",
+          "known_options": ["熱門權證", "熱門個股", "權證比較", "條件查詢", "快速查詢", "權證試算器"]
+        },
+        {
+          "path": ["權證圖表"],
+          "control_type": "tab_group",
+          "known_options": ["即時走勢", "技術分析"]
+        },
+        {
+          "path": ["標的圖表"],
+          "control_type": "tab_group",
+          "known_options": ["即時走勢", "技術分析"]
+        },
+        {
+          "path": ["圖表期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["排行榜"],
+          "control_type": "tab_group",
+          "known_options": ["漲幅排行", "跌幅排行", "成量排行", "自營商買超排行", "自營商賣超排行"]
+        },
+        {
+          "path": ["認購認售篩選"],
+          "control_type": "toggle_group",
+          "known_options": ["全部", "認購", "認售"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["權證排行榜表格"],
+          "reason": "行情資料區塊"
+        },
+        {
+          "path": ["權證與標的報價"],
+          "reason": "行情資料區塊"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["手動刷新模式"],
+          "reason": "切換可能改變持久或執行中刷新設定"
+        },
+        {
+          "path": ["工具列", "設定"],
+          "reason": "可能修改本機偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["左側功能", "各折疊內容"],
+          "question": "既有截圖只顯示預設內容"
+        },
+        {
+          "path": ["熱門個股"],
+          "question": "舊目錄記為權證標的，需以 live OCR 確認正式字樣"
+        },
+        {
+          "path": ["排行榜", "成量排行"],
+          "question": "需確認正式字樣是否為成交量排行"
+        }
+      ]
+    },
+    {
+      "feature_id": "main_force",
+      "label": "主力追蹤",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["主力分類"],
+          "control_type": "tab_group",
+          "known_options": ["焦點主力", "交易高手", "外資券商", "官股行庫", "常用", "搜尋"]
+        },
+        {
+          "path": ["排行類型"],
+          "control_type": "tab_group",
+          "known_options": ["勝率王", "獲利王", "報酬率王", "主力王"]
+        },
+        {
+          "path": ["交易週期"],
+          "control_type": "tab_group",
+          "known_options": ["當沖", "隔日沖", "1天", "1週", "1月", "1季"]
+        },
+        {
+          "path": ["券商列"],
+          "control_type": "row_expand",
+          "expected_effect": "切換右側券商明細"
+        },
+        {
+          "path": ["券商明細"],
+          "control_type": "tab_group",
+          "known_options": ["五日進出", "投資喜好", "喜好標的"]
+        },
+        {
+          "path": ["五日進出", "日期"],
+          "control_type": "date_tab_group",
+          "known_behavior": "顯示最近交易日"
+        },
+        {
+          "path": ["五日進出", "金額方向"],
+          "control_type": "toggle_group",
+          "known_options": ["買超金額", "賣超金額"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["券商分點勝率／損益／報酬率表"],
+          "reason": "統計資料區塊"
+        },
+        {
+          "path": ["個股K線與分點進出圖"],
+          "reason": "圖表資料區塊"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["常用／喜好標的", "新增／移除"],
+          "reason": "會修改使用者偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["主力分類", "每一分類內容"],
+          "question": "目前只確認預設畫面"
+        },
+        {
+          "path": ["搜尋", "結果列"],
+          "question": "需確認背景輸入與結果載入"
+        },
+        {
+          "path": ["券商列展開"],
+          "question": "需以目標內容變化驗證點擊成功"
+        }
+      ]
+    },
+    {
+      "feature_id": "quote_list",
+      "label": "報價列表",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["報價分類"],
+          "control_type": "tab_group",
+          "known_options": ["自選報價", "上市類股", "上櫃類股", "熱門排行", "ETF排行", "興櫃類股", "產業類股", "集團類股", "概念類股", "盤中零股", "期貨報價", "選擇權", "國際金融"]
+        },
+        {
+          "path": ["群組"],
+          "control_type": "dropdown",
+          "observed_value": "群組"
+        },
+        {
+          "path": ["報價列"],
+          "control_type": "row_selection",
+          "constraint": "只允許單擊"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["報價欄位標題"],
+          "reason": "除非明確測試排序，不得把欄名當導覽頁籤"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["自選報價", "編輯"],
+          "reason": "會修改自選群組"
+        },
+        {
+          "path": ["工具列", "版面／欄位設定"],
+          "reason": "可能修改本機偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["報價分類", "全部 13 頁"],
+          "question": "需逐頁驗證資料表與可能產生的子視窗"
+        },
+        {
+          "path": ["群組", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "market_trend",
+      "label": "大盤走勢",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["大盤走勢", "市場"],
+          "control_type": "tab_group",
+          "known_options": ["上市", "上櫃", "台指近全"]
+        },
+        {
+          "path": ["大盤走勢", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["大盤走勢", "圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["江波圖", "市場"],
+          "control_type": "dropdown",
+          "observed_value": "上市"
+        },
+        {
+          "path": ["江波圖", "統計單位"],
+          "control_type": "tab_group",
+          "known_options": ["張數", "筆數", "均張"]
+        },
+        {
+          "path": ["技術分析", "市場"],
+          "control_type": "tab_group",
+          "known_options": ["上市", "上櫃", "台指近全"]
+        },
+        {
+          "path": ["技術分析", "K線週期"],
+          "control_type": "dropdown",
+          "observed_value": "日線"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["即時明細"],
+          "reason": "成交明細資料區塊"
+        },
+        {
+          "path": ["市場廣度"],
+          "reason": "上漲、下跌、漲跌停統計"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["齒輪／加號／圖表工具列"],
+          "reason": "可能修改圖表或版面"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["大盤走勢", "期間與圖表資料完整選項"],
+          "question": "既有截圖未展開下拉"
+        },
+        {
+          "path": ["江波圖", "市場完整選項"],
+          "question": "既有截圖只確認上市"
+        }
+      ]
+    },
+    {
+      "feature_id": "intraday_trend",
+      "label": "即時走勢",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["交易單位"],
+          "control_type": "toggle_group",
+          "known_options": ["整股", "零股"]
+        },
+        {
+          "path": ["市場／產業"],
+          "control_type": "selector",
+          "observed_value": "上市-金融保險"
+        },
+        {
+          "path": ["圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["分時價格圖"],
+          "reason": "行情圖表"
+        },
+        {
+          "path": ["成交量圖"],
+          "reason": "行情圖表"
+        },
+        {
+          "path": ["OHLC／內外盤摘要"],
+          "reason": "行情資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["設定／版面工具"],
+          "reason": "可能修改本機偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["期間／市場／圖表資料", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "best_five",
+      "label": "最佳五檔",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["最佳五檔", "版型"],
+          "control_type": "toggle_group",
+          "known_options": ["橫式", "直式"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["即時明細"],
+          "reason": "資料區塊標題"
+        },
+        {
+          "path": ["關鍵價位"],
+          "reason": "資料區塊標題"
+        },
+        {
+          "path": ["最佳五檔"],
+          "reason": "資料區塊標題"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["齒輪"],
+          "reason": "可能修改五檔顯示設定"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["橫式／直式"],
+          "question": "需以版面變化驗證背景點擊"
+        }
+      ]
+    },
+    {
+      "feature_id": "large_order_flow",
+      "label": "大單流向",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["即時走勢", "交易單位"],
+          "control_type": "toggle_group",
+          "known_options": ["整股", "零股"]
+        },
+        {
+          "path": ["即時走勢", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["即時走勢", "市場／產業"],
+          "control_type": "selector",
+          "observed_value": "上市-金融保險"
+        },
+        {
+          "path": ["即時走勢", "圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["流向分析"],
+          "control_type": "tab_group",
+          "known_options": ["進出", "買賣比", "分佈", "價量"]
+        },
+        {
+          "path": ["大單／小單圖"],
+          "control_type": "toggle_group",
+          "known_options": ["累計", "分時"]
+        },
+        {
+          "path": ["右下輔助視圖"],
+          "control_type": "tab_group",
+          "known_options": ["最佳五檔", "分價統計", "大盤走勢"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["即時明細"],
+          "reason": "成交明細資料"
+        },
+        {
+          "path": ["大單／小單勢均力敵統計"],
+          "reason": "統計資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["齒輪／加號"],
+          "reason": "可能修改圖表或版面"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["流向分析", "4 頁"],
+          "question": "需逐頁記錄資料欄位"
+        },
+        {
+          "path": ["右下輔助視圖", "3 頁"],
+          "question": "需驗證是否產生額外視窗或只切換區塊"
+        }
+      ]
+    },
+    {
+      "feature_id": "support_resistance",
+      "label": "支撐壓力",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "no_visible_nested_tabs",
+      "no_visible_nested_tabs": true,
+      "clickable_read_only": [],
+      "data_block_not_clickable": [
+        {
+          "path": ["關鍵價位表"],
+          "reason": "包含現價、均線、布林通道、三關價與 CDP 等靜態資料列"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["商品列", "雙擊或右鍵"],
+          "reason": "可能開啟非唯讀功能"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["視窗內部"],
+          "question": "確認捲動後仍無隱藏頁籤或下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "related_products",
+      "label": "相關商品",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["相關商品圖表"],
+          "control_type": "tab_group",
+          "known_options": ["走勢", "技術"]
+        },
+        {
+          "path": ["標的圖表"],
+          "control_type": "tab_group",
+          "known_options": ["走勢", "技術"]
+        },
+        {
+          "path": ["標的圖表", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["標的圖表", "交易單位"],
+          "control_type": "toggle_group",
+          "known_options": ["整股", "零股"]
+        },
+        {
+          "path": ["標的圖表", "市場／產業"],
+          "control_type": "selector",
+          "observed_value": "上市-金融保險"
+        },
+        {
+          "path": ["標的圖表", "圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["商品類型"],
+          "control_type": "tab_group",
+          "known_options": ["權證", "期貨", "選擇權"]
+        },
+        {
+          "path": ["權證類型"],
+          "control_type": "dropdown",
+          "observed_value": "全部"
+        },
+        {
+          "path": ["商品表", "商品列"],
+          "control_type": "row_selection",
+          "expected_effect": "載入相關商品圖表"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["相關商品行情表"],
+          "reason": "商品行情與履約資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["圖表設定／繪圖"],
+          "reason": "可能修改本機圖表狀態"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["權證類型", "完整選項"],
+          "question": "既有截圖只確認全部"
+        },
+        {
+          "path": ["商品類型", "期貨／選擇權"],
+          "question": "需確認資料欄位與列選擇結果"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_finance",
+      "label": "個股財務",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["財務主頁"],
+          "control_type": "tab_group",
+          "known_options": ["月營收表", "損益表", "資產負債表", "現金流量表", "獲利能力", "償債能力", "經營能力"]
+        },
+        {
+          "path": ["月營收表", "分析視圖"],
+          "control_type": "tab_group",
+          "known_options": ["月營收", "單月", "累計", "年增率", "型態"]
+        },
+        {
+          "path": ["月營收表", "營收排行"],
+          "control_type": "view_link"
+        },
+        {
+          "path": ["月營收表", "顯示圖表"],
+          "control_type": "toggle",
+          "observed_value": "隱藏圖表"
+        },
+        {
+          "path": ["月營收表", "月份篩選"],
+          "control_type": "dropdown",
+          "observed_value": "全部月份"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["月營收圖"],
+          "reason": "財務圖表"
+        },
+        {
+          "path": ["月營收表格"],
+          "reason": "月營收、月增率、年增率、累計年增與備註"
+        }
+      ],
+      "forbidden_mutation": [],
+      "needs_live_verification": [
+        {
+          "path": ["財務主頁", "損益表／資產負債表／現金流量表／獲利能力／償債能力／經營能力"],
+          "question": "需逐頁探索其第二層控制與欄位"
+        },
+        {
+          "path": ["月份篩選", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_news",
+      "label": "個股新聞",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["新聞列表", "新聞列"],
+          "control_type": "row_selection",
+          "expected_effect": "載入文章內容"
+        },
+        {
+          "path": ["新聞最後更新", "重新整理"],
+          "control_type": "refresh",
+          "constraint": "不變更刷新模式"
+        },
+        {
+          "path": ["相關商品", "商品單選"],
+          "control_type": "radio_group"
+        },
+        {
+          "path": ["相關商品", "全選"],
+          "control_type": "selection_only"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["新聞來源／標題／觀看數／顯示時間"],
+          "reason": "新聞摘要資料"
+        },
+        {
+          "path": ["文章內容區"],
+          "reason": "新聞內容資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["相關商品", "加入自選"],
+          "reason": "會修改自選清單"
+        },
+        {
+          "path": ["字體／顯示設定"],
+          "reason": "可能修改本機偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["新聞列", "開啟行為"],
+          "question": "需確認內容留在同一視窗且不開啟外部瀏覽器"
+        },
+        {
+          "path": ["相關商品", "單選與全選"],
+          "question": "只允許暫時選取，不得提交加入自選"
+        }
+      ]
+    },
+    {
+      "feature_id": "trend_analysis",
+      "label": "趨勢分析",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["K線週期"],
+          "control_type": "dropdown",
+          "observed_value": "日線"
+        },
+        {
+          "path": ["圖表週期列"],
+          "control_type": "tab_group",
+          "known_options": ["日", "週", "月", "還日", "還週", "還月", "1", "3", "5", "15", "30", "60"]
+        },
+        {
+          "path": ["強弱分析", "週期"],
+          "control_type": "tab_group",
+          "known_options": ["1分", "3分", "5分", "15分", "30分", "60分", "日", "週", "月"]
+        },
+        {
+          "path": ["強弱分析", "日期卡"],
+          "control_type": "date_tab_group"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["K線／成交量圖"],
+          "reason": "圖表資料"
+        },
+        {
+          "path": ["移動平均線分析"],
+          "reason": "指標資料"
+        },
+        {
+          "path": ["技術分析指標表"],
+          "reason": "指標資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["圖表工具列", "繪圖／設定／儲存／列印"],
+          "reason": "可能修改或輸出本機圖表"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["圖表週期列", "還日／還週／還月"],
+          "question": "OCR 字樣需以 live 畫面確認"
+        },
+        {
+          "path": ["K線週期", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "ai_selection",
+      "label": "AI智選",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["AI主頁"],
+          "control_type": "tab_group",
+          "known_options": ["六宮格診斷", "AI行情分析", "高連動度股票分析"]
+        },
+        {
+          "path": ["K線週期"],
+          "control_type": "dropdown",
+          "observed_value": "日線"
+        },
+        {
+          "path": ["圖表週期列"],
+          "control_type": "tab_group",
+          "known_options": ["日", "週", "月", "還日", "還週", "還月", "1", "3", "5", "15", "30", "60"]
+        },
+        {
+          "path": ["六宮格診斷", "期間"],
+          "control_type": "toggle_group",
+          "known_options": ["短線", "長線"]
+        },
+        {
+          "path": ["六宮格診斷", "多空條件列"],
+          "control_type": "row_selection",
+          "expected_effect": "顯示條件詳細資訊"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["K線／成交量圖"],
+          "reason": "圖表資料"
+        },
+        {
+          "path": ["多／空摘要"],
+          "reason": "供應商診斷資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["圖表工具列", "繪圖／設定／儲存／列印"],
+          "reason": "可能修改或輸出本機圖表"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["AI主頁", "3 頁"],
+          "question": "需逐頁確認控制與欄位"
+        },
+        {
+          "path": ["圖表週期列", "還日／還週／還月"],
+          "question": "OCR 字樣需以 live 畫面確認"
+        },
+        {
+          "path": ["供應商 AI 結果"],
+          "question": "只作補充證據，不得直接作正式模型答案"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_screener",
+      "label": "選股專家",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["選股主頁"],
+          "control_type": "tab_group",
+          "known_options": ["機器人選股", "新股神贏家"]
+        },
+        {
+          "path": ["篩選", "指標"],
+          "control_type": "dropdown",
+          "observed_value": "指標"
+        },
+        {
+          "path": ["篩選", "型態"],
+          "control_type": "dropdown",
+          "observed_value": "型態"
+        },
+        {
+          "path": ["篩選", "策略"],
+          "control_type": "dropdown",
+          "observed_value": "動能向上(9)"
+        },
+        {
+          "path": ["篩選", "跨日已汰除"],
+          "control_type": "filter_toggle",
+          "observed_value": "跨日已汰除(7)"
+        },
+        {
+          "path": ["商品表", "商品列"],
+          "control_type": "row_selection",
+          "constraint": "只允許單擊"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["商品清單與買賣價"],
+          "reason": "選股結果資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["商品列", "雙擊或右鍵"],
+          "reason": "可能開啟非唯讀功能"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["指標／型態／策略", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        },
+        {
+          "path": ["選股主頁", "新股神贏家"],
+          "question": "需確認內容與供應商資料限制"
+        }
+      ]
+    },
+    {
+      "feature_id": "market_activity",
+      "label": "大盤動態",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["市場"],
+          "control_type": "tab_group",
+          "known_options": ["上市", "上櫃"]
+        },
+        {
+          "path": ["大盤走勢", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "當日"
+        },
+        {
+          "path": ["大盤走勢", "圖表資料"],
+          "control_type": "dropdown",
+          "observed_value": "成交量"
+        },
+        {
+          "path": ["右側動態"],
+          "control_type": "tab_group",
+          "known_options": ["產業動態", "類股動態"]
+        },
+        {
+          "path": ["漲跌分佈", "前往排行榜"],
+          "control_type": "dropdown",
+          "observed_value": "前往排行榜"
+        },
+        {
+          "path": ["產業／類股表", "商品列"],
+          "control_type": "row_selection",
+          "constraint": "只允許單擊"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["市場廣度"],
+          "reason": "上漲、下跌、漲跌停統計"
+        },
+        {
+          "path": ["漲跌分佈圖"],
+          "reason": "統計圖表"
+        },
+        {
+          "path": ["產業動態圖與商品表"],
+          "reason": "市場資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["設定／版面工具"],
+          "reason": "可能修改本機偏好"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["產業動態／類股動態"],
+          "question": "需確認各柱與商品列是否產生新視窗"
+        },
+        {
+          "path": ["前往排行榜", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "trade_details",
+      "label": "即時明細",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "no_visible_nested_tabs",
+      "no_visible_nested_tabs": true,
+      "clickable_read_only": [],
+      "data_block_not_clickable": [
+        {
+          "path": ["即時成交明細表"],
+          "reason": "時間、買進、賣出、成交、單量、漲跌與總量資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["成交列", "雙擊或右鍵"],
+          "reason": "可能開啟非唯讀功能"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["視窗內部"],
+          "question": "確認捲動後仍無隱藏頁籤或下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "price_volume",
+      "label": "分價統計",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["分價量表", "顯示方式"],
+          "control_type": "tab_group",
+          "known_options": ["價格排序", "量排序", "內外盤分價", "買賣盤差"]
+        },
+        {
+          "path": ["趨勢分析", "週期"],
+          "control_type": "tab_group",
+          "known_options": ["1分", "3分", "5分", "15分", "30分", "60分", "日", "週", "月"]
+        },
+        {
+          "path": ["趨勢分析", "日期卡"],
+          "control_type": "date_tab_group"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["分價量表"],
+          "reason": "區塊標題；真正可切換的是價格排序等四項"
+        },
+        {
+          "path": ["移動平均線分析"],
+          "reason": "指標資料"
+        },
+        {
+          "path": ["技術分析指標表"],
+          "reason": "指標資料"
+        },
+        {
+          "path": ["最佳五檔"],
+          "reason": "行情資料區塊"
+        }
+      ],
+      "forbidden_mutation": [],
+      "needs_live_verification": [
+        {
+          "path": ["顯示方式", "4 頁"],
+          "question": "需逐頁確認欄位與背景切換"
+        },
+        {
+          "path": ["趨勢分析", "週期與日期卡"],
+          "question": "需確認是否只是資料切換"
+        }
+      ]
+    },
+    {
+      "feature_id": "technical_analysis",
+      "label": "技術分析",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["K線週期"],
+          "control_type": "dropdown",
+          "observed_value": "日線"
+        },
+        {
+          "path": ["圖表週期列"],
+          "control_type": "tab_group",
+          "known_options": ["日", "週", "月", "還日", "還週", "還月", "1", "3", "5", "15", "30", "60"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["K線圖"],
+          "reason": "OHLC 與均線資料"
+        },
+        {
+          "path": ["成交量圖"],
+          "reason": "成交量與均量資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["圖表工具列", "繪圖／指標設定／儲存／列印"],
+          "reason": "可能修改或輸出本機圖表"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["圖表週期列", "還日／還週／還月"],
+          "question": "OCR 字樣需以 live 畫面確認"
+        },
+        {
+          "path": ["K線週期", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        }
+      ]
+    },
+    {
+      "feature_id": "odd_lot_quote",
+      "label": "零股報價",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["零股時段"],
+          "control_type": "tab_group",
+          "known_options": ["盤中零股", "盤後零股"]
+        },
+        {
+          "path": ["零股分價", "顯示單位"],
+          "control_type": "toggle_group",
+          "known_options": ["價格", "量"]
+        },
+        {
+          "path": ["零股明細"],
+          "control_type": "tab_group",
+          "known_options": ["成交明細", "試撮明細"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["零股走勢"],
+          "reason": "行情圖表"
+        },
+        {
+          "path": ["零股五檔"],
+          "reason": "區塊標題，不是頁籤"
+        },
+        {
+          "path": ["零股分價"],
+          "reason": "區塊標題；價格與量才是切換控制"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["商品列", "雙擊或右鍵"],
+          "reason": "可能開啟非唯讀功能"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["盤中零股／盤後零股"],
+          "question": "需逐頁確認五檔、明細與分價欄位"
+        },
+        {
+          "path": ["試撮明細"],
+          "question": "需確認非交易時段的可用性與空資料狀態"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_chips",
+      "label": "個股籌碼",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["籌碼主頁"],
+          "control_type": "tab_group",
+          "known_options": ["籌碼總覽", "券商分點", "籌碼分佈", "三大法人", "資券當沖", "主力進出", "集保大戶", "集保餘額", "董監持股", "董監質設", "股權分布", "持股轉讓", "買回庫藏股"]
+        },
+        {
+          "path": ["籌碼總覽", "K線週期"],
+          "control_type": "dropdown",
+          "observed_value": "日線"
+        },
+        {
+          "path": ["籌碼總覽", "下方分析"],
+          "control_type": "tab_group",
+          "known_options": ["法人", "主力", "資券"]
+        },
+        {
+          "path": ["籌碼總覽", "日期"],
+          "control_type": "date_dropdown",
+          "observed_value": "2026/07/27"
+        },
+        {
+          "path": ["籌碼總覽", "籌碼市場排名"],
+          "control_type": "view_link"
+        },
+        {
+          "path": ["券商分點"],
+          "control_type": "tab_group",
+          "known_options": ["分點排行", "買賣超", "焦點", "明細"]
+        },
+        {
+          "path": ["券商分點", "分點排行", "期間"],
+          "control_type": "dropdown",
+          "known_options": ["近日", "5日", "10日", "20日", "60日", "120日", "240日"]
+        },
+        {
+          "path": ["券商分點", "買賣超", "方向"],
+          "control_type": "toggle_group",
+          "known_options": ["買超", "賣超"]
+        },
+        {
+          "path": ["券商分點", "買賣超", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "近日"
+        },
+        {
+          "path": ["券商分點", "買賣超", "顯示圖表"],
+          "control_type": "toggle",
+          "observed_value": "隱藏圖表"
+        },
+        {
+          "path": ["券商分點", "明細", "券商集合"],
+          "control_type": "dropdown",
+          "observed_value": "買超前15券商"
+        },
+        {
+          "path": ["券商分點", "明細", "期間"],
+          "control_type": "dropdown",
+          "observed_value": "近日"
+        },
+        {
+          "path": ["三大法人"],
+          "control_type": "tab_group",
+          "known_options": ["進出", "持股"]
+        },
+        {
+          "path": ["主力進出"],
+          "control_type": "tab_group",
+          "known_options": ["進出", "集中度", "股本比"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["券商分點", "分點排行", "買超／賣超欄"],
+          "reason": "買賣方是結果欄位，不是 1日買超等四個獨立頁籤"
+        },
+        {
+          "path": ["籌碼總覽", "法人／主力／資券統計卡"],
+          "reason": "籌碼資料"
+        },
+        {
+          "path": ["三大法人／主力進出圖表與表格"],
+          "reason": "籌碼資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["工具列", "設定／繪圖／儲存／列印"],
+          "reason": "可能修改或輸出本機圖表"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["籌碼主頁", "籌碼分佈／資券當沖／集保大戶／集保餘額／董監持股／董監質設／股權分布／持股轉讓／買回庫藏股"],
+          "question": "既有證據未逐頁探索"
+        },
+        {
+          "path": ["券商分點", "分點排行", "期間"],
+          "question": "舊 adapter 只正式驗證 5日買方，其他期間與賣方需分開記錄"
+        },
+        {
+          "path": ["券商分點", "買賣超／焦點／明細"],
+          "question": "有舊截圖但未驗證目前背景操作"
+        },
+        {
+          "path": ["三大法人／主力進出"],
+          "question": "有舊截圖但只可作補充證據，不能取代券商分點條件"
+        },
+        {
+          "path": ["券商集合／期間下拉", "完整選項"],
+          "question": "既有截圖未展開"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_profile",
+      "label": "個股資料",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["資料主頁"],
+          "control_type": "tab_group",
+          "known_options": ["基本資料", "產業組合", "歷年股利", "除權息資訊", "股利政策", "股東會紀念品", "轉投資資訊", "重大行事曆"]
+        },
+        {
+          "path": ["基本資料"],
+          "control_type": "tab_group",
+          "known_options": ["公司資料", "聯絡資訊", "產業分類", "法說會"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["公司資料欄位"],
+          "reason": "公司名稱、網址、資本額、市值、產業、日期、業務與股本資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["公司網址／外部連結"],
+          "reason": "可能開啟外部瀏覽器，不屬於背景 UI 盤點"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["資料主頁", "基本資料以外 7 頁"],
+          "question": "需逐頁確認第二層控制與資料欄位"
+        },
+        {
+          "path": ["基本資料", "聯絡資訊／產業分類／法說會"],
+          "question": "既有截圖只顯示公司資料"
+        }
+      ]
+    },
+    {
+      "feature_id": "stock_diagnosis",
+      "label": "個股診斷",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["診斷主頁"],
+          "control_type": "tab_group",
+          "known_options": ["個股概況", "河流圖"]
+        },
+        {
+          "path": ["個股概況"],
+          "control_type": "tab_group",
+          "known_options": ["同業比較", "量價區間", "財務簡表"]
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["漲跌幅比較", "1日／5日／10日"],
+          "reason": "資料欄位，未證明是可點控制"
+        },
+        {
+          "path": ["平均成交量", "5日／20日／60日"],
+          "reason": "資料欄位，未證明是可點控制"
+        },
+        {
+          "path": ["同業比較表"],
+          "reason": "市值、幅度、獲利率、估值與同業排名資料"
+        }
+      ],
+      "forbidden_mutation": [],
+      "needs_live_verification": [
+        {
+          "path": ["診斷主頁", "河流圖"],
+          "question": "需確認期間、估值類型與圖表控制"
+        },
+        {
+          "path": ["個股概況", "量價區間／財務簡表"],
+          "question": "需逐頁確認資料欄位"
+        }
+      ]
+    },
+    {
+      "feature_id": "entry_exit_indicator",
+      "label": "進出場指標",
+      "window_evidence_status": "validated_ui_open",
+      "nested_background_status": "needs_live_verification",
+      "no_visible_nested_tabs": false,
+      "clickable_read_only": [
+        {
+          "path": ["指標排行"],
+          "control_type": "dropdown",
+          "observed_value": "最高報酬率／勝率"
+        },
+        {
+          "path": ["訊號期間"],
+          "control_type": "selector",
+          "observed_value": "近半年"
+        },
+        {
+          "path": ["訊號歷史", "訊號列"],
+          "control_type": "row_selection",
+          "expected_effect": "顯示進出明細"
+        }
+      ],
+      "data_block_not_clickable": [
+        {
+          "path": ["報酬率／勝率摘要"],
+          "reason": "統計資料"
+        },
+        {
+          "path": ["進出明細"],
+          "reason": "既有畫面較像區塊標題，未證明是頁籤"
+        },
+        {
+          "path": ["K線與 KD 指標"],
+          "reason": "圖表資料"
+        }
+      ],
+      "forbidden_mutation": [
+        {
+          "path": ["圖表工具列", "繪圖／設定／儲存／列印"],
+          "reason": "可能修改或輸出本機圖表"
+        }
+      ],
+      "needs_live_verification": [
+        {
+          "path": ["指標排行", "完整選項"],
+          "question": "既有截圖未展開下拉"
+        },
+        {
+          "path": ["訊號期間", "完整選項"],
+          "question": "既有截圖只確認近半年"
+        },
+        {
+          "path": ["進出明細"],
+          "question": "需確認是資料區塊或可點頁籤"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3594 @@
+{
+  "schema": "tw_stock.mitake.ui_research_status",
+  "schema_version": 1,
+  "as_of": "2026-07-30",
+  "workspace_root": "D:\\stock",
+  "purpose": "供其他 Agent 查詢三竹股市目前已驗證、未能背景操作、禁止操作及待正式介面補足的完整現況；本檔只作 reference_only。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "physical_mouse_allowed": false,
+    "physical_mouse_used": false,
+    "global_keyboard_allowed": false,
+    "foreground_activation_allowed": false,
+    "fixed_screen_coordinate_allowed": false,
+    "posted_pointer_message_allowed_by_default": false,
+    "max_attempts_per_item_or_view_path": 5,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "controls_watchlist_sync": false,
+    "formal_model_eligibility": false,
+    "ui_or_ocr_can_clear_model_eligibility": false,
+    "uncertain_results_fail_closed": true,
+    "experimental_posted_pointer_used_in_exhaustive_run": true,
+    "experimental_posted_pointer_repeatable_background_dispatch": false,
+    "experimental_run_observed_cursor_or_foreground_change": true,
+    "current_cursor_anchor_method": "cursor_anchored_window_posted_pointer",
+    "current_cursor_anchor_runs_physical_mouse_used": false,
+    "current_cursor_anchor_runs_state_restored": true,
+    "current_cursor_anchor_reference_only": true,
+    "current_cursor_anchor_production_enabled": false
+  },
+  "source_catalogs": {
+    "direct_entry_catalog": "D:\\stock\\config\\mitake_agent_catalog.json",
+    "direct_collection_schema": "D:\\stock\\config\\mitake_agent_collection.schema.json",
+    "navigation_catalog": "D:\\stock\\config\\mitake_navigation_menu_catalog.json",
+    "navigation_collection_schema": "D:\\stock\\config\\mitake_navigation_collection.schema.json",
+    "nested_live_catalog": "D:\\stock\\config\\mitake_nested_live_catalog.json",
+    "nested_inventory_catalog": "D:\\stock\\config\\mitake_nested_view_catalog.json",
+    "official_sdk_data_gap_reference": "D:\\stock\\config\\mitake_program_data_gap_reference.json",
+    "navigation_semantic_controls": "D:\\stock\\config\\mitake_navigation_semantic_controls.json"
+  },
+  "counts": {
+    "direct_feature_windows": {
+      "total": 24,
+      "validated_data_snapshot": 22,
+      "window_opened_current_product_unsupported": 2
+    },
+    "navigation": {
+      "groups": 10,
+      "visible_items": 66,
+      "unique_view_ids": 66,
+      "allowed_read_only_direct_items": 51,
+      "validated_experimental_background_snapshot": 37,
+      "unsupported_background_after_5_workflows": 0,
+      "historical_unsupported_background_after_5_workflows": 14,
+      "physical_ground_truth_validated_from_historical_failure_set": 14,
+      "cursor_anchor_full_leaf_validated": 12,
+      "cursor_anchor_validated_shell_only": 2,
+      "cursor_anchor_replayed_items": 14,
+      "cursor_anchor_not_replayed_items": 37,
+      "remaining_direct_selection_failures": 0,
+      "cascade_discovery_only": 2,
+      "preferences_surface_discovered_blocked": 9,
+      "preferences_surface_discovered_manual_only": 4
+    },
+    "nested_live_paths": {
+      "total": 13,
+      "unsupported_background_after_5_workflows": 0,
+      "historical_unsupported_background_after_5_workflows": 13,
+      "physical_ground_truth_validated": 13,
+      "cursor_anchor_validated": 13,
+      "cursor_anchor_first_attempt_success": 13,
+      "remaining_failures": 0,
+      "historical_paths_with_5_workflows_and_15_message_actions": 8,
+      "historical_paths_with_5_ocr_failures_and_0_message_actions": 5,
+      "historical_total_workflows": 65,
+      "historical_total_message_actions": 120
+    },
+    "nested_inventory_catalog": {
+      "features": 24,
+      "clickable_read_only_groups": 113,
+      "known_options": 245,
+      "data_blocks_not_clickable": 53,
+      "needs_live_verification": 52,
+      "forbidden_mutation": 24,
+      "features_with_no_visible_nested_tabs": 2,
+      "counting_note": "known_options 是所有 clickable_read_only[].known_options 陣列長度合計；clickable_read_only_groups 是 clickable_read_only 物件數，不是可點選 option 數。"
+    }
+  },
+  "current_resolution": {
+    "authoritative": true,
+    "effective_at": "2026-07-30",
+    "status": "resolved_for_tested_scope",
+    "historical_item_statuses_retained": true,
+    "historical_status_override_rule": "本區覆蓋 navigation.items 中原 14 項及 nested_live_paths.items 中 13 項的舊 unsupported 狀態；舊欄位只保留失敗根因與稽核軌跡，不是目前未解清單。",
+    "method": {
+      "name": "cursor_anchored_window_posted_pointer",
+      "selection_basis": "目前 HWND、目前游標錨點、視窗相對位置及目前畫面 OCR；不使用固定螢幕座標。",
+      "physical_mouse_used": false,
+      "global_keyboard_used": false,
+      "foreground_activation_requested": false,
+      "cursor_restored": true,
+      "foreground_restored": true,
+      "main_window_state_restored": true,
+      "reference_only": true,
+      "production_enabled": false
+    },
+    "root_cause": [
+      "舊背景流程開啟 transient popup 時未取得 capture 或 active 狀態，queued pointer 或實體 leaf 點擊落到主視窗的查價區。",
+      "部分項目共用外層視窗標題或 shell；國際新聞落在新聞匯流 shell，ETF影音落在影音頻道 shell，不能只用 leaf 名稱比對標題。",
+      "部分舊 OCR locator 因文字別名、共用 shell 或框選條件造成 false negative。"
+    ],
+    "navigation": {
+      "visible_items": 66,
+      "safe_direct_leaf_items": 51,
+      "historical_background_snapshot_items": 37,
+      "all_safe_direct_leaf_items_replayed_with_cursor_anchor": false,
+      "cursor_anchor_replayed_historical_failure_items": 14,
+      "cursor_anchor_not_replayed_items": 37,
+      "not_replayed_interpretation": "其餘 37 項仍只有舊背景快照；不得宣稱已用 cursor_anchor 重新驗證全部 51 項。",
+      "physical_ground_truth": {
+        "tested": 14,
+        "correct_leaf_selection": 14,
+        "remaining_failures": 0,
+        "physical_mouse_used": true,
+        "evidence_directory_globs": [
+          "D:\\TWStockData\\external\\mitake\\navigation_physical_baseline_20260730_*",
+          "D:\\TWStockData\\external\\mitake\\navigation_physical_baseline_final_20260730_*",
+          "D:\\TWStockData\\external\\mitake\\navigation_physical_baseline_retry2_20260730_*"
+        ]
+      },
+      "cursor_anchor": {
+        "tested": 14,
+        "full_leaf_validated": 12,
+        "validated_shell_only": 2,
+        "remaining_direct_selection_failures": 0,
+        "first_attempt_success_required_for_count": true,
+        "full_leaf_view_ids": [
+          "listed_index",
+          "otc_index",
+          "listed_otc_capital_flow",
+          "china_hk_etf_underlyings",
+          "global_fx",
+          "precious_metals",
+          "us_adr_delayed",
+          "cryptocurrency",
+          "options_quotes",
+          "taiex_options_pc_ratio",
+          "etf_selection",
+          "etf_data"
+        ],
+        "validated_shell_only_items": [
+          {
+            "view_id": "global_news",
+            "requested_label": "國際新聞",
+            "observed_shell": "新聞匯流",
+            "selection_status": "validated_shell_only"
+          },
+          {
+            "view_id": "etf_video",
+            "requested_label": "ETF影音",
+            "observed_shell": "影音頻道",
+            "selection_status": "validated_shell_only"
+          }
+        ],
+        "latest_safety_verification": {
+          "physical_mouse_used": false,
+          "cursor_unchanged": true,
+          "foreground_unchanged": true,
+          "main_window_rect_unchanged": true,
+          "cleanup_errors": 0,
+          "restore_errors": 0,
+          "market_group_retry_reason": "首次三項雖選擇正確，但游標期間曾由 (1694,488) 變為 (1280,720)；retry2 已在游標固定 (1280,720) 下重跑 3/3 通過並取代該安全證據。"
+        },
+        "evidence": [
+          "D:\\TWStockData\\external\\mitake\\navigation_cursor_anchor_retry2_20260730_market_failures\\navigation_crawl.json",
+          "D:\\TWStockData\\external\\mitake\\navigation_cursor_anchor_20260730_global_finance_failures\\navigation_crawl.json",
+          "D:\\TWStockData\\external\\mitake\\navigation_cursor_anchor_20260730_derivatives_failures\\navigation_crawl.json",
+          "D:\\TWStockData\\external\\mitake\\navigation_cursor_anchor_20260730_etf_failures\\navigation_crawl.json",
+          "D:\\TWStockData\\external\\mitake\\navigation_cursor_anchor_retry_20260730_china_hk_etf\\navigation_crawl.json"
+        ]
+      },
+      "outside_safe_direct_leaf_scope": {
+        "hover_cascade_parents": 2,
+        "hover_cascade_parent_labels": [
+          "客戶服務",
+          "看盤地圖"
+        ],
+        "live_background_child_surface_expansion_validated": 0,
+        "status": "cascade_discovery_only",
+        "preference_surface_items": 13,
+        "preference_items_blocked_by_safety_policy": 9,
+        "preference_items_manual_only": 4,
+        "reason": "級聯子選單尚未完成背景展開；個人設定可能變更帳戶、設定、檔案或工作階段，因此未以實體或背景點擊。"
+      }
+    },
+    "nested_live_paths": {
+      "total": 13,
+      "physical_ground_truth_validated": 13,
+      "cursor_anchor_validated": 13,
+      "cursor_anchor_first_attempt_success": 13,
+      "remaining_failures": 0,
+      "resolved_path_ids": [
+        "market_activity.market.otc",
+        "market_activity.market.listed",
+        "market_activity.right_activity.sector",
+        "market_activity.right_activity.industry",
+        "market_trend.primary_market.otc",
+        "market_trend.primary_market.taiex_near_all",
+        "market_trend.primary_market.listed",
+        "market_trend.wave_unit.trades",
+        "market_trend.wave_unit.average_lot",
+        "market_trend.wave_unit.lots",
+        "market_trend.technical_market.otc",
+        "market_trend.technical_market.taiex_near_all",
+        "market_trend.technical_market.listed"
+      ],
+      "physical_ground_truth_evidence": [
+        "D:\\TWStockData\\external\\mitake\\nested_physical_baseline2_20260730_market_activity\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_physical_baseline2_20260730_market_trend_primary\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_physical_baseline2_20260730_market_trend_wave\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_physical_baseline2_20260730_market_trend_technical\\nested_crawl.json"
+      ],
+      "cursor_anchor_evidence": [
+        "D:\\TWStockData\\external\\mitake\\nested_cursor_anchor_20260730_market_activity\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_cursor_anchor_20260730_market_trend_primary\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_cursor_anchor_20260730_market_trend_wave\\nested_crawl.json",
+        "D:\\TWStockData\\external\\mitake\\nested_cursor_anchor_20260730_market_trend_technical\\nested_crawl.json"
+      ]
+    },
+    "formal_use_boundary": {
+      "reference_only": true,
+      "ui_or_ocr_is_production_data_source": false,
+      "clears_unsupported_or_pending": false,
+      "clears_broker_branch_gap": false,
+      "clears_model_oos_sample_or_calibration_gate": false
+    }
+  },
+  "direct_feature_windows": [
+    {
+      "entrypoint_id": "top_composite_quote",
+      "feature_id": "composite_quote",
+      "label": "綜合報價",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "即時價",
+        "買進",
+        "賣出",
+        "五檔",
+        "成交明細",
+        "個股報價",
+        "個股籌碼",
+        "個股財務",
+        "個股資料"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\top_composite_quote.png",
+        "sha256": "65a13d3ac6d005c7db56f4cfe07b93f45e3bbd8cba6f7fb9e2023e62acfeef3a",
+        "observed_window_title": "綜合報價"
+      }
+    },
+    {
+      "entrypoint_id": "top_warrants",
+      "feature_id": "warrants",
+      "label": "權證專家",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "熱門權證",
+        "權證標的",
+        "權證比較",
+        "條件查詢",
+        "試算器",
+        "排行"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\top_warrants.png",
+        "sha256": "4d027e52de30fbb73fcc04bc3b4bec32cfaa01626ef264a44c3444de6e1a5f29",
+        "observed_window_title": "權證專家"
+      }
+    },
+    {
+      "entrypoint_id": "top_main_force",
+      "feature_id": "main_force",
+      "label": "主力追蹤",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "券商分點",
+        "交易週期",
+        "五日進出",
+        "買賣超金額",
+        "買賣超張數",
+        "連續天數",
+        "勝率",
+        "損益",
+        "報酬率"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\top_main_force.png",
+        "sha256": "2e892a4f3dc2a03d516bb7beec7ca8da843ffa4f830eb3ef6933fe98f03c55d2",
+        "observed_window_title": "主力追蹤"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_quote_list",
+      "feature_id": "quote_list",
+      "label": "報價列表",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "商品代號",
+        "商品名稱",
+        "買價",
+        "賣價",
+        "成交價",
+        "漲跌",
+        "幅度",
+        "單量",
+        "總量",
+        "分類"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_quote_list.png",
+        "sha256": "19c4f14ae1ec9e4c747c443eb2040cd9aba343ac098e9cd4b734beafd4f9fd4a",
+        "observed_window_title": "報價列表"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_market_trend",
+      "feature_id": "market_trend",
+      "label": "大盤走勢",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "指數",
+        "漲跌幅",
+        "分時走勢",
+        "成交量",
+        "成交值",
+        "上漲下跌家數",
+        "漲跌停家數"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_market_trend.png",
+        "sha256": "2987f9eca3d258a35eb67ff70e069a281cc8538b42dd8e3aba1b4039f6d62678",
+        "observed_window_title": "大盤走勢"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_intraday_trend",
+      "feature_id": "intraday_trend",
+      "label": "即時走勢",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "即時價",
+        "漲跌",
+        "分時價格",
+        "成交量",
+        "開盤",
+        "最高",
+        "最低",
+        "均價"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_intraday_trend.png",
+        "sha256": "653dc2707d668183c593a4f54edc712986fc05969755f5c0bb3240745de5ea69",
+        "observed_window_title": "即時走勢"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_best_five",
+      "feature_id": "best_five",
+      "label": "最佳五檔",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "五檔買價",
+        "五檔買量",
+        "五檔賣價",
+        "五檔賣量",
+        "成交價",
+        "時間",
+        "單量"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_best_five.png",
+        "sha256": "ef00900c7ec499a9ed7cf4b39edf4c147f52f15546b63dc14099ec6fcde80b13",
+        "observed_window_title": "最佳五檔"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_large_order_flow",
+      "feature_id": "large_order_flow",
+      "label": "大單流向",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "時間",
+        "買進",
+        "賣出",
+        "成交",
+        "總量",
+        "大單流向",
+        "小單流向"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_large_order_flow.png",
+        "sha256": "83aa90b93936e9b502bd5a1cba8769fd6c312f50714e2f1c924183d072098bf9",
+        "observed_window_title": "大單流向"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_support_resistance",
+      "feature_id": "support_resistance",
+      "label": "支撐壓力",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "關鍵價位",
+        "支撐區",
+        "壓力區",
+        "目前價格"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_support_resistance.png",
+        "sha256": "1a22f34410acfd926f5c617c037c2e081f8eb9a49cb34f119200e186c4ffcfb0",
+        "observed_window_title": "支撐壓力"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_related_products",
+      "feature_id": "related_products",
+      "label": "相關商品",
+      "status": "window_opened_current_product_unsupported",
+      "product_support_status": "unsupported",
+      "declared_fields": [
+        "相關商品代號",
+        "相關商品名稱",
+        "成交價",
+        "漲跌幅"
+      ],
+      "observed_unsupported_marker": "本商品不支援此功能（相關商品）",
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_related_products.png",
+        "sha256": "fe2be7565c1db2e8c52d1348a529e5e165efe004a26f9c0f3f05c036b9f7a00f",
+        "observed_window_title": "相關商品"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_finance",
+      "feature_id": "stock_finance",
+      "label": "個股財務",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "月營收",
+        "月增率",
+        "年增率",
+        "累計年增率",
+        "損益表",
+        "資產負債表",
+        "現金流量表",
+        "獲利能力",
+        "償債能力",
+        "經營能力"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_finance.png",
+        "sha256": "d788a2d40d6e32a460261309045f4c890813a0cf8261a77ccc739971165faaa3",
+        "observed_window_title": "個股財務"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_news",
+      "feature_id": "stock_news",
+      "label": "個股新聞",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "來源",
+        "標題",
+        "觀看數",
+        "顯示時間",
+        "最後更新時間",
+        "相關商品"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_news.png",
+        "sha256": "03fb59024ce343e5e0dd2f574eb1c377c3cd33fcb1cbfca6941324965211bbb2",
+        "observed_window_title": "個股新聞"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_trend_analysis",
+      "feature_id": "trend_analysis",
+      "label": "趨勢分析",
+      "status": "window_opened_current_product_unsupported",
+      "product_support_status": "unsupported",
+      "declared_fields": [
+        "OHLC",
+        "成交量",
+        "移動平均線",
+        "技術指標",
+        "供應商技術摘要"
+      ],
+      "observed_unsupported_marker": "本商品不支援此功能（趨勢分析）",
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_trend_analysis.png",
+        "sha256": "c5351362e73fe16d7bc08c400c62ac99e0c3c4e0298a554c80a061524575d728",
+        "observed_window_title": "趨勢分析"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_ai_selection",
+      "feature_id": "ai_selection",
+      "label": "AI智選",
+      "status": "validated_data_snapshot",
+      "product_support_status": "pending",
+      "declared_fields": [
+        "多空影響因子",
+        "AI評分",
+        "行情分析",
+        "技術分析"
+      ],
+      "limitations": [
+        "畫面另見未歸因的六宮格診斷 unsupported marker，不能推論整個 AI智選不支援。"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_ai_selection.png",
+        "sha256": "7623d6b6b097df28a1617cbccada93af1f7c52b1885ef2b35886b18658276b1a",
+        "observed_window_title": "AI智選"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_screener",
+      "feature_id": "stock_screener",
+      "label": "選股專家",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "條件",
+        "策略",
+        "商品清單",
+        "商品代號",
+        "買價",
+        "賣價",
+        "更新時間"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_screener.png",
+        "sha256": "efcc4f26da090910223c72ddfdf0e16785fa617411ebf001bb694a96f8aef25f",
+        "observed_window_title": "選股專家"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_market_activity",
+      "feature_id": "market_activity",
+      "label": "大盤動態",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "指數",
+        "漲跌",
+        "成交量",
+        "成交值",
+        "開盤",
+        "最高",
+        "最低",
+        "上漲下跌家數",
+        "漲跌停家數"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_market_activity.png",
+        "sha256": "6b7644a19c1cab00c1a1be2d38666389f96073654cdb4b99964bb27cb37e80f5",
+        "observed_window_title": "大盤動態"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_trade_details",
+      "feature_id": "trade_details",
+      "label": "即時明細",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "時間",
+        "買進",
+        "賣出",
+        "成交價",
+        "單量",
+        "累計量"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_trade_details.png",
+        "sha256": "0ab419756565b8f2f28b44fc188ad06e53a483a0be3bab2f6e6f8b50090d1278",
+        "observed_window_title": "即時明細"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_price_volume",
+      "feature_id": "price_volume",
+      "label": "分價統計",
+      "status": "validated_data_snapshot",
+      "product_support_status": "pending",
+      "declared_fields": [
+        "分價量表",
+        "內盤",
+        "外盤",
+        "買賣盤差",
+        "量排序",
+        "1分",
+        "3分",
+        "5分",
+        "15分",
+        "60分"
+      ],
+      "limitations": [
+        "畫面另見未歸因的趨勢分析 unsupported marker，不能推論分價統計本身不支援。"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_price_volume.png",
+        "sha256": "aba2036f432cc7ec08e36887aa00ce73a9efa7b2d940d908f71385c17c5f9152",
+        "observed_window_title": "分價統計"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_technical_analysis",
+      "feature_id": "technical_analysis",
+      "label": "技術分析",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "K線週期",
+        "OHLCV",
+        "技術指標",
+        "移動平均線",
+        "繪圖工具"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_technical_analysis.png",
+        "sha256": "f7fd7820b901d979ef93a847d326b7d7f96a187a083206862ecd568f89cc81ff",
+        "observed_window_title": "技術分析"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_odd_lot_quote",
+      "feature_id": "odd_lot_quote",
+      "label": "零股報價",
+      "status": "validated_data_snapshot",
+      "product_support_status": "pending",
+      "declared_fields": [
+        "盤中零股",
+        "盤後零股",
+        "價格",
+        "股數",
+        "買價",
+        "賣價",
+        "成交明細",
+        "總量",
+        "內外盤"
+      ],
+      "limitations": [
+        "目前畫面可見的盤中零股子視圖有 unsupported marker；整個功能窗仍已開啟並擷取。"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_odd_lot_quote.png",
+        "sha256": "cb8b8ccc132b5cf4b84bf9ceb786ee75d48fd4977691302aeb39bb90099c5a91",
+        "observed_window_title": "零股報價"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_chips",
+      "feature_id": "stock_chips",
+      "label": "個股籌碼",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "券商分點",
+        "籌碼分佈",
+        "三大法人",
+        "資券當沖",
+        "主力進出",
+        "集保大戶",
+        "集保餘額",
+        "董監持股",
+        "董監質設",
+        "股權分佈",
+        "持股轉讓",
+        "庫藏股"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_chips.png",
+        "sha256": "71421cd9fb2d456557f243f83f4dad06ab19e19a18f4b827cac8b2bc0e64a975",
+        "observed_window_title": "個股籌碼"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_profile",
+      "feature_id": "stock_profile",
+      "label": "個股資料",
+      "status": "validated_data_snapshot",
+      "product_support_status": "pending",
+      "declared_fields": [
+        "公司名稱",
+        "公司網址",
+        "英文簡稱",
+        "資本額",
+        "市值",
+        "產業",
+        "成立日期",
+        "上市日期",
+        "主要業務",
+        "股本",
+        "股利",
+        "除權息",
+        "重大行事曆",
+        "法說會",
+        "轉投資"
+      ],
+      "limitations": [
+        "目前畫面可見的基本資料子視圖有 unsupported marker；整個功能窗仍已開啟並擷取。"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_profile.png",
+        "sha256": "ca606a94e338461baea4d80fcac4bb6d7b0d6cfcbd338cebcb72827f3311b359",
+        "observed_window_title": "個股資料"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_stock_diagnosis",
+      "feature_id": "stock_diagnosis",
+      "label": "個股診斷",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "個股概況",
+        "河流圖",
+        "同業比較",
+        "量價區間",
+        "財務簡表",
+        "1日漲跌",
+        "5日漲跌",
+        "10日漲跌",
+        "本益比估值區間",
+        "股價淨值比估值區間",
+        "成交量",
+        "同業排名"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_stock_diagnosis.png",
+        "sha256": "1671b424bef0b273106ea3ab7bc4439437856f672eb0a5640f84831033876fc1",
+        "observed_window_title": "個股診斷"
+      }
+    },
+    {
+      "entrypoint_id": "shortcut_flow",
+      "feature_id": "entry_exit_indicator",
+      "label": "進出",
+      "status": "validated_data_snapshot",
+      "product_support_status": "supported",
+      "declared_fields": [
+        "進場訊號",
+        "出場訊號",
+        "報酬率",
+        "勝率",
+        "指標排行",
+        "訊號歷史",
+        "K線",
+        "技術指標"
+      ],
+      "evidence": {
+        "run": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\probe_run.json",
+        "screenshot": "D:\\TWStockData\\external\\mitake\\agent_probe_20260729_final\\screenshots\\shortcut_flow.png",
+        "sha256": "b629cd46d0570ba90271801d162f8c2923d6d5a6f6a5ef0b26c6a7b62488e034",
+        "observed_window_title": "進出場指標"
+      }
+    }
+  ],
+  "navigation": {
+    "catalog": "D:\\stock\\config\\mitake_navigation_menu_catalog.json",
+    "items_status_scope": "navigation.items 保留 cursor_anchor 前的逐項狀態；原 14 項目前狀態一律以 #/current_resolution/navigation 為準。",
+    "classwide_background_limitation": {
+      "owner_drawn_popup_class": "Afx:001C0000:8:00010003:00000000:00000000",
+      "uia_descendant_count": 0,
+      "msaa_child_count": 0,
+      "get_menu_handle": 0,
+      "mn_gethmenu_result": 0,
+      "standard_command_mapping_verified": false,
+      "historical_conclusion": "明確 opt-in 的 queued pointer 舊流程使 37/51 唯讀頁面實際開啟並通過標題/OCR，但 14/51 各五次仍失敗；該舊方法可能依賴 MSG.pt／全域游標。",
+      "conclusion": "舊 14 項失敗已由實體基準確認 14/14 正確，並由 cursor_anchored_window_posted_pointer 得到 12 項完整 leaf 與 2 項共用 shell 驗證；目前 direct selection failure=0。其餘 37 項尚未用新方法重跑。"
+    },
+    "surface_evidence_by_group": {
+      "top_market": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_market_window_2951466.png",
+      "top_global_finance": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_global_finance_window_8783786.png",
+      "top_securities": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_securities_window_8849322.png",
+      "top_derivatives": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_derivatives_window_6359560.png",
+      "top_news_media": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_news_media_window_6425096.png",
+      "top_ipo_auction": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_ipo_auction_window_2754338.png",
+      "top_market_activity": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_market_activity_window_3410218.png",
+      "top_etf": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_etf_window_3475754.png",
+      "top_more": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_more_window_3147554.png",
+      "top_preferences": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png"
+    },
+    "items": [
+      {
+        "group_id": "top_market",
+        "view_id": "market_live",
+        "label": "大盤動態",
+        "semantic_control_name": "index_item_marketdynamics",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "大盤動態",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\market_live_target_1_18091296.png",
+              "sha256": "b17e0487f65029c8dac222624eeebe12e98e4fc1947b5ad97e557a1591e37de6",
+              "ocr_word_count": 85
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "大盤動態"
+            ],
+            "expected_ocr_markers": [
+              "大盤動態",
+              "產業動態",
+              "類股動態"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "listed_index",
+        "label": "上市指數",
+        "semantic_control_name": "index_item_tse",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\listed_index_target_1_14550788.png"
+            },
+            {
+              "attempt": 4,
+              "title": "",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\listed_index_target_1_4458204.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "otc_index",
+        "label": "上櫃指數",
+        "semantic_control_name": "index_item_otc",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 3,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\otc_index_target_1_1967996.png"
+            },
+            {
+              "attempt": 3,
+              "title": "",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\otc_index_target_1_17369978.png"
+            },
+            {
+              "attempt": 5,
+              "title": "",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\otc_index_target_1_13240448.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "listed_otc_capital_flow",
+        "label": "上市櫃資金流向",
+        "semantic_control_name": "index_item_tseotc_flow",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "上市上櫃資金流向",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\listed_otc_capital_flow_target_1_2426748.png"
+            },
+            {
+              "attempt": 4,
+              "title": "上市上櫃資金流向",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\listed_otc_capital_flow_target_1_17632122.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "listed_otc_wave_analysis",
+        "label": "上市櫃江波分析",
+        "semantic_control_name": "index_item_pow_aajb",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "上市櫃江波分析",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\listed_otc_wave_analysis_target_1_3147644.png",
+              "sha256": "abbfdb56d78174ff05c521be87a19cd9428a7e52714b541752269d4c257fce90",
+              "ocr_word_count": 0
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "上市櫃江波分析"
+            ],
+            "expected_ocr_markers": [
+              "江波分析"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "institutional_net_buy_sell",
+        "label": "三大法人買賣超",
+        "semantic_control_name": "index_item_legal_bs",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "三大法人買賣超",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\institutional_net_buy_sell_target_1_5901796.png",
+              "sha256": "08b31cb5d6716561485b254e54d7322e4ec8df331326e8e2c1db318da8415971",
+              "ocr_word_count": 437
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "三大法人買賣超"
+            ],
+            "expected_ocr_markers": [
+              "三大法人"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "margin_balance",
+        "label": "融資融券餘額",
+        "semantic_control_name": "index_item_margin_balance",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "融資融券餘額",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\margin_balance_target_1_1248464.png",
+              "sha256": "6c25c5e9b9aee1bd43f3c521869f749d382d6dc23a37a602261dcb6dbcfa4db6",
+              "ocr_word_count": 286
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "融資融券餘額"
+            ],
+            "expected_ocr_markers": [
+              "融資",
+              "融券"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "revenue_summary_ranking",
+        "label": "營收總表排行",
+        "semantic_control_name": "index_item_income_rank",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "營收總表排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\revenue_summary_ranking_target_1_8259002.png",
+              "sha256": "f92701683229c80d046131d57b6256f61361c5773d78192cca9481ca939f1ce6",
+              "ocr_word_count": 56
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "營收總表排行"
+            ],
+            "expected_ocr_markers": [
+              "營收總表排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "chip_market_ranking",
+        "label": "籌碼市場排名",
+        "semantic_control_name": "index_item_chiptrend_ranking",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "籌碼市場排名",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\chip_market_ranking_target_1_8455610.png",
+              "sha256": "24b816e7184359afac3813c67894f2432179940fae01661a18494d1ea37bfe76",
+              "ocr_word_count": 45
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "籌碼市場排名"
+            ],
+            "expected_ocr_markers": [
+              "籌碼市場排名"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market",
+        "view_id": "market_cap_ranking",
+        "label": "市值排行",
+        "semantic_control_name": "index_item_market_cap_ranking",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "市值排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market\\market_cap_ranking_target_1_4132864.png",
+              "sha256": "827e18ec127b4d2ccdea4854005810744e5cc0a370ab1b046e605308956c1f8d",
+              "ocr_word_count": 101
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "市值排行"
+            ],
+            "expected_ocr_markers": [
+              "市值排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "global_indices",
+        "label": "全球指數",
+        "semantic_control_name": "menuitem_global.IndexGlobal",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_indices_target_1_3737782.png",
+              "sha256": "58090853de8b2f431869f4a6927bf5c2f3652bc4bc641158d7632062a77bfaec",
+              "ocr_word_count": 87
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": false,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "全球指數"
+            ],
+            "expected_ocr_markers": [
+              "全球指數"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "china_hk_etf_underlyings",
+        "label": "陸港ETF標的",
+        "semantic_control_name": "menuitem_global.ChinaETF",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\china_hk_etf_underlyings_target_1_17040570.png"
+            },
+            {
+              "attempt": 4,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\china_hk_etf_underlyings_target_1_2819546.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "global_fx",
+        "label": "國際外匯",
+        "semantic_control_name": "menuitem_global.InterForex",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 3,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_fx_target_1_3737416.png"
+            },
+            {
+              "attempt": 3,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_fx_target_1_6950384.png"
+            },
+            {
+              "attempt": 5,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_fx_target_1_2492296.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "precious_metals",
+        "label": "貴金屬",
+        "semantic_control_name": "menuitem_global.PreciousMetal",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\precious_metals_target_1_5508750.png"
+            },
+            {
+              "attempt": 4,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\precious_metals_target_1_19596940.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "us_stocks_delayed",
+        "label": "美國個股(延遲)",
+        "semantic_control_name": "menuitem_global.US",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\us_stocks_delayed_target_1_3867430.png",
+              "sha256": "ff259678aec5e4ead5e340e9718126acbce6c414ebcba0662b074fd4b216b72c",
+              "ocr_word_count": 89
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": false,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "美國個股"
+            ],
+            "expected_ocr_markers": [
+              "美國個股",
+              "延遲"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "us_adr_delayed",
+        "label": "美國ADR(延遲)",
+        "semantic_control_name": "menuitem_global.USADR",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_us_adr\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_us_adr\\screenshots\\top_global_finance\\us_adr_delayed_target_1_14288924.png"
+            },
+            {
+              "attempt": 4,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_us_adr\\screenshots\\top_global_finance\\us_adr_delayed_target_1_6686446.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "cryptocurrency",
+        "label": "加密貨幣",
+        "semantic_control_name": "menuitem_global.VirtualCion",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 3,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\cryptocurrency_target_1_2688614.png"
+            },
+            {
+              "attempt": 3,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\cryptocurrency_target_1_5966048.png"
+            },
+            {
+              "attempt": 5,
+              "title": "國際金融",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\cryptocurrency_target_1_7868730.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "global_news",
+        "label": "國際新聞",
+        "semantic_control_name": "menuitem_global.Adnewscat",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "新聞匯流",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_news_target_1_7145376.png"
+            },
+            {
+              "attempt": 4,
+              "title": "新聞匯流",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\global_news_target_1_4525282.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_global_finance",
+        "view_id": "us_quotes_delayed",
+        "label": "美股報價(延遲)",
+        "semantic_control_name": "menuitem_global.qoutes_us_delay",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "美股報價列表",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_global_finance\\us_quotes_delayed_target_1_5312840.png",
+              "sha256": "f52d958b8ac223e40586813dbcfff98d016db9650761c0b7aa279d0091613f3d",
+              "ocr_word_count": 63
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "美股報價"
+            ],
+            "expected_ocr_markers": [
+              "美股報價",
+              "延遲"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_securities",
+        "view_id": "watchlist_quotes",
+        "label": "自選報價",
+        "semantic_control_name": "menuitem_stock.SelfSelectStockQuatos",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "自選報價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_securities\\watchlist_quotes_target_1_4392826.png",
+              "sha256": "1f0ddab1c9c679431fee6eda184665f887947892dfdc3915e50f4759310eed0b",
+              "ocr_word_count": 35
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "自選報價"
+            ],
+            "expected_ocr_markers": [
+              "自選報價"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_securities",
+        "view_id": "sector_quotes",
+        "label": "類股報價",
+        "semantic_control_name": "menuitem_stock.ClassQuatos",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "類股報價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_securities\\sector_quotes_target_1_9962938.png",
+              "sha256": "ece2df4993cc8c6e9df881bc5e0a86ef814c850cccae71a4fb529ce85efd0466",
+              "ocr_word_count": 34
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "類股報價"
+            ],
+            "expected_ocr_markers": [
+              "類股報價"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_securities",
+        "view_id": "popular_ranking",
+        "label": "熱門排行",
+        "semantic_control_name": "menuitem_stock.HotQuatos",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "熱門排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_securities\\popular_ranking_target_1_4195912.png",
+              "sha256": "b0a2ee80565213c37aa4acc5a75d1e42bfa0eadaacb8e2652d9d501f21ef259d",
+              "ocr_word_count": 37
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "熱門排行"
+            ],
+            "expected_ocr_markers": [
+              "熱門排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_securities",
+        "view_id": "after_hours_ranking",
+        "label": "盤後排行",
+        "semantic_control_name": "menuitem_stock.AfterQuatos",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "盤後排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_securities\\after_hours_ranking_target_1_8654238.png",
+              "sha256": "92dfde2d10cc9fd590eaabd6e943744c727f049868eae1a1065e3db75d3298a0",
+              "ocr_word_count": 37
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "盤後排行"
+            ],
+            "expected_ocr_markers": [
+              "盤後排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "futures_quotes",
+        "label": "期貨報價",
+        "semantic_control_name": "menuitem_FOquote.FQuotes",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "期貨報價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\futures_quotes_target_1_3346090.png",
+              "sha256": "45e0d6e616359eba6e1f7679ae1e20070d183b57d297636ba33ae81bbcd6767e",
+              "ocr_word_count": 108
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "期貨報價"
+            ],
+            "expected_ocr_markers": [
+              "期貨報價"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "futures_institutions",
+        "label": "期貨三大法人",
+        "semantic_control_name": "menuitem_FOquote.adfutcorp",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "期貨三大法人",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\futures_institutions_target_1_1968292.png",
+              "sha256": "81c1288146c2def6ed0c66f45c38f2a39649b3b263d9b540463a49fba6af8d6b",
+              "ocr_word_count": 28
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "期貨三大法人"
+            ],
+            "expected_ocr_markers": [
+              "期貨三大法人"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "futures_large_open_interest",
+        "label": "期貨大額交易未沖銷",
+        "semantic_control_name": "menuitem_FOquote.adfutlargetrade",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "期貨大額交易未沖銷",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\futures_large_open_interest_target_1_8980624.png",
+              "sha256": "231fa6d3f91ffbd8ab16b4a4b1ab6b233abc22dc8ad7495ebddca93bedd7ea98",
+              "ocr_word_count": 25
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "期貨大額交易未沖銷"
+            ],
+            "expected_ocr_markers": [
+              "大額交易未沖銷"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "options_quotes",
+        "label": "選擇權報價",
+        "semantic_control_name": "menuitem_FOquote.OQuotes",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\options_quotes_target_1_2295872.png"
+            },
+            {
+              "attempt": 4,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\options_quotes_target_1_1771396.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "options_institutions",
+        "label": "選擇權三大法人",
+        "semantic_control_name": "menuitem_FOquote.akoptcorp",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "選擇權三大法人",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\options_institutions_target_1_3147940.png",
+              "sha256": "cca1e97921ed0a01d6408f2953de5dd8959560683714c0fce419dbfa638bc216",
+              "ocr_word_count": 15
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "選擇權三大法人"
+            ],
+            "expected_ocr_markers": [
+              "選擇權三大法人"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "options_large_open_interest",
+        "label": "選擇權大額交易未沖銷",
+        "semantic_control_name": "menuitem_FOquote.akopttrader",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "選擇權-大額交易未沖銷",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\options_large_open_interest_target_1_1970476.png",
+              "sha256": "ef5004ab4c0cbdf828f837c3e377c1c92013c3ab6a4030265373774848e993db",
+              "ocr_word_count": 25
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "選擇權大額交易未沖銷"
+            ],
+            "expected_ocr_markers": [
+              "大額交易未沖銷"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "options_open_interest_series",
+        "label": "選擇權未平倉序列",
+        "semantic_control_name": "menuitem_FOquote.akfores",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "選擇權未平倉序列",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\options_open_interest_series_target_1_5640198.png",
+              "sha256": "012b16e2f178808f55bf409f02416cd93f2a55f5919d6fc2e3b18498d5162824",
+              "ocr_word_count": 44
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "選擇權未平倉序列"
+            ],
+            "expected_ocr_markers": [
+              "未平倉序列"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_derivatives",
+        "view_id": "taiex_options_pc_ratio",
+        "label": "台指權P/C Ratio",
+        "semantic_control_name": "menuitem_FOquote.adfutpcratio",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 2,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 2,
+              "title": "選擇權 P/C ratio ",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\taiex_options_pc_ratio_target_1_6885006.png"
+            },
+            {
+              "attempt": 4,
+              "title": "選擇權 P/C ratio ",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_derivatives\\taiex_options_pc_ratio_target_1_5115900.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新選單 HWND 必須唯一；找到 0 個"
+      },
+      {
+        "group_id": "top_news_media",
+        "view_id": "news_stream",
+        "label": "新聞匯流",
+        "semantic_control_name": "menuitem_news_media.adnewsflow",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "新聞匯流",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_news_media\\news_stream_target_1_2952352.png",
+              "sha256": "b3dd68dc5eeb4e8033754c77f43f11b7565d0bd102442ee58498a93fa930be44",
+              "ocr_word_count": 344
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "新聞匯流"
+            ],
+            "expected_ocr_markers": [
+              "新聞匯流"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_news_media",
+        "view_id": "video_channel",
+        "label": "影音頻道",
+        "semantic_control_name": "menuitem_news_media.streaming_media",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_news_media\\video_channel_target_1_2885150.png",
+              "sha256": "2c53335373f6ef10698499669ac309411538a721173db3a02e30abb09bb73a26",
+              "ocr_word_count": 0
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "影音頻道"
+            ],
+            "expected_ocr_markers": [
+              "影音頻道"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_ipo_auction",
+        "view_id": "subscription_information",
+        "label": "申購資訊",
+        "semantic_control_name": "menuitem_purchase.purchase",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_subscription\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "申購競拍",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_subscription\\screenshots\\top_ipo_auction\\subscription_information_target_1_3999748.png",
+              "sha256": "d5fc58605899fa343ff8805f34caebe4a025132240ed4e5f6ff8adaa38fc631b",
+              "ocr_word_count": 16
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "申購競拍"
+            ],
+            "expected_ocr_markers": [
+              "申購",
+              "新申購上架通知",
+              "承銷價",
+              "可申張"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_ipo_auction",
+        "view_id": "auction_information",
+        "label": "競拍資訊",
+        "semantic_control_name": "menuitem_purchase.auction",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "申購競拍",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_ipo_auction\\auction_information_target_1_6882722.png",
+              "sha256": "581c877ead34b3b3393f87e70466b3c922da7750d921a1f6a2c41566751ed799",
+              "ocr_word_count": 17
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "申購競拍"
+            ],
+            "expected_ocr_markers": [
+              "競拍"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "financial_calendar",
+        "label": "理財行事曆",
+        "semantic_control_name": "menuitem_market.akjornal",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "理財行事曆",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\financial_calendar_target_1_22480500.png",
+              "sha256": "8857085a6066801620326c18f77ae286e71516d46f4aeae394162cd7353eb840",
+              "ocr_word_count": 46
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "理財行事曆"
+            ],
+            "expected_ocr_markers": [
+              "理財行事曆"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "ex_rights_dividend_forecast",
+        "label": "除權息預告",
+        "semantic_control_name": "menuitem_market.akshrtribt",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "除權息預告",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\ex_rights_dividend_forecast_target_1_22939252.png",
+              "sha256": "faee35e08e26af83eddd63c504124ee67594ea9f522987b2095241eb4a9e8e61",
+              "ocr_word_count": 3
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "除權息預告"
+            ],
+            "expected_ocr_markers": [
+              "除權息預告"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "shareholder_gift",
+        "label": "股東會紀念品",
+        "semantic_control_name": "menuitem_market.divsouveniroverview",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "股東會紀念品",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\shareholder_gift_target_1_4787426.png",
+              "sha256": "885d09a1c24d6e1e8cad478e36ea97de7edca9eb84a493ee3df6cb48d3334422",
+              "ocr_word_count": 53
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": true,
+            "expected_title_prefixes": [
+              "股東會紀念品"
+            ],
+            "expected_ocr_markers": [
+              "股東會紀念品"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "shareholder_meeting_forecast",
+        "label": "股東會預告",
+        "semantic_control_name": "menuitem_market.akshrmtg",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "股東會預告",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\shareholder_meeting_forecast_target_1_5703546.png",
+              "sha256": "570b45382331ef829e9f6176b20bad4806c378ed8ab4da2e9e92404665673d00",
+              "ocr_word_count": 5
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "股東會預告"
+            ],
+            "expected_ocr_markers": [
+              "股東會預告"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "director_supervisor_pledge",
+        "label": "董監質設",
+        "semantic_control_name": "menuitem_market.akpledge",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "董監質設",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\director_supervisor_pledge_target_1_9244986.png",
+              "sha256": "4566edba522703939583b9e8c523b7bf2b7db71464947845e8c0d14fccd24e97",
+              "ocr_word_count": 2
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "董監質設"
+            ],
+            "expected_ocr_markers": [
+              "董監質設"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "treasury_stock_buyback",
+        "label": "買回庫藏股",
+        "semantic_control_name": "menuitem_market.aktreasury",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 2,
+        "attempt_record_count": 2,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "買回庫藏股",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\treasury_stock_buyback_target_1_16844524.png",
+              "sha256": "65152504f6920b3ac9ce483268fe2dbb29c40060d89410594fc14dcfc27c8b17",
+              "ocr_word_count": 3
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "買回庫藏股"
+            ],
+            "expected_ocr_markers": [
+              "買回庫藏股"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "abnormal_securities",
+        "label": "異常有價證券",
+        "semantic_control_name": "menuitem_market.akstkremark",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "異常有價證券",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\abnormal_securities_target_1_4591946.png",
+              "sha256": "9379de3ae2fccd5f7c2f3eff3a9b3e112b61fa1edbe252aba888339cf46f4d64",
+              "ocr_word_count": 36
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "異常有價證券"
+            ],
+            "expected_ocr_markers": [
+              "異常有價證券"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "shareholding_transfer",
+        "label": "持股轉讓",
+        "semantic_control_name": "menuitem_market.aktransfer",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "持股轉讓",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\shareholding_transfer_target_1_17368812.png",
+              "sha256": "452b79087cbbb3423fbdad8891c34b01870d579c22e74b9372e5f4af6058b507",
+              "ocr_word_count": 0
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "持股轉讓"
+            ],
+            "expected_ocr_markers": [
+              "持股轉讓"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_market_activity",
+        "view_id": "dividend_summary_ranking",
+        "label": "股利總表排行",
+        "semantic_control_name": "menuitem_market.dividendpolicyrank",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "股利總表排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_market_activity\\dividend_summary_ranking_target_1_17499884.png",
+              "sha256": "c585851fc9aeca231500bd9f480a4032fb771fa0ffd0d441871407dfdc49b9b9",
+              "ocr_word_count": 52
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "股利總表排行"
+            ],
+            "expected_ocr_markers": [
+              "股利總表排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_ranking",
+        "label": "ETF排行",
+        "semantic_control_name": "menuitem_stock.etf",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "ETF排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_ranking_target_1_18746234.png",
+              "sha256": "751cf19e6d7511e33b18d0c9c62f58a7749a02d43c8fbc571035d7be9a47c4a0",
+              "ocr_word_count": 42
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "ETF排行"
+            ],
+            "expected_ocr_markers": [
+              "ETF排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_selection",
+        "label": "ETF精選",
+        "semantic_control_name": "menuitem_stock.etf_selections",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 5,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_selection_target_1_4195732.png"
+            },
+            {
+              "attempt": 2,
+              "title": "DUI",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_selection_target_1_17958636.png"
+            },
+            {
+              "attempt": 3,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_selection_target_1_9375514.png"
+            },
+            {
+              "attempt": 4,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_selection_target_1_6885030.png"
+            },
+            {
+              "attempt": 5,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_selection_target_1_3016974.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_data",
+        "label": "ETF數據",
+        "semantic_control_name": "menuitem_stock.SpcmetfData",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 5,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_data_target_1_5048136.png"
+            },
+            {
+              "attempt": 2,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_data_target_1_3148046.png"
+            },
+            {
+              "attempt": 3,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_data_target_1_3737764.png"
+            },
+            {
+              "attempt": 4,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_data_target_1_3803300.png"
+            },
+            {
+              "attempt": 5,
+              "title": "查價",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_data_target_1_13371814.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_heatmap",
+        "label": "ETF熱力圖",
+        "semantic_control_name": "menuitem_stock.etf_heatmap",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "ETF熱力圖",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_heatmap_target_1_3670218.png",
+              "sha256": "ad675174d2324f0edf383cc9646aeb2661552b03e8be48613e52b3db919125ad",
+              "ocr_word_count": 0
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "ETF熱力圖"
+            ],
+            "expected_ocr_markers": [
+              "ETF熱力圖"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_profile_ranking",
+        "label": "ETF基本資料排行",
+        "semantic_control_name": "menuitem_market.etfbaserank",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "ETF基本資料排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_profile_ranking_target_1_21628556.png",
+              "sha256": "204404d24fdcb12db5bf9f871a0c1e74c1a9cfc05046ddab41ea0f98b60e96c4",
+              "ocr_word_count": 47
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "ETF基本資料排行"
+            ],
+            "expected_ocr_markers": [
+              "ETF基本資料排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_distribution_source_ranking",
+        "label": "ETF配息來源排行",
+        "semantic_control_name": "menuitem_market.etf_dividend_source_rank",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 1,
+        "attempt_record_count": 1,
+        "actual_posted_pointer_dispatch_count": 1,
+        "locator_strategies": [
+          "unique_normalized_ocr_text_in_current_popup_hwnd"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "targets": [
+            {
+              "title": "ETF配息來源排行",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_distribution_source_ranking_target_1_10356424.png",
+              "sha256": "2fe654c2cf9715f51dc2cc5bfa65c40936505f177a0a1aae307b7fc699682374",
+              "ocr_word_count": 7
+            }
+          ],
+          "postcondition": {
+            "verified": true,
+            "title_match": true,
+            "ocr_marker_match": false,
+            "expected_title_prefixes": [
+              "ETF配息來源排行"
+            ],
+            "expected_ocr_markers": [
+              "ETF配息來源排行"
+            ],
+            "verification_basis": "target_title_or_ocr_marker"
+          }
+        },
+        "status": "validated_experimental_background_snapshot",
+        "validation_basis": "strict_target_title_or_item_ocr_postcondition",
+        "verified_target_count": 1
+      },
+      {
+        "group_id": "top_etf",
+        "view_id": "etf_video",
+        "label": "ETF影音",
+        "semantic_control_name": "menuitem_news_media.streaming_etf",
+        "semantic_name_is_external_dispatch_id": false,
+        "interaction_type": "direct",
+        "workflow_attempt_count": 5,
+        "attempt_record_count": 5,
+        "actual_posted_pointer_dispatch_count": 5,
+        "locator_strategies": [
+          "visual_row_segmentation_with_catalog_order"
+        ],
+        "physical_mouse_api_used": false,
+        "fixed_screen_coordinate_used": false,
+        "future_posted_pointer_allowed_by_default": false,
+        "repeatable_background_dispatch": false,
+        "repeatability_limitation": "queued pointer 可能依賴三竹 UI thread 的 MSG.pt／全域游標狀態；本輪游標或前景可由外部同時改變，不能把一次成功當成穩定自動化介面。",
+        "evidence": {
+          "run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+          "wrong_or_unverified_targets": [
+            {
+              "attempt": 1,
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_video_target_1_15206418.png"
+            },
+            {
+              "attempt": 2,
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_video_target_1_6229494.png"
+            },
+            {
+              "attempt": 3,
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_video_target_1_7016454.png"
+            },
+            {
+              "attempt": 4,
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_video_target_1_5047932.png"
+            },
+            {
+              "attempt": 5,
+              "title": "影音頻道",
+              "screenshot": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\screenshots\\top_etf\\etf_video_target_1_7999142.png"
+            }
+          ]
+        },
+        "status": "unsupported_background_after_5_workflows",
+        "verified_target_count": 0,
+        "failure_code": "background_transition_unverified_after_attempt_limit",
+        "failure_reason": "新三竹視窗未符合標題或畫面語意 postcondition"
+      },
+      {
+        "group_id": "top_more",
+        "view_id": "customer_service_cascade",
+        "label": "客戶服務",
+        "interaction_type": "hover_cascade",
+        "status": "cascade_discovery_only",
+        "child_surface_expanded": false,
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_more_window_3147554.png",
+        "semantic_control_name": "menuitem_customservice.service",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_more",
+        "view_id": "viewing_map_cascade",
+        "label": "看盤地圖",
+        "interaction_type": "hover_cascade",
+        "status": "cascade_discovery_only",
+        "child_surface_expanded": false,
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_discovery_20260729\\top_more_window_3147554.png",
+        "semantic_control_name": "menuitem_instruction.functiondic",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "membership_center",
+        "label": "會員中心",
+        "interaction_type": "account_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能涉及帳戶狀態或外部會員服務",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.memberCenter",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "system_settings",
+        "label": "系統設定",
+        "interaction_type": "settings_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能修改本機系統設定",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.systemsetting",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "dde_settings",
+        "label": "DDE設定",
+        "interaction_type": "settings_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能修改 DDE 設定；不是已確認的外部自動化介面",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.ddesetting",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "alert_settings",
+        "label": "警示設定",
+        "interaction_type": "settings_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能修改警示設定",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.alarmsetting",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "message_center",
+        "label": "訊息中心",
+        "interaction_type": "account_message_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能改變訊息已讀或帳戶狀態",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.messagecenter",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "system_information",
+        "label": "系統資訊",
+        "interaction_type": "read_only_dialog",
+        "status": "surface_discovered_manual_only",
+        "child_item_selected": false,
+        "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.systeminfo",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "personal_layout_share",
+        "label": "個人版面分享",
+        "interaction_type": "share_surface",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "可能上傳或分享個人版面",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.PackedUser",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "environment_parameter_export",
+        "label": "環境參數匯出",
+        "interaction_type": "file_export",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "會產生或寫入匯出檔",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.PackedEnv",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "reload_product_information",
+        "label": "重載商品資訊",
+        "interaction_type": "local_data_mutation",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "會重新載入或改變本機商品資料",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.ReGetAATree",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "free_disclaimer",
+        "label": "免責聲明",
+        "interaction_type": "read_only_dialog",
+        "status": "surface_discovered_manual_only",
+        "child_item_selected": false,
+        "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.noresponsibility",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "operation_manual",
+        "label": "操作說明",
+        "interaction_type": "help_or_external_surface",
+        "status": "surface_discovered_manual_only",
+        "child_item_selected": false,
+        "reason": "可能開啟外部說明；自繪 popup 背景選擇不可靠",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.Instructions",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "system_logout",
+        "label": "系統登出",
+        "interaction_type": "session_mutation",
+        "status": "surface_discovered_blocked_by_safety_policy",
+        "child_item_selected": false,
+        "reason": "會中斷目前登入工作階段",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.logout",
+        "semantic_name_is_external_dispatch_id": false
+      },
+      {
+        "group_id": "top_preferences",
+        "view_id": "version_release_notes",
+        "label": "版本更新說明",
+        "interaction_type": "read_only_dialog",
+        "status": "surface_discovered_manual_only",
+        "child_item_selected": false,
+        "reason": "內容可能唯讀，但自繪 popup 背景選擇不可靠",
+        "evidence": "D:\\TWStockData\\external\\mitake\\navigation_surface_20260730_preferences\\screenshots\\top_preferences\\_surface_2_1183476.png",
+        "semantic_control_name": "menuitem_setting.UpdateInstruction",
+        "semantic_name_is_external_dispatch_id": false
+      }
+    ],
+    "latest_exhaustive_evidence": {
+      "full_run": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_all_20260730\\navigation_crawl.json",
+      "us_adr_retry": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_us_adr\\navigation_crawl.json",
+      "subscription_retry": "D:\\TWStockData\\external\\mitake\\navigation_exhaustive_retry_20260730_subscription\\navigation_crawl.json",
+      "allowed_read_only_items": 51,
+      "validated_experimental_background_snapshot": 37,
+      "unsupported_after_5_workflows": 0,
+      "historical_unsupported_after_5_workflows": 14,
+      "cursor_anchor_replayed_historical_failure_items": 14,
+      "cursor_anchor_full_leaf_validated": 12,
+      "cursor_anchor_validated_shell_only": 2,
+      "remaining_direct_selection_failures": 0,
+      "all_allowed_read_only_items_replayed_with_cursor_anchor": false,
+      "physical_mouse_api_used": false,
+      "fixed_screen_coordinate_used": false,
+      "full_run_foreground_unchanged": false,
+      "full_run_cursor_unchanged": false,
+      "full_run_safety_flags_scope": "上述兩個 full_run_* 只描述 navigation_exhaustive_all_20260730 歷史執行；原失敗 14 項目前的非實體安全狀態以 #/current_resolution/navigation/cursor_anchor/latest_safety_verification 為準。",
+      "main_window_rect_unchanged": true,
+      "final_cleanup_errors": []
+    }
+  },
+  "nested_live_paths": {
+    "catalog": "D:\\stock\\config\\mitake_nested_live_catalog.json",
+    "run": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json",
+    "ledger": "D:\\TWStockData\\external\\mitake\\nested_crawl_ledger.jsonl",
+    "current_status": "resolved_all_13_cursor_anchor_first_attempt",
+    "items_status_scope": "items 保留舊 SendMessageTimeoutW 失敗稽核；13 項目前狀態一律以 #/current_resolution/nested_live_paths 為準。",
+    "historical_dispatch_method": "SendMessageTimeoutW",
+    "dispatch_method": "cursor_anchored_window_posted_pointer",
+    "physical_mouse_used": false,
+    "posted_pointer_message_used": true,
+    "items": [
+      {
+        "path_id": "market_activity.market.otc",
+        "feature_id": "market_activity",
+        "group_id": "market_activity.market",
+        "view_path": [
+          "大盤動態",
+          "市場",
+          "上櫃"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_activity\\market_activity.market\\上櫃_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_activity.market.listed",
+        "feature_id": "market_activity",
+        "group_id": "market_activity.market",
+        "view_path": [
+          "大盤動態",
+          "市場",
+          "上市"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 0,
+        "failure_code": "nested_background_workflow_failed",
+        "failure_reason": "四種 OCR variant 均未得到 exact unique 文字框",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json"
+      },
+      {
+        "path_id": "market_activity.right_activity.sector",
+        "feature_id": "market_activity",
+        "group_id": "market_activity.right_activity",
+        "view_path": [
+          "大盤動態",
+          "右側動態",
+          "類股動態"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_activity\\market_activity.right_activity\\類股動態_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_activity.right_activity.industry",
+        "feature_id": "market_activity",
+        "group_id": "market_activity.right_activity",
+        "view_path": [
+          "大盤動態",
+          "右側動態",
+          "產業動態"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "target_was_already_active",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_activity\\market_activity.right_activity\\產業動態_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.primary_market.otc",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.primary_market",
+        "view_path": [
+          "大盤走勢",
+          "市場",
+          "上櫃"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_trend\\market_trend.primary_market\\上櫃_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.primary_market.taiex_near_all",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.primary_market",
+        "view_path": [
+          "大盤走勢",
+          "市場",
+          "台指近全"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_trend\\market_trend.primary_market\\台指近全_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.primary_market.listed",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.primary_market",
+        "view_path": [
+          "大盤走勢",
+          "市場",
+          "上市"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 0,
+        "failure_code": "nested_background_workflow_failed",
+        "failure_reason": "四種 OCR variant 均未得到 exact unique 文字框",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json"
+      },
+      {
+        "path_id": "market_trend.wave_unit.trades",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.wave_unit",
+        "view_path": [
+          "大盤走勢",
+          "江波圖",
+          "統計單位",
+          "筆數"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 0,
+        "failure_code": "nested_background_workflow_failed",
+        "failure_reason": "四種 OCR variant 均未得到 exact unique 文字框",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json"
+      },
+      {
+        "path_id": "market_trend.wave_unit.average_lot",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.wave_unit",
+        "view_path": [
+          "大盤走勢",
+          "江波圖",
+          "統計單位",
+          "均張"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_trend\\market_trend.wave_unit\\均張_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.wave_unit.lots",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.wave_unit",
+        "view_path": [
+          "大盤走勢",
+          "江波圖",
+          "統計單位",
+          "張數"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 0,
+        "failure_code": "nested_background_workflow_failed",
+        "failure_reason": "四種 OCR variant 均未得到 exact unique 文字框",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json"
+      },
+      {
+        "path_id": "market_trend.technical_market.otc",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.technical_market",
+        "view_path": [
+          "大盤走勢",
+          "技術分析",
+          "市場",
+          "上櫃"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_trend\\market_trend.technical_market\\上櫃_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.technical_market.taiex_near_all",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.technical_market",
+        "view_path": [
+          "大盤走勢",
+          "技術分析",
+          "市場",
+          "台指近全"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 15,
+        "failure_code": "active_transition_not_verified",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\screenshots\\market_trend\\market_trend.technical_market\\台指近全_attempt_1_workflow_before.png"
+      },
+      {
+        "path_id": "market_trend.technical_market.listed",
+        "feature_id": "market_trend",
+        "group_id": "market_trend.technical_market",
+        "view_path": [
+          "大盤走勢",
+          "技術分析",
+          "市場",
+          "上市"
+        ],
+        "status": "unsupported_background_after_5_workflows",
+        "workflow_attempt_count": 5,
+        "message_action_count": 0,
+        "failure_code": "nested_background_workflow_failed",
+        "failure_reason": "四種 OCR variant 均未得到 exact unique 文字框",
+        "evidence": "D:\\TWStockData\\external\\mitake\\nested_crawl_20260730_market_core_retry2\\nested_crawl.json"
+      }
+    ]
+  },
+  "invalidated_or_superseded_runs": [
+    {
+      "run": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_market_indices\\navigation_crawl.json",
+      "view_id": "otc_index",
+      "raw_status": "validated",
+      "current_status": "invalidated_false_positive",
+      "reason": "舊 fallback 接受任何新視窗；實際目標是未命名查價 tooltip，OCR 僅見「時／價／漲幅／間／格／跌／度」，不含上櫃指數。",
+      "wrong_target_screenshot": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_market_indices\\screenshots\\top_market\\otc_index_target_1_593584.png"
+    },
+    {
+      "run": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_top_market\\navigation_crawl.json",
+      "current_status": "superseded_attempt_accounting",
+      "reason": "原始各項 attempt_count=5 多數是 opener/cleanup/setup failure，不能當成每項五次實際 dispatch；除後續明列 after5 的 listed_index、otc_index 外，其餘 direct item 均按 classwide unsafe、item-specific dispatch=0 記錄。"
+    },
+    {
+      "run": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_ipo\\navigation_crawl.json",
+      "current_status": "superseded_postcondition",
+      "reason": "申購與競拍均開啟共用標題「申購競拍」，舊 postcondition 卻期待子頁名稱而標成 unsupported；後續 verified run 取代原始 status，舊 screenshot 僅可作補充 OCR 證據。"
+    },
+    {
+      "run": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_market_live_verified\\navigation_crawl.json",
+      "current_status": "superseded_setup_failure",
+      "reason": "零 dispatch 的 popup opener failure 已由 navigation_crawl_20260730_market_live_posted 的強語意驗證取代。"
+    },
+    {
+      "run": "D:\\TWStockData\\external\\mitake\\navigation_crawl_20260730_ipo_verified\\navigation_crawl.json",
+      "view_id": "auction_information",
+      "raw_status": "unsupported",
+      "current_status": "superseded_setup_failure",
+      "reason": "該項為零 dispatch opener failure；已由 navigation_crawl_20260730_auction_verified 的 item-specific 競拍 marker 驗證取代。"
+    }
+  ],
+  "official_sdk_data_gap": {
+    "reference_path": "D:\\stock\\config\\mitake_program_data_gap_reference.json",
+    "status": "reference_only_gap_audit",
+    "product_separation": "三竹 SDK 是需申請帳密與授權的自建程式資料介面，不是控制三竹股市.exe 視窗的自動化介面。",
+    "pc_gui_control_interfaces_reviewed": {
+      "dde_automation": "not_found_in_reviewed_official_documents",
+      "com_automation": "not_found_in_reviewed_official_documents",
+      "command_line_view_open": "not_found_in_reviewed_official_documents",
+      "uri_or_deep_link": "not_found_in_reviewed_official_documents",
+      "open_view_or_open_window": "not_found_in_reviewed_official_documents"
+    },
+    "documented_data_endpoints": [
+      {
+        "endpoint": "stock_subscription",
+        "url": "https://sdk.mitake.com.tw/docs/python/stocksubscription/stock_subscription.html"
+      },
+      {
+        "endpoint": "stock_auction",
+        "url": "https://sdk.mitake.com.tw/docs/python/stocksubscription/stock_auction.html"
+      },
+      {
+        "endpoint": "tw_analy",
+        "url": "https://sdk.mitake.com.tw/docs/python/afterhour/tw_analy.html"
+      },
+      {
+        "endpoint": "capital_flow_quote",
+        "url": "https://sdk.mitake.com.tw/docs/python/quotation/capital_flow_quote.html"
+      },
+      {
+        "endpoint": "jumbo",
+        "url": "https://sdk.mitake.com.tw/docs/python/stockquotation/jumbo.html"
+      }
+    ],
+    "broker_branch_detail_endpoint_in_reviewed_documents": "not_found",
+    "dde_settings_ui_status": "pending_configuration_and_authorized_interface_review",
+    "formal_use_rule": "UI/OCR 只能作可追溯補充證據；未經授權 SDK/DDE、資料品質、OOS/sample/calibration 與正式 gate 驗證，不可補成模型正式支援。"
+  },
+  "agent_decision_rules": [
+    "先查 #/current_resolution；該區是本輪權威狀態，覆蓋 navigation.items 原 14 項及 nested_live_paths.items 13 項的舊 unsupported 稽核狀態。",
+    "current_resolution.navigation 只證明原失敗 14 項已解除 direct selection failure；其餘 37/51 尚未用 cursor_anchor 重跑，不得推論新方法已覆蓋全部 51 項。",
+    "再依 view_id 或 path_id 查歷史 status；validated_data_snapshot 或 validated_experimental_background_snapshot 只代表既有畫面證據，不代表即時資料。",
+    "validated_experimental_background_snapshot 不授權重播 queued pointer；repeatable_background_dispatch=false 時只能重用 snapshot，不可宣稱穩定自動化。",
+    "unsupported_background_after_5_workflows、cascade_discovery_only、surface_discovered_manual_only 不得自動改用實體滑鼠、固定螢幕座標、猜測 WM_COMMAND 或預設 PostMessage。",
+    "surface_discovered_blocked_by_safety_policy 與 forbidden_mutation 不得自動選取。",
+    "semantic_control_name 只供辨識與版本比對，不是 HWND、WM_COMMAND、快捷鍵或可外部呼叫 ID。",
+    "invalidated_or_superseded_runs 不得作成功證據。",
+    "所有 UI/OCR 結果保持 reference_only；不能直接清除 broker unsupported、資料缺口或 formal model gate。"
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "schema": "tw_stock.mitake.nested_live_catalog",
+  "schema_version": 1,
+  "catalog_date": "2026-07-30",
+  "purpose": "三竹股市已驗證直接功能窗內的唯讀子頁籤背景操作；只作 reference_only UI/OCR 證據。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "physical_mouse_allowed": false,
+    "global_keyboard_allowed": false,
+    "foreground_activation_allowed": false,
+    "fixed_screen_coordinate_allowed": false,
+    "post_message_allowed": false,
+    "post_message_allowed_interpretation": "false by default; only the named cursor_anchored_window research mode may opt in",
+    "explicit_research_modes": {
+      "cursor_anchored_window": {
+        "cli_flag": "--allow-cursor-anchored-window",
+        "physical_mouse_used": false,
+        "foreground_activation_requested": false,
+        "temporarily_moves_verified_feature_window": true,
+        "requires_static_cursor_and_exact_hit_test": true
+      },
+      "physical_pointer_baseline": {
+        "cli_flag": "--allow-physical-pointer-baseline",
+        "diagnostic_ground_truth_only": true,
+        "requires_explicit_feature_id": true
+      }
+    },
+    "max_workflow_attempts_per_view_path": 5,
+    "selection_rule": "exact OCR text inside a view-relative visual region derived from the current HWND capture"
+  },
+  "features": [
+    {
+      "feature_id": "market_activity",
+      "entrypoint_id": "shortcut_market_activity",
+      "label": "大盤動態",
+      "expected_window_title": "大盤動態",
+      "reference_size": [1366, 768],
+      "opening_contract": {
+        "marker_contract": {
+          "mode": "normalized_contains_any",
+          "aliases": ["產業動態", "類股動態"]
+        },
+        "route": {
+          "type": "navigation_menu",
+          "group_id": "top_market",
+          "opener_entry_id": "top_market",
+          "view_id": "market_live",
+          "source": "config/mitake_navigation_menu_catalog.json",
+          "evidence": "navigation_exhaustive_all_20260730/navigation_crawl.json"
+        }
+      },
+      "tab_groups": [
+        {
+          "group_id": "market_activity.market",
+          "path_prefix": ["大盤動態", "市場"],
+          "control_type": "tab_group",
+          "options": [
+            {
+              "option_id": "market_activity.market.listed",
+              "label": "上市",
+              "aliases": ["上市"],
+              "search_region": [610, 24, 684, 54]
+            },
+            {
+              "option_id": "market_activity.market.otc",
+              "label": "上櫃",
+              "aliases": ["上櫃"],
+              "search_region": [684, 24, 755, 54]
+            }
+          ]
+        },
+        {
+          "group_id": "market_activity.right_activity",
+          "path_prefix": ["大盤動態", "右側動態"],
+          "control_type": "tab_group",
+          "options": [
+            {
+              "option_id": "market_activity.right_activity.industry",
+              "label": "產業動態",
+              "aliases": ["產業動態"],
+              "search_region": [682, 53, 756, 84]
+            },
+            {
+              "option_id": "market_activity.right_activity.sector",
+              "label": "類股動態",
+              "aliases": ["類股動態"],
+              "search_region": [756, 53, 830, 84]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "feature_id": "market_trend",
+      "entrypoint_id": "shortcut_market_trend",
+      "label": "大盤走勢",
+      "expected_window_title": "大盤走勢",
+      "reference_size": [1366, 768],
+      "opening_contract": {
+        "marker_contract": {
+          "mode": "normalized_contains_any",
+          "aliases": ["大盤走勢", "台指近全", "技術分析", "即時明細", "江波圖"]
+        },
+        "route": {
+          "type": "current_hwnd_full_frame_ocr_shortcut",
+          "entrypoint_id": "shortcut_market_trend",
+          "source": "config/mitake_agent_catalog.json",
+          "evidence": "agent_probe_20260729_full/probe_run.json",
+          "coordinate_fallback": false,
+          "requires_injected_callback": false
+        }
+      },
+      "tab_groups": [
+        {
+          "group_id": "market_trend.primary_market",
+          "path_prefix": ["大盤走勢", "市場"],
+          "control_type": "tab_group",
+          "options": [
+            {
+              "option_id": "market_trend.primary_market.listed",
+              "label": "上市",
+              "aliases": ["上市"],
+              "search_region": [6, 30, 77, 62]
+            },
+            {
+              "option_id": "market_trend.primary_market.otc",
+              "label": "上櫃",
+              "aliases": ["上櫃"],
+              "search_region": [77, 30, 141, 62]
+            },
+            {
+              "option_id": "market_trend.primary_market.futures_near",
+              "label": "台指近全",
+              "aliases": ["台指近全"],
+              "search_region": [141, 30, 210, 62]
+            }
+          ]
+        },
+        {
+          "group_id": "market_trend.wave_unit",
+          "path_prefix": ["大盤走勢", "江波圖", "統計單位"],
+          "control_type": "tab_group",
+          "options": [
+            {
+              "option_id": "market_trend.wave_unit.lots",
+              "label": "張數",
+              "aliases": ["張數"],
+              "search_region": [836, 54, 910, 84]
+            },
+            {
+              "option_id": "market_trend.wave_unit.trades",
+              "label": "筆數",
+              "aliases": ["筆數"],
+              "search_region": [910, 54, 980, 84],
+              "visual_group_region_center_current_layout": true,
+              "visual_sibling_interpolation_supported": true,
+              "visual_sibling_option_ids": [
+                "market_trend.wave_unit.lots",
+                "market_trend.wave_unit.average_lots"
+              ],
+              "visual_sibling_option_order": [
+                "market_trend.wave_unit.lots",
+                "market_trend.wave_unit.trades",
+                "market_trend.wave_unit.average_lots"
+              ],
+              "visual_sibling_coordinate_source": "current_hwnd_only"
+            },
+            {
+              "option_id": "market_trend.wave_unit.average_lots",
+              "label": "均張",
+              "aliases": ["均張"],
+              "search_region": [980, 54, 1052, 84]
+            }
+          ]
+        },
+        {
+          "group_id": "market_trend.technical_market",
+          "path_prefix": ["大盤走勢", "技術分析", "市場"],
+          "control_type": "tab_group",
+          "options": [
+            {
+              "option_id": "market_trend.technical_market.listed",
+              "label": "上市",
+              "aliases": ["上市"],
+              "search_region": [685, 420, 753, 454]
+            },
+            {
+              "option_id": "market_trend.technical_market.otc",
+              "label": "上櫃",
+              "aliases": ["上櫃"],
+              "search_region": [753, 420, 818, 454]
+            },
+            {
+              "option_id": "market_trend.technical_market.futures_near",
+              "label": "台指近全",
+              "aliases": ["台指近全"],
+              "search_region": [818, 420, 884, 454]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

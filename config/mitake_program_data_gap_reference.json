@@ -1,0 +1,179 @@
+{
+  "schema": "tw_stock.mitake.program_data_gap_reference",
+  "schema_version": 2,
+  "as_of": "2026-07-30",
+  "purpose": "區分三竹可見資料、正式 SDK 資料、D:\\stock 現行程式需要的資料，以及仍不可補成正式支援的缺口。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "controls_prediction": false,
+    "controls_report_publication": false,
+    "ui_ocr_can_clear_model_eligibility": false
+  },
+  "program_evidence_policy": {
+    "current_status": "current_verified_reference",
+    "historical_status": "historical_reference",
+    "current_binding_requires": [
+      "manifest path and SHA-256",
+      "payload path and SHA-256",
+      "data date and forecast target date",
+      "watchlist counts derived from payload rows"
+    ],
+    "runtime_use": "forbidden"
+  },
+  "historical_program_evidence": [{
+    "evidence_status": "historical_reference",
+    "historical_reason": "此人工研究快照的計數與同名正式 payload 後續內容不一致；僅保留研究脈絡，不得當成目前報告或模型輸入。",
+    "manifest": "reports/latest_report_manifest.json",
+    "payload": "reports/台股完整分析_payload_20260730.json",
+    "data_date": "20260729",
+    "technical_broker_watchlist": {
+      "total": 6,
+      "confirmed": 5,
+      "pending": 0,
+      "verified_no_hit": 0,
+      "unsupported": 1,
+      "unsupported_stock": {
+        "code": "4198",
+        "name": "欣大健康",
+        "scope": "broker_branch_view_only",
+        "alternative_views_have_visible_data": true,
+        "alternative_views_clear_broker_condition": false
+      }
+    }
+  }],
+  "program_required_or_existing_capabilities": [
+    {
+      "capability_id": "broker_branch_rank_5d_buy",
+      "program_use": "技術券商觀察清單的近5日分點買超畫面證據",
+      "current_status": "validated_watchlist_evidence",
+      "acquisition": "三竹股市個股籌碼／券商分點／分點排行（5日）之 strict HWND screenshot + OCR",
+      "formal_policy": "supplementary_watchlist_evidence_only",
+      "limitations": [
+        "5日彙總只能證明近5日至少有買超，不提供逐日買超日數",
+        "分點交易是代理訊號，不能確認最終投資人",
+        "個別商品可能明示不支援券商分點視圖"
+      ]
+    },
+    {
+      "capability_id": "broker_branch_rank_5d_sell",
+      "program_use": "券商分點賣超補充畫面",
+      "current_status": "captured_snapshot_only",
+      "formal_policy": "not_formally_validated"
+    },
+    {
+      "capability_id": "broker_branch_rank_1d_buy",
+      "program_use": "單日券商分點買超",
+      "current_status": "schema_ready_not_collected",
+      "formal_policy": "unsupported_until_collected_and_validated"
+    },
+    {
+      "capability_id": "broker_branch_rank_1d_sell",
+      "program_use": "單日券商分點賣超",
+      "current_status": "schema_ready_not_collected",
+      "formal_policy": "unsupported_until_collected_and_validated"
+    },
+    {
+      "capability_id": "stock_chip_institutional_flow_and_holdings",
+      "program_use": "三大法人進出、持股與主力進出補充證據",
+      "current_status": "visible_for_some_products",
+      "formal_policy": "evidence_only_not_a_broker_condition_replacement",
+      "historical_payload_observation": "historical_reference：5 個已確認券商個股未另取得法人進出/持股；4198 可見替代資料但券商條件仍 unsupported。此舊快照不得代表目前報告。"
+    },
+    {
+      "capability_id": "main_force_tracking",
+      "program_use": "主力次數、勝率、損益、報酬率與五日進出研究",
+      "current_status": "manual_verified_schema_ready_snapshot_only",
+      "formal_policy": "blocked_until_point_in_time_backtest"
+    },
+    {
+      "capability_id": "stock_news",
+      "program_use": "個股新聞補充特徵",
+      "current_status": "bounded_visible_snapshot",
+      "formal_policy": "supplementary_zero_direct_prediction_weight"
+    },
+    {
+      "capability_id": "trend_analysis",
+      "program_use": "供應商技術摘要補充證據",
+      "current_status": "current_product_visible_unsupported",
+      "formal_policy": "supplementary_zero_direct_prediction_weight"
+    },
+    {
+      "capability_id": "model_oos_sample_calibration_eligibility",
+      "program_use": "正式模型採用門檻",
+      "current_status": "unsupported_model_when_governance_gates_fail",
+      "formal_policy": "UI或OCR看得到資料不能取代時間點外測、樣本數、校正與治理閘門"
+    }
+  ],
+  "official_sdk_reference": {
+    "product_separation": "三竹 SDK 是需申請帳密與授權的自建程式資料介面，不是控制三竹股市.exe 視窗的自動化介面。",
+    "pc_gui_control_interfaces_reviewed": {
+      "dde_automation": "not_found_in_reviewed_official_documents",
+      "com_automation": "not_found_in_reviewed_official_documents",
+      "command_line_view_open": "not_found_in_reviewed_official_documents",
+      "uri_or_deep_link": "not_found_in_reviewed_official_documents",
+      "open_view_or_open_window": "not_found_in_reviewed_official_documents"
+    },
+    "documented_data_endpoints": [
+      {
+        "endpoint": "stock_subscription",
+        "data": ["申購商品", "承銷價", "狀態", "申購張數", "承銷張數", "收盤價", "溢價"],
+        "url": "https://sdk.mitake.com.tw/docs/python/stocksubscription/stock_subscription.html"
+      },
+      {
+        "endpoint": "stock_auction",
+        "data": ["競拍商品", "投標價格", "狀態", "投標張數", "競拍張數", "收盤價", "溢價"],
+        "url": "https://sdk.mitake.com.tw/docs/python/stocksubscription/stock_auction.html"
+      },
+      {
+        "endpoint": "tw_analy",
+        "data": ["大盤OHLC", "三大法人買賣超", "期貨留倉"],
+        "url": "https://sdk.mitake.com.tw/docs/python/afterhour/tw_analy.html"
+      },
+      {
+        "endpoint": "capital_flow_quote",
+        "data": ["上市資金流向", "上櫃資金流向", "成交金額", "漲跌幅"],
+        "url": "https://sdk.mitake.com.tw/docs/python/quotation/capital_flow_quote.html"
+      },
+      {
+        "endpoint": "jumbo",
+        "data": ["加權江波圖", "櫃買江波圖", "成交張數/筆數", "委買賣張數/筆數"],
+        "url": "https://sdk.mitake.com.tw/docs/python/stockquotation/jumbo.html"
+      }
+    ],
+    "broker_branch_detail_endpoint_in_reviewed_documents": "not_found",
+    "dde_settings_ui_observation": {
+      "visible_menu_item": true,
+      "external_feed_verified": false,
+      "status": "pending_configuration_and_authorized_interface_review"
+    }
+  },
+  "pc_gui_automation_evidence": {
+    "application_version": "1.54.0.1",
+    "application_sha256": "d0370843407344453a12901301e6857b6d27e2b41078b2b520f359d932c99217",
+    "owner_drawn_popup_class": "Afx:001C0000:8:00010003:00000000:00000000",
+    "standard_win32_resources": {
+      "rt_menu": false,
+      "rt_string": false,
+      "rt_accelerator": false,
+      "only_rt_dialog": {
+        "id": 102,
+        "language": 1028,
+        "title": "DUI",
+        "control_count": 0
+      }
+    },
+    "accessibility_observation": {
+      "uia_descendant_count": 0,
+      "msaa_child_count": 0,
+      "get_menu_handle": 0,
+      "mn_gethmenu_result": 0
+    },
+    "static_internal_routes_not_safe_command_ids": [
+      {"label": "大盤動態", "route": 101},
+      {"label": "上市櫃江波分析", "route": 105},
+      {"label": "申購競拍", "route": 8}
+    ],
+    "background_selection_conclusion": "標準 WM_COMMAND/WM_NOTIFY 對應未證實；同步 HWND 點擊與指定 HWND 鍵盤未使自繪 popup/頁籤切換，非同步 queued pointer 曾誤開查價，故預設禁止。",
+    "physical_mouse_required_for_remaining_gui_items": "not_proven_but_current_background_methods_unsupported"
+  }
+}

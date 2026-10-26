@@ -1,0 +1,91 @@
+{
+  "schema": "tw_stock.mitake.cascade_children_live_catalog",
+  "schema_version": 1,
+  "catalog_date": "2026-08-07",
+  "purpose": "三竹股市 cascade child 的 current-HWND OCR/owned-popup research evidence；不控制正式推薦或報告發布。",
+  "runtime_behavior": {
+    "reference_only": true,
+    "promotion": false,
+    "physical_mouse_allowed": false,
+    "global_keyboard_allowed": false,
+    "foreground_activation_allowed": false,
+    "fixed_screen_coordinate_allowed": false,
+    "max_attempts": 5,
+    "max_child_dispatch_strategies": 5,
+    "external_process_policy": "record_unsupported_only_never_operate",
+    "cleanup_failure_policy": "stop_subsequent_children"
+  },
+  "parents": [
+    {
+      "parent_entry_id": "customer_service_cascade",
+      "label": "客戶服務",
+      "root_locator": "existing_navigation_background_parent_opener"
+    },
+    {
+      "parent_entry_id": "viewing_map_cascade",
+      "label": "看盤地圖",
+      "root_locator": "existing_navigation_background_parent_opener"
+    }
+  ],
+  "children": [
+    {
+      "child_id": "customer.ai_fortune_teller",
+      "parent_entry_id": "customer_service_cascade",
+      "parent_label": "客戶服務",
+      "label": "AI占卜師",
+      "mode": "observation_only",
+      "safety_policy_status": "research_only",
+      "expected_popup_rows": 3,
+      "locator": {
+        "priority": "exact_ocr_row",
+        "structural_fallback": "unique_middle_row_between_exact_anchors"
+      },
+      "structural_inference_allowed": true,
+      "structural_inference": {
+        "allowed": true,
+        "first_row_exact": "客戶服務",
+        "third_row_exact": "合作專區",
+        "evidence_method": "unique_middle_row_between_exact_anchors",
+        "preserve_ocr_mismatch": true,
+        "requires_two_fresh_capture_geometry_and_pixel_hash_stable": true,
+        "row_order": "ascending_nonoverlap"
+      },
+      "text_exact_required": false,
+      "promotion": false
+    },
+    {
+      "child_id": "customer.cooperation_zone",
+      "parent_entry_id": "customer_service_cascade",
+      "parent_label": "客戶服務",
+      "label": "合作專區",
+      "mode": "observation_only",
+      "safety_policy_status": "research_only",
+      "expected_popup_rows": 3,
+      "locator": {
+        "priority": "exact_ocr_row",
+        "structural_fallback": "forbidden"
+      },
+      "structural_inference_allowed": false,
+      "text_exact_required": true,
+      "promotion": false
+    },
+    {
+      "child_id": "viewing.operation_manual",
+      "parent_entry_id": "viewing_map_cascade",
+      "parent_label": "看盤地圖",
+      "label": "操作說明",
+      "mode": "shell_only",
+      "safety_policy_status": "manual_only",
+      "expected_popup_rows": 2,
+      "locator": {
+        "priority": "exact_ocr_row",
+        "structural_fallback": "forbidden"
+      },
+      "structural_inference_allowed": false,
+      "text_exact_required": true,
+      "dispatch_allowed": false,
+      "dispatch_strategy": "dispatch0",
+      "promotion": false
+    }
+  ]
+}
