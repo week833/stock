@@ -1,0 +1,5 @@
+{
+  "sources": [
+    {"kind": "manifest_json", "root": "D:\\TWStockData\\shared_market_data", "manifest_path": "D:\\TWStockData\\shared_market_data\\_metadata\\stock_data_current.json", "source_id": "shared_market_data"}
+  ]
+}
