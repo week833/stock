@@ -24,7 +24,7 @@ H1 顯示改用「開盤前版」（HGB，含前一晚美股），C0 保留為�
 
 CHECK_ENV.cmd 另以唯讀方式檢查開盤前版快照是否可用且新鮮；`--model-source preopen` 時不可用即失敗。
 
-CHECK_ENV.cmd 驗共用 C0 模型、現行契約採納與六核心來源 context，不建立 price panel、不推論或寫前瞻帳冊。缺少專案環境時只提示明確執行 SETUP_ENV.cmd；入口不自動安装或替換其他專案環境。
+CHECK_ENV.cmd 驗共用 C0 模型、現行契約採納與六核心來源 context，不建立 price panel、不推論或寫前瞻帳冊。缺少專案環境時只提示明確執行 SETUP_ENV.cmd；入口不自動安裝或替換其他專案環境。
 
 輸出 JSON、CSV、Excel、HTML及manifest。H1 是調整後收盤到同市場下一交易日收盤的方向與報酬；沒有預測 OHLC／原始價格。future交易日未驗時日期維持空值，報告清楚標示H1，不猜工作日。
 

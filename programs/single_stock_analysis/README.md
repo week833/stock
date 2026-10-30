@@ -4,8 +4,8 @@
 
 - 雙擊入口：`1_執行個股分析與產生報告.cmd`（H1＋H63）。`RUN_SINGLE_STOCK_3M_ANALYSIS.cmd` 只產生 H63、`RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd` 只產生 H1；檔名中的「3M」「TOMORROW_OPEN」是相容名稱，現在代表「訊號收盤至同市場第 63／第 1 個交易日收盤」，不是舊的三個月模型或次日開盤模型。`07_D-stock個股報告.cmd` 只轉呼叫唯一的 `1_*.cmd`。
 - 生產程式：`src\run_single_stock_entry.py`（只分派 H1／H63）→ `src\tw_single_stock_c0.py`；讀取層為 `src\stock_data_sources.py`、`src\published_single_stock_projection.py`、`src\stock_query_projection.py`；模型、輸入驗證與 forward 帳本在 `D:\stock\programs\shared`（`stock_daily_contract.py`、`stock_daily_linear.py`、`stock_daily_forward.py`）。
-- 工具與維護入口：`tools\*.cmd`（`tools\RUN_SINGLE_STOCK_*.cmd` 轉呼叫根目錄同名入口，`tools\RUN_TESTS.cmd` 執行測試；`tools\_retired` 保存已退役的工具，不使用）
-- 測試：`tests`（`tests\_retired` 保存已退役的測試，不收集；理由與證據見該資料夾的 README）
+- 工具與維護入口：`tools\*.cmd`（`tools\RUN_SINGLE_STOCK_*.cmd` 轉呼叫根目錄同名入口，`tools\RUN_TESTS.cmd` 執行測試；已退役的工具不在本工作區）
+- 測試：`tests`（已退役的測試不在本工作區；`tests\conftest.py` 仍忽略 `_retired` 資料夾名稱）
 
 入口固定設定 `DStock_SHARED_RAW_NETWORK_DISABLED=1`、`ENABLE_FINMIND_FETCH=0`：分析不連網、不抓 FinMind，只讀中央已發布資料。根目錄不依賴目前工作目錄。
 
@@ -17,7 +17,7 @@
 
 入口以 `shared\find_python.cmd analysis` 尋找 Python，只接受 `D:\stock\.venv\Scripts\python.exe`，並確認 `numpy`、`pandas`、`reportlab` 可用。若設定 `STOCK_ANALYSIS_PYTHON`，它必須正好指向同一路徑，否則視為找不到 Python，入口以 exit 2 停止；不搜尋 PATH、Anaconda 或其他 venv。舊說明中的 `STOCK_PYTHON` 優先序、`D:\stock\GitHub\.venv` canonical 環境與 `STOCK_ALLOW_LEGACY_PYTHON` 旗標，現行入口都不再讀取。
 
-依賴安裝與修復：`D:\stock\.venv` 由 `D:\stock\programs\environment_setup` 管理，執行 `environment_setup\INSTALL_D_STOCK_ENV.cmd`（以 `environment_setup\requirements.txt` 安裝並 `pip check`；加 `/CHECK` 只自我檢查、不安裝），或從 `STOCK_TOOLS.cmd` 的 `M1` 進入。舊的 `INSTALL_SINGLE_STOCK_3M_DEPS.cmd`（目標固定為 `D:\stock\GitHub\.venv`）與它專用的 `requirements_single_stock_3m.txt` 已於 2026-10-12 退役，原樣移到 `tools\_retired\`（未刪除；理由與證據見該資料夾的 README），請勿執行。
+依賴安裝與修復：`D:\stock\.venv` 由 `D:\stock\programs\environment_setup` 管理，執行 `environment_setup\INSTALL_D_STOCK_ENV.cmd`（以 `environment_setup\requirements.txt` 安裝並 `pip check`；加 `/CHECK` 只自我檢查、不安裝），或從 `STOCK_TOOLS.cmd` 的 `M1` 進入。舊的 `INSTALL_SINGLE_STOCK_3M_DEPS.cmd`（目標固定為 `D:\stock\GitHub\.venv`）與它專用的 `requirements_single_stock_3m.txt` 已於 2026-10-12 退役並移到 `tools\_retired\`；2026-10-27 納入 Git 時未包含 `_retired`，2026-10-30 本機 `VERIFY_STABLE_PROGRAM_PATHS.cmd` 也確認 `tests\_retired`、`tools\_retired` 已不在本工作區，請勿重新使用。
 
 ## 資料與輸出
 

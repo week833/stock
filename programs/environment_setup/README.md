@@ -16,7 +16,7 @@
 會執行 `python -m pip check`，若套件版本互相衝突則整體安裝失敗。單股工具（`programs\single_stock_analysis`）也只使用
 `D:\stock\.venv`，依賴由本資料夾的安裝器安裝；舊的輕量清單 `requirements_single_stock_3m.txt` 與
 `INSTALL_SINGLE_STOCK_3M_DEPS.cmd` 已於 2026-10-12 退役並移到 `programs\single_stock_analysis\tools\_retired\`，請勿使用。
-`programs\single_stock_analysis` 於 2026-10-27 納入 Git（commit `41f2cbc`）時未包含 `tools\_retired` 與 `tests\_retired`，這些檔案不在本 repository 追蹤中，也不登錄於 `programs\STABLE_PROGRAM_PATHS.txt`；若本機仍保留 `programs\single_stock_analysis\tests\_retired` 或 `tools\_retired` 下的程式檔（`.py`／`.cmd`），`VERIFY_STABLE_PROGRAM_PATHS.cmd` 會把它們列為未登錄，需由擁有者移出 `programs` 或重新登錄。`programs\shared` 與 `programs\telegram_report_delivery` 的 `tests\_retired` 已納入 Git 並已登錄，不受影響。
+`programs\single_stock_analysis` 於 2026-10-27 納入 Git（commit `41f2cbc`）時未包含 `tools\_retired` 與 `tests\_retired`，這些檔案不在本 repository 追蹤中，也不登錄於 `programs\STABLE_PROGRAM_PATHS.txt`；2026-10-30 本機 `VERIFY_STABLE_PROGRAM_PATHS.cmd`（exit 0）確認這兩個資料夾已不在 `D:\stock`。`programs\shared` 與 `programs\telegram_report_delivery` 的 `tests\_retired` 已納入 Git 並已登錄，不受影響。
 
 ## 安全界線
 
