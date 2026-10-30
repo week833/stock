@@ -41,12 +41,11 @@
 |  |  | `dcajasn/Riskfolio-Lib` | `repos/quant_portfolio_risk/Riskfolio-Lib/` |
 |  |  | `skfolio/skfolio` | `repos/quant_portfolio_risk/skfolio/` |
 
-## 操作方式
+## 下載狀態
 
-```cmd
-scripts\sources\clone_stock_analysis_repos.cmd
-```
-
-下載腳本會在來源已存在時執行 `git pull --ff-only`，不存在時執行 `git clone`。
+`programs\environment_setup` 目前沒有研究來源下載腳本；舊的
+`scripts\sources\clone_stock_analysis_repos.cmd` 已在 2026-10-27 的安裝器整理中自本
+repository 移除。上表「本機 clone 位置」指 `D:\stock\GitHub\repos` 下的分類路徑，只
+說明來源的存放慣例，不代表現行工具會 clone 或 pull 這些來源。
 
 > 第三方原始碼不會提交至本 repository；請依各來源授權條款使用。

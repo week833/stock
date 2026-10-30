@@ -1,6 +1,7 @@
 # D:\stock 程式碼責任分類
 
-本分類以 2026-08-30 工作區實際存在的目錄為準。全市場分析與中央資料不是 D-stock
+本分類以 2026-08-30 工作區實際存在的目錄為準，並依 2026-10-27 納入 Git 的
+`TWNextDayTop10` 與開盤前版 H1 程式補登。全市場分析與中央資料不是 D-stock
 內部程式；它們的 owner 分別是 `D:\MIX All` 與 `D:\TWStockData`。分類文件不授權
 搬移、刪除或重新啟用退役內容。
 
@@ -29,6 +30,8 @@
 | `programs\single_stock_analysis\tests` | `tests` | 個股模型、PIT、報告與來源契約測試 |
 | `programs\telegram_report_delivery` | `delivery`／`runtime` | Bot、MIX 報告傳送、狀態與排程定義 |
 | `programs\telegram_report_delivery\tests` | `tests` | 傳送與服務契約測試 |
+| `TWNextDayTop10` | `analysis`／`reporting`／`runtime` | 次日 Top10；只推論共用已採納模型，不下載、不訓練；報告產物寫入 `D:\TWStockData\program_data\tw_nextday_top10`（Excel 另複製到 `TWNextDayTop10\data\reports\<日期>.xlsx`），另寫入共用 C0 前瞻帳冊 `D:\TWStockData\program_data\stock_daily_c0\state\forward.sqlite3` |
+| `TWNextDayTop10\tests` | `tests` | Top10 讀取完整性、開盤前版模型來源、各市場資料日與報告比較測試 |
 
 個股固定入口為：
 
@@ -37,6 +40,11 @@ programs\single_stock_analysis\1_執行個股分析與產生報告.cmd
 programs\single_stock_analysis\tools\RUN_SINGLE_STOCK_3M_ANALYSIS.cmd
 programs\single_stock_analysis\tools\RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd
 ```
+
+次日 Top10 入口為根目錄 `一鍵次日Top10.cmd`（轉呼叫 `TWNextDayTop10\RUN_TOP10.cmd`）；
+它使用由 `TWNextDayTop10\SETUP_ENV.cmd` 明確建立的 `TWNextDayTop10\.venv`，位於
+`programs` 之外，不登錄於 `STABLE_PROGRAM_PATHS.txt`（清單只登錄 `programs\` 路徑；
+`VERIFY_STABLE_PROGRAM_PATHS.cmd` 的命名與路徑長度規則仍涵蓋它）。
 
 Telegram 只處理既有成品，主要入口為 `RUN_COMMAND_BOT.cmd`、
 `CHECK_COMMAND_BOT_STATUS.cmd`、`RUN_SEND_LATEST_REPORT.cmd`、
@@ -47,8 +55,10 @@ Telegram 只處理既有成品，主要入口為 `RUN_COMMAND_BOT.cmd`、
 | 路徑 | 分類 | 邊界 |
 |---|---|---|
 | `programs\shared` | `data`／`runtime` | 共用資料路徑、中央讀取介面、來源轉接與環境偵測 |
+| `programs\shared\stock_daily_preopen*.py`、`RUN_PREOPEN_DAILY.cmd` | `analysis`／`runtime` | 開盤前版 H1 模型（ADR-0008，與 C0 並行）；只讀中央資料，寫入 `D:\TWStockData\program_data\stock_daily_preopen`；消費端只用 `stock_daily_preopen_reader.py` 唯讀取用 |
+| `programs\shared\preopen_schedule` | `runtime` | 開盤前版每日排程定義與註冊／移除工具；註冊需 `-Register -ConfirmRegister`；`RUN_CENTRAL_UPDATE.ps1` 只供排程呼叫外部 `D:\TWStockUpdater` 更新中央資料，中央資料所有權仍屬 `D:\TWStockData` |
 | `programs\shared_data_management` | `data`／`governance` | Central receipt、owner seal 與路徑完整性驗證 |
-| `programs\environment_setup` | `runtime` | Python、Windows 環境及外部 GitHub 來源管理 |
+| `programs\environment_setup` | `runtime` | Python 與 Windows 環境；`sources` 只保存外部 GitHub 來源分類說明，不下載 |
 | `programs\cross_system_validation` | `governance`／`tests` | 只讀跨系統 acceptance source 與 contract checks |
 | `programs\maintenance` | `runtime`／`governance` | 清理計畫、schema 與受控維護工具 |
 | `programs\STOCK_TOOLS.cmd` | `runtime` | 只作現行入口選單，不複製外部程式 |
@@ -66,6 +76,10 @@ D:\stock\programs\single_stock_analysis
 D:\stock\programs\telegram_report_delivery
     ↓ 已驗證成品的 Telegram 傳送
 ```
+
+開盤前版 H1 產製端（`programs\shared\stock_daily_preopen.py`）同樣只讀中央資料，
+寫入 `D:\TWStockData\program_data\stock_daily_preopen`；`TWNextDayTop10`、單股與
+MIX 透過唯讀 reader 取用 H1，快照不可用或過期時回退 C0 並標示原因。
 
 `D:\stock\config\shared_data_paths.json` 只登錄中央資料路徑；不得把根目錄本機
 複本當成正式資料。`D:\stock\.venv` 是仍被 Telegram 服務使用的執行環境；

@@ -21,8 +21,6 @@ echo(===============================================================
 echo(
 echo( [新版研究分析]
 echo( N. 新版次日Top10研究分析
-echo( R. 新版Top10立即修正模型（手動）
-echo( W. 新版Top10週末校正
 echo(
 echo( [正式執行]
 echo( 1. MIX ALL 每日正式分析（Excel/PDF及三竹再製同步）
@@ -60,8 +58,6 @@ if %EMPTY_INPUTS% GEQ 3 goto :done
 
 if /I "%OPTION%"=="Q" goto :done
 if /I "%OPTION%"=="N" goto :select_nextday_top10
-if /I "%OPTION%"=="R" goto :select_manual_calibration
-if /I "%OPTION%"=="W" goto :select_weekend_calibration
 if /I "%OPTION%"=="1" goto :select_mix_daily
 if /I "%OPTION%"=="2" goto :select_single_3m
 if /I "%OPTION%"=="3" goto :select_single_tomorrow
@@ -100,20 +96,6 @@ set "TARGET_DISPLAY=%TARGET%"
 set "TARGET_KIND=cmd"
 goto :run_selected
 
-:select_manual_calibration
-set "TARGET=D:\stock\TWNextDayTop10\RUN_MANUAL_CALIBRATION.cmd"
-set "TARGET_CWD=D:\stock\TWNextDayTop10"
-set "TARGET_DISPLAY=%TARGET%"
-set "TARGET_KIND=cmd"
-goto :run_selected
-
-:select_weekend_calibration
-set "TARGET=D:\stock\TWNextDayTop10\RUN_WEEKEND_CALIBRATION.cmd"
-set "TARGET_CWD=D:\stock\TWNextDayTop10"
-set "TARGET_DISPLAY=%TARGET%"
-set "TARGET_KIND=cmd"
-goto :run_selected
-
 :select_single_3m
 set "TARGET=%PROGRAMS_ROOT%single_stock_analysis\tools\RUN_SINGLE_STOCK_3M_ANALYSIS.cmd"
 set "TARGET_CWD=%PROGRAMS_ROOT%single_stock_analysis"
@@ -137,21 +119,21 @@ goto :run_selected
 
 :select_runtime_paths
 set "TARGET=%PROGRAMS_ROOT%VERIFY_RUNTIME_DATA_PATHS.cmd"
-set "TARGET_CWD=%PROGRAMS_ROOT"
+set "TARGET_CWD=%PROGRAMS_ROOT%"
 set "TARGET_DISPLAY=%TARGET%"
 set "TARGET_KIND=cmd"
 goto :run_selected
 
 :select_stable_paths
 set "TARGET=%PROGRAMS_ROOT%VERIFY_STABLE_PROGRAM_PATHS.cmd"
-set "TARGET_CWD=%PROGRAMS_ROOT"
+set "TARGET_CWD=%PROGRAMS_ROOT%"
 set "TARGET_DISPLAY=%TARGET%"
 set "TARGET_KIND=cmd"
 goto :run_selected
 
 :select_all_tests
 set "TARGET=%PROGRAMS_ROOT%RUN_ALL_TESTS.cmd"
-set "TARGET_CWD=%PROGRAMS_ROOT"
+set "TARGET_CWD=%PROGRAMS_ROOT%"
 set "TARGET_DISPLAY=%TARGET%"
 set "TARGET_KIND=cmd"
 goto :run_selected

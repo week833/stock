@@ -15,19 +15,21 @@ D:\stock\programs\STOCK_TOOLS.cmd
 
 | 選項 | 實際目標 | 性質 |
 |---|---|---|
+| `N` | `D:\stock\TWNextDayTop10\RUN_TOP10.cmd` | 次日 Top10（H1 預設開盤前版，C0 備援） |
 | `1` | `D:\MIX All\02_MIX_ALL正式報告.cmd` | MIX 全市場正式分析 |
-| `2` | `single_stock_analysis\tools\RUN_SINGLE_STOCK_3M_ANALYSIS.cmd` | D-stock 單股 C0 H63 收盤估計（選單文字仍寫「三個月」） |
-| `3` | `single_stock_analysis\tools\RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd` | D-stock 單股 C0 H1 收盤估計（選單文字仍寫「次日開盤」） |
+| `2` | `single_stock_analysis\tools\RUN_SINGLE_STOCK_3M_ANALYSIS.cmd` | D-stock 單股 C0 H63 收盤估計 |
+| `3` | `single_stock_analysis\tools\RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd` | D-stock 單股 C0 H1 收盤估計 |
 | `A` | `D:\TWStockData\services\market_update\一鍵更新.cmd` | Central owner 手動更新，會連網寫入 |
 | `S` | `D:\TWStockData\services\workflow_scheduler\RUN_WORKFLOW_SCHEDULER.cmd` | Central→MIX→三竹工作流 |
 | `T1`／`T2` | `telegram_report_delivery\RUN_COMMAND_BOT.cmd`／`CHECK_COMMAND_BOT_STATUS.cmd` | Bot 啟動／狀態 |
 | `T3`／`T4` | `telegram_report_delivery\RUN_SEND_MIX_REPORT.cmd`／`SHOW_MIX_WEEKDAY_0800_TASK.cmd` | MIX 傳送／排程唯讀檢查 |
 | `6`／`7`／`8` | `VERIFY_SHARED_DATA_RECEIPT.cmd`／`VERIFY_RUNTIME_DATA_PATHS.cmd`／`VERIFY_STABLE_PROGRAM_PATHS.cmd` | 唯讀驗證 |
 | `9` | `RUN_ALL_TESTS.cmd` | 保留程式與支援契約測試 |
-| `M1` | `environment_setup\STOCK_SETUP_MANAGER.cmd` | 環境、研究來源與修復選單 |
+| `M1` | `environment_setup\STOCK_SETUP_MANAGER.cmd` | 環境安裝與修復選單 |
 
 選單會先檢查目標與工作目錄；找不到目標時停止並顯示實際路徑。`A` 與 `S` 是外部
-owner 的入口，D-stock 不複製它們。
+owner 的入口，D-stock 不複製它們。`N` 的目標位於 `programs` 之外的
+`D:\stock\TWNextDayTop10`。
 
 ## 目前資料夾
 
@@ -35,9 +37,9 @@ owner 的入口，D-stock 不複製它們。
 |---|---|---|
 | `single_stock_analysis` | 個股 C0 H1／H63 收盤估計報告與測試 | `1_執行個股分析與產生報告.cmd`、`tools\RUN_*.cmd` |
 | `telegram_report_delivery` | Telegram 個股 Bot、MIX 報告傳送、服務與排程定義 | `RUN_COMMAND_BOT.cmd`、`RUN_SEND_MIX_REPORT.cmd` |
-| `shared` | 共用路徑、中央資料讀取、來源介面與環境偵測 | `CHECK_ENV.cmd`、`find_python.cmd` |
+| `shared` | 共用路徑、中央資料讀取、來源介面、環境偵測，以及 C0 共用模型與開盤前版 H1 模型（ADR-0008） | `CHECK_ENV.cmd`、`find_python.cmd`、`RUN_PREOPEN_DAILY.cmd` |
 | `shared_data_management` | Central receipt、owner seal 與共用資料完整性驗證 | `VERIFY_SHARED_DATA_RECEIPT.cmd` |
-| `environment_setup` | Python、Windows 環境與外部 GitHub 研究來源 | `STOCK_SETUP_MANAGER.cmd` |
+| `environment_setup` | Python 與 Windows 環境；外部 GitHub 研究來源分類說明（不下載） | `STOCK_SETUP_MANAGER.cmd` |
 | `cross_system_validation` | 跨系統唯讀 acceptance source／contract checks | `RUN_ACCEPTANCE_CHECKS.cmd` |
 | `maintenance` | 清理計畫、schema 與受控維護工具 | `PLAN_CLEANUP.ps1`、`APPLY_CLEANUP.ps1` |
 
@@ -45,14 +47,23 @@ owner 的入口，D-stock 不複製它們。
 `VERIFY_STABLE_PROGRAM_PATHS.cmd`、`VALIDATE_MARKET_DATA_QUALITY.cmd` 與
 `RUN_ALL_TESTS.cmd`。現行程式及測試路徑只登錄於 `STABLE_PROGRAM_PATHS.txt`。
 
+`programs` 之外另有 `D:\stock\TWNextDayTop10`（次日 Top10），一鍵入口為根目錄
+`一鍵次日Top10.cmd`。它不登錄於 `STABLE_PROGRAM_PATHS.txt`（清單只登錄
+`programs\` 路徑，驗證器的未登錄檢查只掃描 `programs\`；命名與路徑長度規則仍涵蓋
+`TWNextDayTop10`）。`TWNextDayTop10\tests` 由 `RUN_ALL_TESTS.cmd` 以根 `.venv` 執行。
+
 ## 資料與環境邊界
 
 - 正式共用行情唯一位於 `D:\TWStockData\shared_market_data`；設定登錄表是
   `D:\stock\config\shared_data_paths.json`。
 - 個股報告、快取與狀態位於 `D:\TWStockData\program_data\dstock_single`；MIX
   報告與模型位於 `D:\MIX All`／其中央 program-data。
-- `environment_setup` 管理 `D:\stock\.venv` 與 `D:\stock\GitHub\repos`。根
-  `.venv` 仍由執行中的 Telegram 服務直接使用，不能刪除或搬移。
+- 次日 Top10 產物位於 `D:\TWStockData\program_data\tw_nextday_top10`；開盤前版 H1
+  的模型指標、快照與前瞻帳冊位於 `D:\TWStockData\program_data\stock_daily_preopen`。
+- `environment_setup` 管理 `D:\stock\.venv` 與 Windows 使用者環境變數，不 clone 或
+  更新 `D:\stock\GitHub\repos`。根 `.venv` 仍由執行中的 Telegram 服務直接使用，
+  不能刪除或搬移。`TWNextDayTop10` 使用自己的 `TWNextDayTop10\.venv`，由其
+  `SETUP_ENV.cmd` 明確建立，不替換根 `.venv`。
 - `GitHub`、`GPTlogic` 僅作外部研究或方法參考，不是正式推薦資料來源。
 - `.ENV`、Token、快取、模型、輸出、報告與日誌不得提交 Git；不得為了清理而改動
   `D:\TWStockData`、`D:\MIX All` 或 `D:\stock\GitHub`。
