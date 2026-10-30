@@ -2,7 +2,7 @@
 
 本文件是給人與 AI Agent 使用的「薄型索引」，不是第二份資料集清單，也不是外部 Repo 的完整 mirror。詳細資料仍以各來源的 system of record 為準；若本文件與權威成品不一致，應先停止發布並重新驗證，不可依本文件猜測。
 
-盤點日期：2026-08-30
+盤點日期：2026-08-30（研究 Repo 相關列另依 2026-10-30 Git 追蹤樹補記）
 
 ## 2026-08-30 清理後邊界（Fact）
 
@@ -25,9 +25,9 @@
 | 中央正式行情與共用原始資料 | `formal-data` | `D:\TWStockData\shared_market_data`；最新 receipt 為 `D:\TWStockData\services\market_update\receipts\latest_manifest.json` | 可以。只限 receipt 宣告可發布、必要資料集與 hash/coverage/PIT 門檻通過時 | 以 receipt 的 `expected_asof`、`freshness`、`coverage`、`pit` 與 `hash` 欄位為準；缺資料必須留在 denominator | `D:\TWStockData\services\market_update\market_update.cmd` | `D:\stock\programs\VALIDATE_MARKET_DATA_QUALITY.cmd`、`D:\stock\programs\VERIFY_RUNTIME_DATA_PATHS.cmd`、中央 market receipt | 目前 receipt `status=complete`、`publishable=true`、`conditions_met=false`、`partial=false`、`fail_closed=false`；runtime verifier 另為 FAIL，正式模型只能信任 receipt 明確合格的資料 |
 | D-stock 路徑與資料所有權 | `routing-control` | `D:\stock\config\shared_data_paths.json` | 不提供資料內容；只決定正式程式應讀寫哪個 system of record | 不可用路徑存在取代 freshness 或 PIT 證據 | 由專案維護；不得由下游程式自行改寫 | `D:\stock\programs\VERIFY_RUNTIME_DATA_PATHS.cmd` | 這是路由契約，不是資料來源；模型、報告、state 等 project data 實際集中於 `D:\TWStockData\program_data\dstock_daily` |
 | 正式報告與發布成品 | `formal-output` | `D:\TWStockData\program_data\dstock_daily\reports\latest_report_manifest.json` 及其列出的 artifacts（歷史 D-stock 成品證據） | 只代表成品是否可進入發布流程；不會把外部研究 Repo 升格為正式資料 | 以 manifest 的資料日、預測日、來源 receipt hash、artifact hash 與 publishability 為準 | 現行全市場分析使用者入口為 `D:\MIX All\02_MIX_ALL正式報告.cmd`；該入口驗證並轉交唯一 `1_執行MIX每日分析與產生報告.cmd`，再由內部 `D:\MIX All\tools\internal\maintenance\RUN_DAILY.cmd` 呼叫 `D:\MIX All\tools\run_daily.ps1`。D-stock `full_market_analysis` 已退役，沒有現行 D-stock 更新入口 | `D:\stock\programs\cross_system_validation\RUN_ACCEPTANCE_CHECKS.cmd`；舊 D-stock verifier 僅屬歷史／已隔離路徑 | 舊 D-stock manifest 僅作歷史證據；目前 acceptance 仍為 `blocked`，不可由 exit code 0 單獨宣稱可發布 |
-| 台股／全球／ML／回測／投資組合研究 Repo | `research-only` | `D:\stock\GitHub\scripts\sources\source_manifest_v1.json`；本機狀態快照為 `D:\stock\GitHub\repos\.source_provenance.json` | 不可以作為正式推薦、正式行情或正式模型的直接來源 | 以 manifest 的 branch 與 provenance 的 observed HEAD 為研究重現性界線；不得以目前 upstream 狀態替代當時快照 | `D:\stock\GitHub\scripts\sources\clone_stock_analysis_repos.cmd`、`source_manager.ps1 -Check`／`-Snapshot` | manifest 目前維持 37 個 primary、2 個 legacy；provenance 於 2026-08-23 觀察 39 個 canonical Repo，39/39 `status=valid`、0 dirty；snapshot 不等於 Git 歷史基線 |
-| AI／Agent／Skill 與三竹 UI 研究資料 | `reference-only` | `D:\stock\GitHub\sources\ai_agent_tools\README.md`、對應 `D:\stock\GitHub\repos\ai_agent_tools\` canonical Repo，以及 `D:\stock\GitHub\docs\repository_duplicate_matrix.md` | 不可以作為台股正式推薦、交易下單、正式行情或模型輸入 | 依各 Repo 本機 branch／HEAD 及其公開包的 status；不得由 reference-only 推論能力或交易支援 | 讀取 Repo README、公開 provenance/status，必要時使用其自帶唯讀 checker；不得自動下載或更新 | 目前實際 9 個、README 已登錄 9 個；`source_manifest_v1.json` 的 39-source clone 清單刻意不含此 reference-only 家族，避免改變 source manager 的 37+2 研究來源契約 |
-| 歷史相容 Repo | `legacy-reference` | `source_manifest_v1.json` 中 `scope=legacy` 的 2 筆來源 | 不可以；僅限歷史相容與教育研究 | 不具正式 freshness 或 PIT 保證 | `D:\stock\GitHub\scripts\sources\clone_legacy_compat_repos.cmd` | `source_manager.ps1 -Legacy -Check` | 保留作相容性證據；不得把 legacy 內容回填正式資料或推薦流程 |
+| 台股／全球／ML／回測／投資組合研究 Repo | `research-only` | `D:\stock\GitHub\scripts\sources\source_manifest_v1.json`；本機狀態快照為 `D:\stock\GitHub\repos\.source_provenance.json`（2026-08-23 觀察；兩者位於 `D:\stock\GitHub`，不在本 repository 追蹤範圍，現況未核對） | 不可以作為正式推薦、正式行情或正式模型的直接來源 | 以 manifest 的 branch 與 provenance 的 observed HEAD 為研究重現性界線；不得以目前 upstream 狀態替代當時快照 | 現行 `programs\environment_setup` 沒有研究來源下載或更新入口；舊 `scripts\sources\clone_stock_analysis_repos.cmd` 已於 2026-10-27（commit `8a2b4f4`）自本 repository 移除（`D:\stock\GitHub\scripts\sources\` 內的同名工具不在本 repository 追蹤範圍，現況未核對） | 現行 repository 沒有對應驗證入口；舊 `source_manager.ps1 -Check`／`-Snapshot` 已一併移除 | 2026-08-23 觀察：manifest 為 37 個 primary、2 個 legacy；provenance 觀察 39 個 canonical Repo，39/39 `status=valid`、0 dirty；snapshot 不等於 Git 歷史基線。2026-10-30 Git 核對：本 repository 追蹤的來源分類說明為 `programs\environment_setup\sources`（36 個來源各有 `README.md`：台股 6、全球 2、ML 12、回測 6、投組風控 10）與 `programs\environment_setup\docs\external_stock_repositories.md`，未收錄舊 manifest 的 primary `stocktw`（`paullo0106/stocktw`）與 2 個 legacy；本 repository 尚未指定新的 system of record |
+| AI／Agent／Skill 與三竹 UI 研究資料 | `reference-only` | `D:\stock\GitHub\sources\ai_agent_tools\README.md`、對應 `D:\stock\GitHub\repos\ai_agent_tools\` canonical Repo，以及 `D:\stock\GitHub\docs\repository_duplicate_matrix.md` | 不可以作為台股正式推薦、交易下單、正式行情或模型輸入 | 依各 Repo 本機 branch／HEAD 及其公開包的 status；不得由 reference-only 推論能力或交易支援 | 不得自動下載或更新 | 讀取 Repo README、公開 provenance/status，必要時使用其自帶唯讀 checker | 目前實際 9 個、README 已登錄 9 個；2026-08-30 盤點時 `source_manifest_v1.json` 的 39-source clone 清單刻意不含此 reference-only 家族，避免改變當時 source manager 的 37+2 研究來源契約；本 repository 追蹤的 36 個來源分類說明同樣不含此家族 |
+| 歷史相容 Repo | `legacy-reference` | 2026-08-23 `source_manifest_v1.json` 中 `scope=legacy` 的 2 筆來源（`william911530-cmyk/python-stock-radar-`、`k66inthesky/TW-stock`） | 不可以；僅限歷史相容與教育研究 | 不具正式 freshness 或 PIT 保證 | 現行 repository 沒有入口；舊 `scripts\sources\clone_legacy_compat_repos.cmd` 已於 2026-10-27 自本 repository 移除（`D:\stock\GitHub\scripts\sources\` 內的同名工具不在本 repository 追蹤範圍，現況未核對） | 現行 repository 沒有入口；舊 `source_manager.ps1 -Legacy -Check` 已一併移除 | 保留作相容性證據；不得把 legacy 內容回填正式資料或推薦流程；本 repository 追蹤的來源分類說明不含這 2 筆 |
 
 ## 權威層級
 
@@ -36,7 +36,7 @@
 1. 正式行情內容、資料日、coverage、PIT、hash 與發布資格：以中央 market receipt 及其實體 `D:\TWStockData\shared_market_data` 為準。
 2. 程式應讀寫哪裡：以 `config\shared_data_paths.json` 為準；它不能取代資料內容驗證。
 3. 正式報告是否可交付：以 `latest_report_manifest.json`、artifact validator 及 acceptance 報告為準。
-4. 外部研究 Repo 的來源身分與觀察版本：以 `source_manifest_v1.json` 加 `.source_provenance.json` 為準。
+4. 外部研究 Repo 的來源身分與觀察版本：以 `source_manifest_v1.json` 加 `.source_provenance.json` 為準（2026-08-23 觀察紀錄；兩者位於 `D:\stock\GitHub`，不在本 repository 追蹤範圍，現況未核對）。本 repository 追蹤的 `programs\environment_setup\sources`（36 個來源）只是分類說明，尚未被指定為新的 system of record。
 5. AI／Agent／UI 參考內容：只以 reference-only 索引與各 Repo 自帶公開證據為準；不得轉為正式資料來源。
 
 ## 研究 Repo provenance 契約
@@ -50,7 +50,7 @@
 
 本次 provenance 觀察摘要：
 
-- manifest SHA-256：`2bdf3f75277e49b8af9c294e31422439bb24f84a1e73db4c72282709ece17810`
+- manifest SHA-256：`2bdf3f75277e49b8af9c294e31422439bb24f84a1e73db4c72282709ece17810`（2026-10-30 核對：與 Git 歷史 `8a2b4f4^:scripts/sources/source_manifest_v1.json` 以 CRLF 換行計算的 SHA-256 一致，內容為 37 個 primary、2 個 legacy）
 - entries：39
 - valid：39
 - dirty：0
@@ -62,7 +62,7 @@
 
 本次由本機 README、Repo README、origin、branch、HEAD 與 repository matrix 唯一確認 `stock-mitake-ui-reference` 的 canonical 身分、用途與路徑，已將它補入 `sources\ai_agent_tools\README.md`。因此現況為「實際 9、README 9」。
 
-`source_manifest_v1.json` 仍維持 39 筆台股研究／相容來源，不把 AI／Agent Repo 塞進 `sources` 陣列，原因是既有 source manager 明確驗證 37 primary + 2 legacy、限定 category，且 AI／Agent 來源是 reference-only，不是可安裝的台股研究來源。若未來要建立跨家族統一 manifest，必須另立 schema／決策紀錄，不可直接把 reference-only 來源混入現有 clone 清單。
+2026-08-30 盤點時，`source_manifest_v1.json` 維持 39 筆台股研究／相容來源，不把 AI／Agent Repo 塞進 `sources` 陣列，原因是當時的 source manager 明確驗證 37 primary + 2 legacy、限定 category，且 AI／Agent 來源是 reference-only，不是可安裝的台股研究來源。若未來要建立跨家族統一 manifest，必須另立 schema／決策紀錄，不可直接把 reference-only 來源混入現有 clone 清單。2026-10-27 起本 repository 已不含 source manager 與該 manifest（commit `8a2b4f4`）；本 repository 追蹤的來源分類說明 `programs\environment_setup\sources`（36 個來源）同樣不含 AI／Agent 家族。
 
 ## 舊 shared_market_data 路徑核對結果（歷史／已隔離）
 

@@ -2,9 +2,9 @@
 
 ## 目前用途
 
-`D:\stock` 是台股單股分析、Telegram 交付、共用資料驗證、環境管理與研究資料的
-工作區。全市場正式分析不在本資料夾執行：目前由外部的 `D:\MIX All` 負責；
-中央行情資料由 `D:\TWStockData` 統一管理。
+`D:\stock` 是台股單股分析、次日 Top10、開盤前版 H1 模型產製、Telegram 交付、
+共用資料驗證、環境管理與研究資料的工作區。全市場正式分析不在本資料夾執行：
+目前由外部的 `D:\MIX All` 負責；中央行情資料由 `D:\TWStockData` 統一管理。
 
 一般使用者從這個選單開始：
 
@@ -20,12 +20,14 @@ D:\stock\programs\STOCK_TOOLS.cmd
 | MIX 全市場正式分析 | `D:\MIX All\02_MIX_ALL正式報告.cmd` |
 | D-stock 單股三個月分析 | `D:\stock\programs\single_stock_analysis\tools\RUN_SINGLE_STOCK_3M_ANALYSIS.cmd` |
 | D-stock 單股次日開盤分析 | `D:\stock\programs\single_stock_analysis\tools\RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd` |
+| 次日 Top10（H1 預設開盤前版，C0 備援） | `D:\stock\一鍵次日Top10.cmd`（轉呼叫 `D:\stock\TWNextDayTop10\RUN_TOP10.cmd`） |
+| 開盤前版 H1 每日快照（排程入口） | `D:\stock\programs\shared\RUN_PREOPEN_DAILY.cmd` |
 | Central owner 手動更新 | `D:\TWStockData\services\market_update\一鍵更新.cmd` |
 | Telegram 個股查詢 Bot | `D:\stock\programs\telegram_report_delivery\RUN_COMMAND_BOT.cmd` |
 | 手動傳送 MIX 正式報告 | `D:\stock\programs\telegram_report_delivery\RUN_SEND_MIX_REPORT.cmd` |
 | 檢查共用資料路徑 | `D:\stock\programs\VERIFY_RUNTIME_DATA_PATHS.cmd` |
 | 檢查固定程式路徑 | `D:\stock\programs\VERIFY_STABLE_PROGRAM_PATHS.cmd` |
-| 環境與 GitHub 研究來源管理 | `D:\stock\programs\environment_setup\STOCK_SETUP_MANAGER.cmd` |
+| 環境安裝與修復 | `D:\stock\programs\environment_setup\STOCK_SETUP_MANAGER.cmd` |
 
 ## 資料與責任邊界
 
@@ -35,10 +37,22 @@ D:\stock\programs\STOCK_TOOLS.cmd
   全市場分析入口。
 - `programs\single_stock_analysis` 只負責個股三個月與次日開盤分析，報告寫入
   `D:\TWStockData\program_data\dstock_single`。
+- `TWNextDayTop10` 產生次日 Top10 報告（H1：調整後收盤到同市場下一交易日收盤的
+  方向與報酬），只推論共用已採納模型，不下載資料、不訓練模型；使用自己的
+  `TWNextDayTop10\.venv`（由 `SETUP_ENV.cmd` 明確建立），報告產物寫入
+  `D:\TWStockData\program_data\tw_nextday_top10`（Excel 另複製一份到
+  `TWNextDayTop10\data\reports\<日期>.xlsx` 並開啟），另寫入共用 C0 前瞻帳冊
+  `D:\TWStockData\program_data\stock_daily_c0\state\forward.sqlite3`。
+- `programs\shared\stock_daily_preopen*.py` 是開盤前版 H1 模型（ADR-0008，與 C0
+  並行），每日由 `programs\shared\RUN_PREOPEN_DAILY.cmd` 寫入
+  `D:\TWStockData\program_data\stock_daily_preopen`；消費端只透過
+  `stock_daily_preopen_reader.py` 唯讀取用，快照不可用或過期時回退 C0 並標示
+  原因。排程定義在 `programs\shared\preopen_schedule`。
 - `programs\telegram_report_delivery` 只傳送已驗證的既有報告，不改寫分析結果。
-- `programs\environment_setup` 管理根目錄 Python 環境與 `D:\stock\GitHub\repos`
-  的外部研究來源。`D:\stock\GitHub`、`D:\stock\GPTlogic` 只作研究或安裝來源，
-  不會自動成為正式推薦資料。
+- `programs\environment_setup` 管理根目錄 Python 環境與 Windows 使用者環境變數；
+  `sources` 只保存外部研究來源的分類說明，現行工具不 clone 或更新
+  `D:\stock\GitHub\repos`。`D:\stock\GitHub`、`D:\stock\GPTlogic` 只作研究或
+  安裝來源，不會自動成為正式推薦資料。
 - 根目錄 `.venv` 仍是目前執行中 Telegram 服務所依賴的環境，不能因清理舊內容而刪除。
 
 ## 目錄導覽
@@ -46,6 +60,7 @@ D:\stock\programs\STOCK_TOOLS.cmd
 | 目錄 | 現行角色 |
 |---|---|
 | `programs` | 現行入口、支援程式、測試與環境工具 |
+| `TWNextDayTop10` | 次日 Top10 程式、測試與專案環境設定；根目錄 `一鍵次日Top10.cmd` 是其一鍵入口 |
 | `config` | 共用資料路徑與執行設定 |
 | `docs` | 治理、來源登錄與工作交接文件 |
 | `logs\daily_analysis_scheduler` | 2026-08-30 live observation 已確認目錄不存在；清理前歷史摘要為 40 檔、552,595 bytes（32 log／8 json），不是現行排程 |

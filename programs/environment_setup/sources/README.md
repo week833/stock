@@ -6,4 +6,4 @@
 - [backtesting_engines — 回測引擎與策略測試](./backtesting_engines/)（6 個來源）
 - [quant_portfolio_risk — 量化工具、因子、績效與投組風控](./quant_portfolio_risk/)（10 個來源）
 
-每個來源均有自己的資料夾與 `README.md`。實際原始碼由下載腳本 clone 到相同分類的 `repos/` 路徑。
+每個來源均有自己的資料夾與 `README.md`（共 36 個）。本機原始碼若存在，位於 `D:\stock\GitHub\repos` 下相同分類的路徑；現行環境工具沒有下載腳本，不會自動 clone。
