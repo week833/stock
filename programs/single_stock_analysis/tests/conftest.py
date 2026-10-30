@@ -17,8 +17,8 @@ for path in (SHARED_DIR, SRC_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 
-# Tests of modules or behaviour retired by the current-only redesign are kept for reference, not collected.
-# tests\_retired\README.md lists each file, the missing module or retired behaviour, and the evidence.
+# Tests of modules or behaviour retired by the current-only redesign are no longer in this workspace;
+# keep ignoring the folder name so a restored copy is never collected.
 collect_ignore = ["_retired"]
 
 
