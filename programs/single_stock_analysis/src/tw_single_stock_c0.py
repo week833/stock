@@ -480,7 +480,7 @@ def _preopen_rows(block):
 def _pdf(path,payload,report_view=None):
     from reportlab.lib import colors
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Table,TableStyle
+    from reportlab.platypus import SimpleDocTemplate,Paragraph,Spacer,Table,TableStyle,PageBreak
     regular,bold=_report_fonts()
     width=507
     styles={
@@ -545,6 +545,8 @@ def _pdf(path,payload,report_view=None):
         text('開盤前版必要揭露','body')
         table([(str(name),str(detail)) for name,detail in preopen_h1.get('disclosure_rows') or []])
     text('本報告沿用現行模型；歷史時點資料、公司行動調整與歷史普通股資格尚未完整驗證，模型效果及交易效益未驗證。','small')
+    # 摘要（含可交易名次）固定在第一頁，股價技術從第二頁開始。
+    story.append(PageBreak())
     section('二','股價技術')
     if report_view and report_view.get('dates'):
         story.append(_report_price_chart(report_view,regular))
