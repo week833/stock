@@ -860,10 +860,11 @@ def test_c0_pdf_keeps_every_warning_after_trimming(snapshot_root, tmp_path, monk
 @pytest.mark.parametrize("case", ["fallback", "forced_c0", "no_estimate"])
 def test_c0_pdf_fallback_and_no_estimate_keep_their_reasons(snapshot_root, tmp_path, monkeypatch, case):
     pytest.importorskip("reportlab")
-    write_fixture(snapshot_root, signal_date="2026-10-15")
+    # 訊號日晚於分析資料日才是真正不可用而回退（較舊但可用的快照改為沿用並註記）。
+    write_fixture(snapshot_root, signal_date="2026-10-17")
     if case == "fallback":
         payload = _c0_report_payload(preopen_h1=preopen.build_h1_block(STOCK_6488, "2026-10-16"))
-        needles = ("【注意】開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準。原因：開盤前版快照的訊號日與本次分析資料日不同。",
+        needles = ("【注意】開盤前版不可用（preopen_future_signal），本次 H1 改用 C0 基準。原因：開盤前版快照的訊號日晚於本次分析資料日。",
                    "本報告目標：", "到期交易日\n20261019", "模型效果及交易效益未驗證", "機率校準\n尚未校準",
                    "上漲機率\n53.00%", "預估報酬\n+0.10%")
         missing = ("開盤前版必要揭露", "C0 基準（備援）", "本次結果", "已產生估計")

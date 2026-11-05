@@ -367,11 +367,15 @@ def test_predict_forced_c0_keeps_old_behaviour_with_fresh_snapshot(loaded_scope,
 def test_predict_falls_back_when_snapshot_target_differs_from_verified_session(loaded_scope, model, monkeypatch,
                                                                               tmp_path, preopen_fixture):
     _write(preopen_fixture, target_date=fx.DATES[fx.D_INDEX + 2])
-    _, payload, html, _, _ = _run(loaded_scope(), model, monkeypatch, tmp_path)
+    _, payload, html, output, _ = _run(loaded_scope(), model, monkeypatch, tmp_path)
     assert payload["model_source"] == "preopen"
     assert payload["preopen_status"]["reason"] is None
     assert "原目標日" in payload["preopen_meta"]["target_note_zh"] and "原目標日" in html
     assert payload["preopen_meta"]["target_date"] == fx.DATES[fx.D_INDEX + 2]
+    # 日期提醒接在快照說明的模型雜湊之後；顯示時只去掉雜湊，日期提醒在 HTML 與 Excel 各保留一次。
+    note = payload["preopen_meta"]["target_note_zh"]
+    assert html.count(note) == 1 and _xlsx_strings(output).count(note) == 1
+    assert "｜模型 " not in html and "｜模型 " not in _xlsx_strings(output)
 
 
 def test_predict_preopen_required_target_mismatch_raises(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):

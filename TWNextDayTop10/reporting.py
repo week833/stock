@@ -783,14 +783,14 @@ def _shown_warnings(payload, display):
 def _describe_text(value, payload):
     """開盤前版說明（共用 reader 的 describe）的顯示版；原文保留於原始報告資料。
 
-    去掉結尾「｜模型 <雜湊前 12 碼>」內部識別碼與 Top10 上方閘門已寫的美股漲跌段；訊號日→目標日與本次摘要的
-    分析日、已驗證下一交易日相同時也不重複（沿用較舊快照等其他說明照列）。
+    去掉「｜模型 <雜湊前 12 碼>」內部識別碼與 Top10 上方閘門已寫的美股漲跌段；訊號日→目標日與本次摘要的
+    分析日、已驗證下一交易日相同時也不重複（沿用較舊快照等其他說明照列）。雜湊之後以「；」接上的日期提醒保留。
     """
-    text = re.sub(r"｜模型 [^｜]*$", "", _text(value))
+    text = re.sub(r"｜模型 [0-9A-Fa-f]*(?=；|｜|$)", "", _text(value))
     if (payload.get("preopen_gate") or {}).get("label"):
-        text = re.sub(r"｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=｜|$)", "", text, count=1)
+        text = re.sub(r"｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=；|｜|$)", "", text, count=1)
     context = payload.get("report_context") or {}
-    dates = re.search(r"｜訊號日 (\d{8}) → 目標日 (\d{8})(?=｜|$)", text)
+    dates = re.search(r"｜訊號日 (\d{8}) → 目標日 (\d{8})(?=；|｜|$)", text)
     if dates and (dates[1], dates[2]) == (_day(context.get("base_session")), _day(context.get("target_session"))):
         text = text.replace(dates[0], "", 1)
     return text

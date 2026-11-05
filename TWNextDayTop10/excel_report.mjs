@@ -341,12 +341,13 @@ const timeHint = `${dataTime.badge ? `【${dataTime.badge}】` : ''}${[
   preopen && provided(timeRow('各市場資料日')) ? `各市場資料日 ${timeRow('各市場資料日')}` : '',
   declared(timeRow(TIME_PUBLISHED_LABEL)) ? `資料發布 ${timeRow(TIME_PUBLISHED_LABEL)}（提供者宣告）` : '',
 ].filter(Boolean).join('；')}`;
-// 開盤前版說明的顯示版（同 reporting.py 的 _describe_text；原文保留於 report.json）：去掉結尾「｜模型 <雜湊前 12 碼>」
+// 開盤前版說明的顯示版（同 reporting.py 的 _describe_text；原文保留於 report.json）：去掉「｜模型 <雜湊前 12 碼>」
 // 內部識別碼與閘門列已寫的美股漲跌段；訊號日→目標日與 A2／A3 的分析日、已證下一交易日相同時也不重複。
+// 雜湊之後以「；」接上的日期提醒保留。
 function shownNote(text) {
-  let shown = text.replace(/｜模型 [^｜]*$/, '');
-  if (gate?.label) shown = shown.replace(/｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=｜|$)/, '');
-  const dates = /｜訊號日 (\d{8}) → 目標日 (\d{8})(?=｜|$)/.exec(shown);
+  let shown = text.replace(/｜模型 [0-9A-Fa-f]*(?=；|｜|$)/, '');
+  if (gate?.label) shown = shown.replace(/｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=；|｜|$)/, '');
+  const dates = /｜訊號日 (\d{8}) → 目標日 (\d{8})(?=；|｜|$)/.exec(shown);
   if (dates && dates[1] === day8(context.base_session) && dates[2] === day8(context.target_session)) shown = shown.replace(dates[0], '');
   return shown;
 }
