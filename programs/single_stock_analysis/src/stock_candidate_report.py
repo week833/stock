@@ -1827,13 +1827,16 @@ def _brief_reminders(payload, prediction_notes):
     elif not calibration or str(calibration).startswith("uncalibrated"):
         # 沒有「機率校準」列，或該列顯示不出未校準（對照表沒有的代碼）：保留完整提醒。
         reminders.append(owner + "機率尚未校準，不能直接視為實際命中率。")
+    return [*reminders, *_stock_reminders(payload)]
+
+
+def _stock_reminders(payload):
+    """本股提醒（處置交易、停牌、下市、減資）：H1、無 U7 區塊的 H63 與 U7 檢視都列一次。"""
     limitations = [str(value) for value in [*(payload.get("limitations") or []), *((payload.get("metrics") or {}).get("limitations") or [])]]
     specific = [value for value in limitations if any(key in value for key in ("本股", "本公司"))
                 and any(key in value for key in ("停牌", "處置", "下市", "減資"))
                 and not any(key in value for key in ("未確認", "未驗證", "缺少", "未知"))]
-    if specific:
-        reminders.append("本股提醒：" + "；".join(dict.fromkeys(_zh(value) for value in specific)))
-    return reminders
+    return ["本股提醒：" + "；".join(dict.fromkeys(_zh(value) for value in specific))] if specific else []
 
 
 _HISTORICAL_TIMING_RISK = "部分歷史資料的公告時點未能確認，回測表現可能偏樂觀。"
@@ -2041,7 +2044,14 @@ def _preopen_h1_view(payload):
             ["前一晚美股", preopen.us_overnight_text(block)],
             ["訊號日至目標日", str(_day(block.get("signal_date")) or "未提供") + " 收盤至 "
              + str(_day(block.get("target_date")) or "未提供") + " 收盤"]]
-    notes = preopen.describe_notes(block)  # describe 只列其他列沒有的註記；沒有就不列
+    dated = block.get("target_date_consistent") is False  # 目標日與本報告日曆不同：列「日期提醒」
+    target_note = block.get("target_note_zh")
+    target_note = re.sub(r"^日期提醒：", "", target_note).strip() if isinstance(target_note, str) else ""
+
+    def shown(note):  # 原目標日已寫在「日期提醒」列：快照註記顯示時去掉「；保留原目標日」，封存的原文不變
+        return re.sub(r"；保留原目標日 [^；｜]*", "", note) if dated and target_note else note
+
+    notes = shown(preopen.describe_notes(block))  # describe 只列其他列沒有的註記；沒有就不列
     if notes:
         rows.append(["資料註記", notes])
     if block.get("fixture") is True:
@@ -2051,10 +2061,9 @@ def _preopen_h1_view(payload):
                          ("ledger_note_zh", "帳冊註記")):
         note = block.get(field)
         if isinstance(note, str) and note.strip() and note not in description:
-            rows.append([title, note])
-    if block.get("target_date_consistent") is False:
-        rows.append(["日期提醒", block.get("target_note_zh") or
-                     "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"])
+            rows.append([title, shown(note)])
+    if dated:  # 列名已是「日期提醒」，內容不重複同名前綴
+        rows.append(["日期提醒", target_note or "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"])
     disclosure = [[str(name), str(text)] for name, text in block.get("disclosure_rows") or []
                   if isinstance(name, str) and isinstance(text, str)]
     # 主要／備援的分工與模型名稱只寫在兩張表的標題，不另寫說明段落。
@@ -2099,13 +2108,16 @@ def _h63_fit_through(model):
 def _h63_xs_view(payload, base_rows, boundary, summary_insights):
     """H63 帶 U7 區塊時的第一章與第六章內容（ADR-0009）；H1 與無區塊的 H63 不經過這裡。"""
     block = payload["h63_xs"]
-    basics = [*base_rows, ["資料日", cd.display_day(payload.get("asof"), empty="未提供")]]
+    # 快照是新的（訊號日＝資料日）時，這一天只在「訊號日至目標」寫一次；沿用較舊快照時兩個日期都列，保留差異。
+    same_day = block.get("status") == "used" and cd.same_day(block.get("signal_date"), payload.get("asof"))
+    basics = [*base_rows, *([] if same_day else [["資料日", cd.display_day(payload.get("asof"), empty="未提供")]])]
     basic_table = _table("本股基本資料", ["項目", "內容"], basics)
+    reminders = _stock_reminders(payload)  # 只補本股提醒；選定模型的校準提醒與 U7 無關
     evaluation_paragraphs = ["報酬區間為名目 80%：回測中約 2 成實際結果落在區間外；大盤單邊行情時偏窄。",
                              "逐日指標彼此高度相關（相鄰兩日相關約 0.97），不可把每天當獨立樣本。"]
     if block.get("status") != "used":
         notice = ("【注意】" if block.get("status") == "fallback" else "") + str(block.get("notice")) + "。"
-        return {"paragraphs": [notice, *summary_insights, boundary + "H63 三個月相對強弱本次未顯示數字。"],
+        return {"paragraphs": [notice, *summary_insights, boundary + "H63 三個月相對強弱本次未顯示數字。", *reminders],
                 "tables": [basic_table], "evaluation_paragraphs": evaluation_paragraphs, "evaluation_tables": []}
     in_scope = block.get("in_scope") is True
     p_text = _h63_pct(block.get("p"))
@@ -2134,8 +2146,9 @@ def _h63_xs_view(payload, base_rows, boundary, summary_insights):
                  + "（訓練資料截至 " + _h63_fit_through(model) + "）"])
     identity = block.get("identity") or {}
     head = str(identity.get("central_head_sha256") or "")[:8] or "未提供"
-    rows.append(["資料", "中央資料 " + head + "（訊號日 " + cd.display_day(block.get("signal_date"), empty="未提供")
-                 + "）；2025 年底以前的價格採 20261009 保存的歷史資料（補齊 2022 年 9 月至 2025 年 3 月的缺洞）"])
+    rows.append(["資料", "中央資料 " + head
+                 + ("" if same_day else "（訊號日 " + cd.display_day(block.get("signal_date"), empty="未提供") + "）")
+                 + "；2025 年底以前的價格採 20261009 保存的歷史資料（補齊 2022 年 9 月至 2025 年 3 月的缺洞）"])
     forward = block.get("forward_record") or {}
     if forward.get("first_decision_date"):
         rows.append(["前瞻紀錄", "自 " + cd.display_day(forward.get("first_decision_date")) + " 起每日記錄全市場；已到期 "
@@ -2155,10 +2168,12 @@ def _h63_xs_view(payload, base_rows, boundary, summary_insights):
                   "只保留在資料檔供重現驗證。"]
     if block.get("trend_sentence_zh"):
         paragraphs.append(str(block["trend_sentence_zh"]))
-    paragraphs += ["預測目標：本股自訊號日收盤起第 63 個交易日收盤的報酬，是否高於同日合格上市櫃股票報酬的中位數；"
-                   "不是上漲機率，也不是可成交報酬。", *summary_insights, boundary + "機率與區間皆有誤差。"]
     disclosure = [[str(name), str(text)] for name, text in block.get("disclosure_rows") or []
                   if isinstance(name, str) and isinstance(text, str)]
+    if not any(name == "預測目標" for name, _ in disclosure):  # 第六章必要揭露已有同一定義時，第一章不重複
+        paragraphs.append("預測目標：本股自訊號日收盤起第 63 個交易日收盤的報酬，是否高於同日合格上市櫃股票報酬的中位數；"
+                          "不是上漲機率，也不是可成交報酬。")
+    paragraphs += [*summary_insights, boundary + "機率與區間皆有誤差。", *reminders]
     tables = [_table("H63 三個月相對強弱（主要顯示）", ["項目", "內容"], rows),
               _table("排名因子（相對同日合格股票，-1 最弱至 +1 最強，已依方向調整）", ["因子", "本股原始值", "方向調整後排名"],
                      factor_rows, [0.42, 0.38, 0.20]),

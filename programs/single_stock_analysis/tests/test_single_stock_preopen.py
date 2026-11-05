@@ -946,3 +946,47 @@ def test_selected_h1_reminder_names_the_backup_probability_for_an_unmapped_statu
     # 「機率校準」列顯示不出未校準：保留完整提醒，並註明是備援對照表的機率
     assert dict(summary["tables"][1]["rows"])["機率校準"] == "未確認（原始狀態見資料檔）"
     assert "備援對照表的機率尚未校準，不能直接視為實際命中率。" in summary["paragraphs"]
+
+
+@pytest.mark.parametrize("base_target", ["2026-10-19", None], ids=["calendar_differs", "calendar_unknown"])
+def test_selected_h1_older_snapshot_writes_the_original_target_once(formal_payload, snapshot_root, monkeypatch, base_target):
+    """沿用較舊快照：有日期提醒時原目標日只在該列寫一次（列值不重複列名）；沒有日期提醒時快照註記保留原目標日。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(snapshot_root, signal_date="2026-10-15", target_date="2026-10-16")
+    item = copy.deepcopy(formal_payload)
+    item["target_session_date"] = base_target
+    item["preopen_h1"] = block = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                        base_target_date=base_target)
+    summary = report.build_report_sections(item)[0]
+    main = dict(summary["tables"][0]["rows"])
+    visible = "\n".join(report._visible_strings([summary]))
+    # 封存的原文不變，只在顯示時精簡；沿用較舊快照的警示一定保留一次
+    assert block["snapshot_note_zh"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016；保留原目標日 20261016"
+    assert visible.count("沿用較舊快照：訊號日 20261015；本次分析資料日 20261016") == 1
+    if base_target is None:
+        assert block["target_note_zh"] is None and "日期提醒" not in visible
+        assert main["資料註記"] == block["snapshot_note_zh"]
+        return
+    assert block["target_note_zh"].startswith("日期提醒：沿用開盤前版原目標日 20261016")
+    assert main["資料註記"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016"
+    assert main["日期提醒"] == "沿用開盤前版原目標日 20261016；本報告日曆目標日 20261019，預測日期與數值維持原值。"
+    assert "保留原目標日" not in visible and visible.count("原目標日 20261016") == 1 and visible.count("日期提醒") == 1
+    # describe 沒有快照註記時改列「資料沿用」，同樣不重複原目標日
+    block["describe"] = block["describe"].replace("｜" + block["snapshot_note_zh"], "")
+    main = dict(report.build_report_sections(item)[0]["tables"][0]["rows"])
+    assert main["資料沿用"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016" and "資料註記" not in main
+
+
+def test_selected_h1_date_mismatch_without_note_keeps_the_original_target(formal_payload, snapshot_root, monkeypatch):
+    """目標日不一致但區塊沒有日期提醒文字（舊區塊）時，快照註記保留原目標日，日期提醒列改用固定說明。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(snapshot_root, signal_date="2026-10-15", target_date="2026-10-16")
+    item = copy.deepcopy(formal_payload)
+    item["target_session_date"] = "2026-10-19"
+    item["preopen_h1"] = block = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                        base_target_date="2026-10-19")
+    assert block["target_date_consistent"] is False
+    block["target_note_zh"] = None
+    main = dict(report.build_report_sections(item)[0]["tables"][0]["rows"])
+    assert main["資料註記"] == block["snapshot_note_zh"] and "保留原目標日 20261016" in main["資料註記"]
+    assert main["日期提醒"] == "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"

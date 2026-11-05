@@ -307,7 +307,7 @@ def test_predict_uses_neutral_disclosure_for_unknown_recipe(loaded_scope, model,
         assert text not in html and text not in strings
 
 
-def test_predict_auto_falls_back_to_c0_when_snapshot_is_stale(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+def test_predict_auto_reuses_an_older_snapshot_with_a_note(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
     _write(preopen_fixture, signal_date=T, target_date=D)
     captured, payload, html, output, manifest = _run(loaded_scope(tpex_index=fx.D_INDEX), model, monkeypatch, tmp_path)
     context = payload["report_context"]
@@ -318,6 +318,21 @@ def test_predict_auto_falls_back_to_c0_when_snapshot_is_stale(loaded_scope, mode
     assert "沿用較舊快照" in html and "沿用較舊快照" in _xlsx_strings(output)
     assert "原目標日" in html and "開盤前版可交易 Top10" in html
     assert {row["snapshot_signal_date"] for row in payload["predictions"] if row["model_source"] == "preopen"} == {T.replace("-", "")}
+
+
+def test_predict_stale_snapshot_states_original_target_once(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+    # 共用 reader 的「沿用較舊快照…保留原目標日」與日期提醒同時出現：HTML、Excel 各只在完整日期提醒寫一次原目標日，
+    # 沿用較舊快照警示照列；原始說明保留於報告資料。
+    _write(preopen_fixture, signal_date=T, target_date=D)
+    _, payload, html, output, _ = _run(loaded_scope(tpex_index=fx.D_INDEX), model, monkeypatch, tmp_path)
+    note, strings = payload["preopen_meta"]["target_note_zh"], _xlsx_strings(output)
+    signal, original = T.replace("-", ""), D.replace("-", "")
+    assert note.startswith(reporting.PREOPEN_DATE_REMINDER + original + "；")
+    for text in (html, strings):
+        assert text.count(note) == 1 and text.count("原目標日") == 1 and "保留原目標日" not in text
+        assert "沿用較舊快照：訊號日 " + signal in text and "訊號日 " + signal + " → 目標日" not in text
+    assert "（本報告日曆；" not in html
+    assert "保留原目標日 " + original in payload["preopen_meta"]["describe"]
 
 
 def test_predict_preopen_required_fails_before_forward_ledger(loaded_scope, model, monkeypatch, tmp_path):
@@ -364,8 +379,8 @@ def test_predict_forced_c0_keeps_old_behaviour_with_fresh_snapshot(loaded_scope,
         assert {key: value for key, value in top_row.items() if key not in comparison_fields} == prediction
 
 
-def test_predict_falls_back_when_snapshot_target_differs_from_verified_session(loaded_scope, model, monkeypatch,
-                                                                              tmp_path, preopen_fixture):
+def test_predict_keeps_preopen_when_snapshot_target_differs_from_verified_session(loaded_scope, model, monkeypatch,
+                                                                                 tmp_path, preopen_fixture):
     _write(preopen_fixture, target_date=fx.DATES[fx.D_INDEX + 2])
     _, payload, html, output, _ = _run(loaded_scope(), model, monkeypatch, tmp_path)
     assert payload["model_source"] == "preopen"
@@ -378,7 +393,7 @@ def test_predict_falls_back_when_snapshot_target_differs_from_verified_session(l
     assert "｜模型 " not in html and "｜模型 " not in _xlsx_strings(output)
 
 
-def test_predict_preopen_required_target_mismatch_raises(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+def test_predict_preopen_required_target_mismatch_keeps_preopen(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
     _write(preopen_fixture, target_date=fx.DATES[fx.D_INDEX + 2])
     _, payload, html, _, _ = _run(loaded_scope(), model, monkeypatch, tmp_path, source="preopen")
     assert payload["model_source"] == "preopen" and "原目標日" in html

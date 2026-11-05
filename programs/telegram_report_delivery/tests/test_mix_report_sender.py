@@ -36,6 +36,18 @@ def test_preopen_recipe_status_codes_have_chinese_labels(code: str, text: str) -
     assert sender._human_label(code) == text
 
 
+@pytest.mark.parametrize("code,text", [
+    ("h1_preopen_snapshot_reused", "沿用較舊開盤前版，預測日期與數值維持原值"),
+    ("h1_preopen_target_differs", "開盤前版原目標日與本報告日曆不同，保留原日期"),
+    ("preopen_future_signal", "開盤前版快照的訊號日晚於本次分析資料日"),
+])
+def test_preopen_reuse_and_future_signal_codes_match_mix(code: str, text: str) -> None:
+    """沿用較舊快照、目標日不同、未來訊號日：與 MIX preopen.DISPLAY_TEXT 同一句，不落到通用文字。"""
+    assert sender._human_label(code) == text
+    if code.startswith("preopen_"):
+        assert sender._h1_reason_text(code) == f"{code}：{text}"
+
+
 def test_0800_entrypoints_are_mix_only() -> None:
     suite = Path(__file__).resolve().parents[1]
     manual_wrapper = (suite / "08_傳送MIX正式報告.cmd").read_text(encoding="utf-8")
@@ -982,4 +994,56 @@ def test_inconsistent_h1_report_fails_closed(tmp_path: Path, monkeypatch: pytest
     paths, _ = make_c0_fixture(tmp_path, monkeypatch, payload_update=update,
                                manifest_update=_h1_manifest("hgb" if case == "unknown_source" else manifest_source))
     with pytest.raises(sender.MixReportIntegrityError, match="H1|開盤前版"):
+        sender.load_mix_bundle(paths)
+
+
+REUSE_NOTE = "沿用較舊快照：訊號日 20260820；本次分析資料日 20260821；保留原目標日 20260824"
+REUSE_LINE = "H1 沿用較舊開盤前版：訊號日早於報告資料日，預測日期與數值維持原值"
+
+
+def _reused_h1_payload(signal: str, *, note: bool = True, label: bool = True):
+    """MIX 沿用較舊快照時的 H1 區塊：沿用註記與「h1_preopen_snapshot_reused」版本標示（可分別拿掉）。"""
+    base = _h1_payload("preopen", signal=signal)
+
+    def update(payload: dict[str, Any]) -> None:
+        base(payload)
+        if note:
+            payload["h1_preopen"]["snapshot_note_zh"] = REUSE_NOTE
+        if label:
+            payload.setdefault("version_labels", []).append({"code": "h1_preopen_snapshot_reused", "note": REUSE_NOTE})
+    return update
+
+
+def test_older_preopen_snapshot_noted_by_mix_is_delivered_with_one_reuse_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2026-11-01 裁示：舊資料不阻擋報告發布；MIX 已註記沿用的較舊快照照常傳送。
+    paths, _ = make_c0_fixture(tmp_path, monkeypatch, payload_update=_reused_h1_payload("2026-08-20"),
+                               manifest_update=_h1_manifest("preopen"))
+    bundle = sender.load_mix_bundle(paths)
+    for text in (bundle.summary_text, bundle.summary_key_text):
+        assert "H1：開盤前版（訊號日 20260820 → 目標日 20260824；前一晚美股收漲）" in text
+        assert text.count(REUSE_LINE) == 1
+    client = RecordingTelegram()
+    assert sender.deliver_mix_bundle(bundle, client, paths.state_path) == (True, 2)
+    assert REUSE_LINE in client.messages[0]
+
+
+def test_fresh_preopen_snapshot_has_no_reuse_line(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    paths, _ = make_c0_fixture(tmp_path, monkeypatch, payload_update=_h1_payload("preopen"),
+                               manifest_update=_h1_manifest("preopen"))
+    assert REUSE_LINE not in sender.load_mix_bundle(paths).summary_text
+
+
+@pytest.mark.parametrize(("signal", "note", "label"), [
+    ("2026-08-24", True, True),    # 訊號日晚於報告資料日：未來資料
+    ("2026-08-20", True, False),   # 較舊但缺沿用標示
+    ("2026-08-20", False, True),   # 較舊但缺沿用註記
+], ids=["future_signal", "older_without_label", "older_without_note"])
+def test_preopen_signal_after_report_day_or_unnoted_reuse_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, signal: str, note: bool, label: bool
+) -> None:
+    paths, _ = make_c0_fixture(tmp_path, monkeypatch, payload_update=_reused_h1_payload(signal, note=note, label=label),
+                               manifest_update=_h1_manifest("preopen"))
+    with pytest.raises(sender.MixReportIntegrityError, match="訊號日與報告資料日不一致"):
         sender.load_mix_bundle(paths)

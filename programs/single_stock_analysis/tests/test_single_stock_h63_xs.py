@@ -19,6 +19,7 @@ from test_single_stock_preopen import _sign, _stub_rendering  # noqa: E402
 from test_stock_candidate_report import formal_payload, payload  # noqa: E402,F401
 
 STOCK_2330 = {"stock_id": "2330", "market": "TWSE"}
+STOCK_REMINDER = "本股提醒：本股目前處置交易，須留意成交限制。"
 ISO_DATE = re.compile(r"(?<![0-9A-Za-z_])\d{4}-\d{2}-\d{2}(?![0-9A-Za-z_])")
 
 
@@ -128,6 +129,64 @@ def test_fallback_report_shows_reason_and_no_h63_number(formal_payload, xs_root,
     assert sections[0]["paragraphs"][0].startswith("【注意】三個月相對強弱暫不可用（尚未產生三個月相對強弱快照）")
     text = _text(sections)
     assert "58.00%" not in text and "上漲機率：" not in text and "跑贏同期多數股票的機率" not in text
+
+
+@pytest.mark.parametrize("asof,source,status", [("2026-10-16", "auto", "used"), ("2026-10-30", "auto", "fallback"),
+                                                ("2026-10-16", "off", "disabled")])
+def test_u7_report_lists_the_stock_reminder_exactly_once(formal_payload, xs_root, monkeypatch, asof, source, status):
+    """處置交易、停牌、下市、減資等本股提醒在 U7 檢視（含不顯示數字時）也列一次；選定模型的校準提醒不帶入。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(xs_root, signal_date="2026-10-16")
+    item = dict(copy.deepcopy(formal_payload), horizon_sessions=63, asof=asof)
+    item["limitations"].append("本股目前處置交易，須留意成交限制。")
+    item["h63_xs"] = h63xs.build_h63_block(STOCK_2330, asof, source=source)
+    assert item["h63_xs"]["status"] == status
+    sections = report.build_report_sections(item)
+    text = _text(sections)
+    assert text.count(STOCK_REMINDER) == 1 and STOCK_REMINDER in sections[0]["paragraphs"]
+    for omitted in ("不能直接視為實際命中率", "機率尚未校準", "估計限制"):
+        assert omitted not in text, omitted
+    basics = dict(next(table for table in sections[0]["tables"] if table["title"] == "本股基本資料")["rows"])
+    if status == "used":  # 新快照：日期只留在「訊號日至目標」
+        assert "資料日" not in basics
+    else:  # 不顯示 U7 數字時，資料日是【注意】旁唯一的日期，必須保留
+        assert basics["資料日"] == asof.replace("-", "")
+
+
+@pytest.mark.parametrize("disclosed", [True, False], ids=["disclosure_has_target", "disclosure_without_target"])
+def test_u7_target_definition_is_written_once(formal_payload, xs_root, monkeypatch, disclosed):
+    """預測目標（不是上漲機率，也不是可成交報酬）：第六章必要揭露已有時第一章不重複；揭露沒有時第一章保留。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(xs_root, signal_date="2026-10-16")
+    item = dict(copy.deepcopy(formal_payload), horizon_sessions=63)
+    item["h63_xs"] = h63xs.build_h63_block(STOCK_2330, "2026-10-16")
+    if not disclosed:
+        item["h63_xs"]["disclosure_rows"] = [row for row in item["h63_xs"]["disclosure_rows"] if row[0] != "預測目標"]
+    sections = report.build_report_sections(item)
+    assert _text(sections).count("不是上漲機率，也不是可成交報酬") == 1
+    assert any(text.startswith("預測目標：") for text in sections[0]["paragraphs"]) is not disclosed
+    disclosure = dict(next(table for table in sections[-1]["tables"] if table["title"] == "H63 必要揭露")["rows"])
+    assert ("預測目標" in disclosure) is disclosed
+
+
+@pytest.mark.parametrize("asof", ["2026-10-16", "2026-10-21"], ids=["fresh", "older_snapshot"])
+def test_u7_summary_lists_the_signal_day_once_when_it_is_the_data_day(formal_payload, xs_root, monkeypatch, asof):
+    """訊號日＝資料日時，這一天只在「訊號日至目標」寫一次；沿用較舊快照時訊號日、資料日與沿用註記都保留。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(xs_root, signal_date="2026-10-16")
+    item = dict(copy.deepcopy(formal_payload), horizon_sessions=63, asof=asof)
+    item["h63_xs"] = h63xs.build_h63_block(STOCK_2330, asof)
+    summary = report.build_report_sections(item)[0]
+    main = dict(summary["tables"][0]["rows"])
+    basics = dict(next(table for table in summary["tables"] if table["title"] == "本股基本資料")["rows"])
+    assert main["訊號日至目標"].startswith("20261016 收盤至之後第 63 個交易日收盤")
+    assert basics["股票"].startswith("2330 ") and basics["市場與產業"].startswith("上市市場")
+    if asof == "2026-10-16":
+        assert "資料日" not in basics and "訊號日" not in main["資料"] and main["資料"].startswith("中央資料 cccccccc；")
+        assert _text([summary]).count("20261016") == 1
+    else:
+        assert basics["資料日"] == "20261021" and "中央資料 cccccccc（訊號日 20261016）" in main["資料"]
+        assert "沿用較舊快照：訊號日 20261016；本次分析資料日 20261021（落後 3 個平日）" in main["註記"]
 
 
 def test_legacy_installs_no_hook_and_h1_is_untouched(formal_payload, xs_root, tmp_path, monkeypatch):

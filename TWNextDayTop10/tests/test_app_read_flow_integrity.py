@@ -18,6 +18,9 @@ import reporting
 
 ASOF = "2026-10-16"
 TARGET = "2026-10-19"
+SNAPSHOT_TARGET = "2026-10-20"
+# 正式選擇流程（共用唯讀 reader 的新鮮度與 PIT 規則）；flow 預設換成合成選擇，shared_snapshot 換回此流程。
+REAL_CHOOSE = preopen_source.choose
 
 
 @pytest.fixture
@@ -78,13 +81,42 @@ def flow(monkeypatch, tmp_path):
     return state
 
 
-def test_required_target_mismatch_never_calls_forward(flow, tmp_path):
-    flow.snapshot_target = "2026-10-20"
-    with pytest.raises(preopen_source.PreopenRequiredError, match="preopen_target_mismatch"):
+@pytest.fixture
+def shared_snapshot(flow, monkeypatch, preopen_fixture):
+    """改走正式 choose 與共用唯讀 reader；快照只含合成股票 2330，由共用 fixture 寫在暫存目錄。"""
+    monkeypatch.setattr(preopen_source, "choose", REAL_CHOOSE)
+    return lambda signal_date, target_date: preopen_fixture(
+        signal_date=signal_date, target_date=target_date, stock_ids=["2330"], markets=["TWSE"])
+
+
+def test_required_unavailable_never_calls_forward(flow, shared_snapshot, tmp_path):
+    # 必要模式且快照真正不可用（訊號日晚於分析日＝PIT 衝突，新規則仍拒用）：在 C0 前瞻帳冊與報告之前失敗。
+    shared_snapshot(TARGET, SNAPSHOT_TARGET)
+    with pytest.raises(preopen_source.PreopenRequiredError, match="preopen_future_signal"):
         app.predict(namespace_root=tmp_path / "output", no_open=True, model_source="preopen")
     assert flow.forward_calls == []
     assert flow.reports == []
     assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("source", ["preopen", "auto"])
+def test_target_mismatch_keeps_preopen_and_notes_original_target(flow, shared_snapshot, tmp_path, capsys, source):
+    # 快照可用、只有目標日與本報告日曆不同：不拋出、不回退；H1 為開盤前版，原目標日與數值保留並加日期提醒。
+    shared_snapshot(ASOF, SNAPSHOT_TARGET)
+    app.predict(namespace_root=tmp_path / "output", no_open=True, model_source=source)
+    note = "日期提醒：沿用開盤前版原目標日 20261020；本報告日曆目標日 20261019，預測日期與數值維持原值。"
+    output = capsys.readouterr().out
+    assert output.count(note) == 1 and "開盤前版不可用" not in output
+    assert len(flow.forward_calls) == 1  # C0 前瞻帳冊照常執行（備援）
+    result = flow.reports[0]
+    context = result["context"]
+    assert context["model_source"] == "preopen" and context["preopen_status"]["status"] == "available"
+    assert context["preopen_status"]["reason"] is None and context["preopen_meta"]["target_note_zh"] == note
+    assert context["model_source_note"].endswith("；" + note)
+    assert (context["base_session"], context["target_session"]) == (ASOF, TARGET)
+    assert context["preopen_meta"]["target_date"] == SNAPSHOT_TARGET
+    preopen_rows = result["predictions"].loc[result["predictions"].model_source.eq("preopen")]
+    assert preopen_rows.target_session_date.tolist() == [SNAPSHOT_TARGET]
 
 
 @pytest.mark.parametrize("failure,reason", [
@@ -107,12 +139,13 @@ def test_invalid_forecast_scope_fails_before_forward(flow, tmp_path, failure, re
     assert flow.reports == []
 
 
-def test_auto_prints_only_final_fallback_and_keeps_calibrated_values(flow, tmp_path, capsys):
-    flow.snapshot_target = "2026-10-20"
+def test_auto_prints_only_final_fallback_and_keeps_calibrated_values(flow, shared_snapshot, tmp_path, capsys):
+    # 訊號日晚於分析日（PIT 衝突）新規則下仍不可用：auto 回退 C0，只印最終回退訊息，前瞻校準值保留。
+    shared_snapshot(TARGET, SNAPSHOT_TARGET)
     app.predict(namespace_root=tmp_path / "output", no_open=True, model_source="auto")
     output = capsys.readouterr().out
-    assert "preopen_target_mismatch" in output
-    assert "H1 模型來源：開盤前版" not in output
+    assert output.count("開盤前版不可用（preopen_future_signal：") == 1
+    assert "H1 模型來源：開盤前版" not in output and "日期提醒" not in output
     assert len(flow.forward_calls) == 1
     result = flow.reports[0]
     assert result["predictions"].probability.tolist() == [0.75]
@@ -120,6 +153,7 @@ def test_auto_prints_only_final_fallback_and_keeps_calibrated_values(flow, tmp_p
     assert result["context"]["base_session"] == ASOF
     assert result["context"]["target_session"] == TARGET
     assert result["context"]["model_source"] == "c0"
+    assert result["context"]["preopen_status"]["reason"] == "preopen_future_signal"
 
 
 @pytest.fixture

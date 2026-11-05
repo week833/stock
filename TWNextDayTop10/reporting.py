@@ -45,6 +45,9 @@ PREOPEN_TRADING_EFFECT_V1 = "開盤買進 Top10 保留期平均為負"
 PREOPEN_HIT_RATE_NOTE = "命中率指收盤報價方向，不代表交易獲利"
 # 同一排序說明的排序規則子句；HTML 的 Top10 標題已寫（依收漲機率→預估報酬），本次摘要不重複。
 PREOPEN_RANKING_RULE = "可交易母體依收漲機率→預估報酬排序取前十"
+# preopen_source.confirm_target 接在快照說明之後的日期提醒開頭（後接原目標日 YYYYMMDD）；
+# 模型來源區寫出完整日期提醒時，原目標日不在快照註記與本次摘要重複（excel_report.mjs 同規則）。
+PREOPEN_DATE_REMINDER = "日期提醒：沿用開盤前版原目標日 "
 # 資料時間表（HTML；excel_report.mjs 的 displayTime 同樣篩選）：流程時間戳與缺漏欄位（見資料來源與限制）不列；
 # 價格最新日、模型訓練資料日只在和分析資料日不同時列（模型訓練資料日未提供時也不列）；發布時間未宣告、沒有版本標籤時不列。
 TIME_ROWS_HIDDEN = ("價格收集時間（最新）", "本次讀取時間", "模型啟用時間", "缺漏欄位")
@@ -784,14 +787,22 @@ def _describe_text(value, payload):
     """開盤前版說明（共用 reader 的 describe）的顯示版；原文保留於原始報告資料。
 
     去掉「｜模型 <雜湊前 12 碼>」內部識別碼與 Top10 上方閘門已寫的美股漲跌段；訊號日→目標日與本次摘要的
-    分析日、已驗證下一交易日相同時也不重複（沿用較舊快照等其他說明照列）。雜湊之後以「；」接上的日期提醒保留。
+    分析日、已驗證下一交易日相同時也不重複（沿用較舊快照等其他說明照列）。雜湊之後以「；」接上的日期提醒保留；
+    有日期提醒時原目標日只寫在日期提醒：沿用較舊快照註記的「保留原目標日」不列，訊號日已是分析日或已在該註記時，
+    訊號日→目標日也不列。
     """
     text = re.sub(r"｜模型 [0-9A-Fa-f]*(?=；|｜|$)", "", _text(value))
     if (payload.get("preopen_gate") or {}).get("label"):
         text = re.sub(r"｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=；|｜|$)", "", text, count=1)
     context = payload.get("report_context") or {}
+    signals, targets = {_day(context.get("base_session"))}, {_day(context.get("target_session"))}
+    reminder = re.search(re.escape(PREOPEN_DATE_REMINDER) + r"(\d{8})", text)
+    if reminder:
+        text = re.sub("；保留原目標日 " + reminder[1] + r"(?=；|｜|$)", "", text, count=1)
+        signals.update(re.findall(r"沿用較舊快照：訊號日 (\d{8})", text))
+        targets.add(reminder[1])
     dates = re.search(r"｜訊號日 (\d{8}) → 目標日 (\d{8})(?=；|｜|$)", text)
-    if dates and (dates[1], dates[2]) == (_day(context.get("base_session")), _day(context.get("target_session"))):
+    if dates and dates[1] in signals and dates[2] in targets:
         text = text.replace(dates[0], "", 1)
     return text
 
@@ -919,11 +930,14 @@ def _write_html(path, payload):
     context = payload["report_context"]
     target = context.get("target_session")
     target_text = _session_text(context, "target_session", None) if target else "未驗證；保留空值"
-    declared = (payload.get("preopen_meta") or {}).get("target_date") if preopen else None
+    info = (payload.get("preopen_meta") or {}) if preopen else {}
+    declared = info.get("target_date")
     if not target and declared:
         # 已驗證日曆尚未涵蓋時不猜日期；只標示開盤前版快照自己宣告的目標日。
         target_text += "（開盤前版快照宣告目標日 " + _day(declared) + "，未經本程式日曆驗證）"
-    elif declared and _day(declared) != _day(target):
+    elif (declared and _day(declared) != _day(target)
+          and PREOPEN_DATE_REMINDER + _day(declared) not in _describe_text(info.get("describe"), payload)):
+        # 模型來源區已寫完整日期提醒（原目標日與本報告日曆目標日）時不重複；沒有日期提醒的舊報告資料才在此註記。
         target_text += "（本報告日曆；H1 沿用開盤前版原目標日 " + _day(declared) + "）"
     predicted = {(str(row.get("market")), str(row.get("stock_id"))) for row in payload["predictions"]}
     excluded = [row for row in payload["coverage"] if (str(row.get("market")), str(row.get("stock_id"))) not in predicted]

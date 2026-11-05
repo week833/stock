@@ -33,7 +33,7 @@
 
 - H1 報告優先顯示「開盤前版」（`stock_daily_preopen`，HGB，含前一晚美股）快照中本股那一列：校準後上漲機率 `p_up`、預估收盤報酬 `exp_ret`、全市場名次與可交易母體名次、前一晚美股是否收漲、`describe(meta)` 中其他列沒有的註記（模型名稱改在副標或主要表名顯示一次；訊號日→目標日、美股狀態與模型雜湊不重複列出）與必要揭露；t 日籌碼未更新或中央標示不完整時另有一段說明 `chips_note_zh`（例如「t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）」，只說明、不阻擋；20261018 使用者裁示）。H63 維持原本來源。
 - 只透過唯讀 API `D:\stock\programs\shared\stock_daily_preopen_reader.py` 讀取（預設根目錄 `D:\TWStockData\program_data\stock_daily_preopen`，測試可用 `STOCK_DAILY_PREOPEN_ROOT` 改寫）。實作在 `src\single_stock_preopen.py`。
-- 新鮮度：快照 `signal_date` 必須等於本次單股分析本股所屬市場的資料日。快照缺檔、過期、雜湊不符、讀取失敗、沒有本股或市場別不同時，回退 C0 基準，報告醒目標示「開盤前版不可用（原因代碼），本次 H1 改用 C0 基準」。
+- 新鮮度：快照 `signal_date` 不可晚於本次單股分析本股所屬市場的資料日。依 2026-11-01 裁示（舊資料不阻擋報告發布），較舊但可用時沿用原訊號日／目標日並註記「沿用較舊快照」，目標日與報告日曆不同時加一則日期提醒（原目標日只寫一次）。快照缺檔、雜湊不符、讀取失敗、沒有本股、市場別不同或訊號日晚於資料日時，回退 C0 基準，報告醒目標示「開盤前版不可用（原因代碼），本次 H1 改用 C0 基準」。
 - 來源開關：`--h1-source auto|preopen|c0`，未指定時讀環境變數 `DSTOCK_SINGLE_H1_SOURCE`，預設 `auto`。`preopen` 不可用即停止（rc=2，不寫任何報告）；`c0` 為舊行為（不讀快照、不加入 `preopen_h1` 區塊，報告不含開盤前版區塊）。候選研究模式（`--candidate-model`）不接受此參數。
 - 兩條路徑：C0 路徑（`--c0-model` 或沒有單股啟用指標時）在 `tw_single_stock_c0.py` 內加入 `preopen_h1` 區塊後才封存（`estimate_binding_sha256`）；選定模型路徑由單股層 `single_stock_preopen.selected_h1_overlay` 包住 shared 的 `generate_selected_reports`，只在 `stock_candidate_report.write_candidate_report` 產製正式 H1 PDF 前加入同一區塊並重算 `runtime_payload_sha256`。原本的 C0／選定模型機器欄位（`prediction`、`prob_up`、`expected_return`）不變，仍由原驗證程式重現；開盤前版只以 `run_id`、`snapshot_sha256`、`model_sha256` 留下身分，不在重現範圍內。
 - 必要揭露依快照 manifest（`latest.json`）的 `recipe.name` 選擇（`single_stock_preopen.DISCLOSURES`／`disclosure_for(meta)`；只換揭露文字，其他行為不變）。區塊的 `meta.recipe` 保留快照原值（舊快照沒有此鍵）。

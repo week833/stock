@@ -343,12 +343,21 @@ const timeHint = `${dataTime.badge ? `【${dataTime.badge}】` : ''}${[
 ].filter(Boolean).join('；')}`;
 // 開盤前版說明的顯示版（同 reporting.py 的 _describe_text；原文保留於 report.json）：去掉「｜模型 <雜湊前 12 碼>」
 // 內部識別碼與閘門列已寫的美股漲跌段；訊號日→目標日與 A2／A3 的分析日、已證下一交易日相同時也不重複。
-// 雜湊之後以「；」接上的日期提醒保留。
+// 雜湊之後以「；」接上的日期提醒保留；有日期提醒時原目標日只寫在日期提醒：沿用較舊快照註記的「保留原目標日」不列，
+// 訊號日已是分析日或已在該註記時，訊號日→目標日也不列。
 function shownNote(text) {
   let shown = text.replace(/｜模型 [0-9A-Fa-f]*(?=；|｜|$)/, '');
   if (gate?.label) shown = shown.replace(/｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=；|｜|$)/, '');
+  const signals = [day8(context.base_session)];
+  const targets = [day8(context.target_session)];
+  const reminder = /日期提醒：沿用開盤前版原目標日 (\d{8})/.exec(shown);
+  if (reminder) {
+    shown = shown.replace(new RegExp(`；保留原目標日 ${reminder[1]}(?=；|｜|$)`), '');
+    signals.push(...[...shown.matchAll(/沿用較舊快照：訊號日 (\d{8})/g)].map(match => match[1]));
+    targets.push(reminder[1]);
+  }
   const dates = /｜訊號日 (\d{8}) → 目標日 (\d{8})(?=；|｜|$)/.exec(shown);
-  if (dates && dates[1] === day8(context.base_session) && dates[2] === day8(context.target_session)) shown = shown.replace(dates[0], '');
+  if (dates && signals.includes(dates[1]) && targets.includes(dates[2])) shown = shown.replace(dates[0], '');
   return shown;
 }
 const shownSourceNote = preopen ? shownNote(sourceNote) : sourceNote;

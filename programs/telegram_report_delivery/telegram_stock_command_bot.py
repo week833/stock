@@ -1446,8 +1446,19 @@ def _h63_xs_block(payload: dict[str, Any], horizon: int, stock_code: str) -> dic
     return block
 
 
-def _h63_xs_caption_lines(block: dict[str, Any]) -> list[str]:
-    """U7 primary lines: probability of beating most stocks, the 80% band, up to two notes and the disclosure."""
+def _older_snapshot_note(signal: Any, asof: Any, shown: dict[str, tuple[Any, ...]], tail: str = "") -> str:
+    """沿用較舊快照的警示（一律保留一次）；caption 其他行已寫的訊號日、本次分析資料日不再重複，
+    例「沿用較舊快照（訊號日早於本次分析資料日）」、「沿用較舊快照（訊號日 X 早於本次分析資料日，…）」。"""
+    signal_text = "" if any(cd.same_day(signal, day) for day in shown.get("signal", ())) else f" {cd.display_day(signal)} "
+    asof_text = "" if any(cd.same_day(asof, day) for day in shown.get("asof", ())) else f" {cd.display_day(asof)}"
+    return f"沿用較舊快照（訊號日{signal_text}早於本次分析資料日{asof_text}{tail}）"
+
+
+def _h63_xs_caption_lines(block: dict[str, Any], shown: dict[str, tuple[Any, ...]]) -> list[str]:
+    """U7 primary lines: probability of beating most stocks, the 80% band, up to two notes and the disclosure.
+
+    shown：caption 其他行已寫的日期（signal 訊號日、asof 資料日），沿用較舊 U7 快照的註記不再重複。
+    """
     strength = H63_XS_STRENGTHS.get(str(block.get("relative_strength")), "未知")
     lines = [f"跑贏同期多數股票的機率：{_caption_percent(block.get('p'))}（{strength}）"]
     band = block.get("band") if isinstance(block.get("band"), dict) else {}
@@ -1455,7 +1466,12 @@ def _h63_xs_caption_lines(block: dict[str, Any]) -> list[str]:
         lines.append(f"三個月報酬80%區間：{_caption_percent(band.get('q10'), signed=True)}～"
                      f"{_caption_percent(band.get('q90'), signed=True)}（不是預測報酬）")
     notes = [str(note).strip() for note in block.get("notes_zh") or [] if isinstance(note, str) and note.strip()]
-    lines.extend(notes[:2])
+    # 只改寫單股層的標準寫法「沿用較舊快照：訊號日 X；本次分析資料日 Y（落後 N 個平日）」；其他寫法照原文。
+    signal, asof, lag = block.get("signal_date"), block.get("expected_signal_date"), block.get("snapshot_lag_weekdays")
+    older = (f"沿用較舊快照：訊號日 {cd.display_day(signal)}；本次分析資料日 {cd.display_day(asof)}（落後 {lag} 個平日）"
+             if cd.to_day(signal) and cd.to_day(asof) else None)
+    lines.extend(_older_snapshot_note(signal, asof, shown, f"，落後 {lag} 個平日") if note == older else note
+                 for note in notes[:2])
     lines.append(str(block["caption_disclosure"]).strip())
     return lines
 
@@ -1466,8 +1482,31 @@ def _h63_xs_notice(block: dict[str, Any]) -> str:
     return f"{notice}（{reason}）。" if isinstance(reason, str) and reason and reason not in notice else notice + "。"
 
 
-def _preopen_caption_lines(block: dict[str, Any]) -> list[str]:
-    """H1 primary lines from the pre-open row, followed by the required disclosure."""
+def _preopen_snapshot_note(block: dict[str, Any], shown: dict[str, tuple[Any, ...]]) -> str:
+    """開盤前版「沿用較舊快照」註記：讀取器的標準寫法（訊號日 X；本次分析資料日 Y；保留原目標日 Z）改成不重複
+    caption 其他行日期的說法；日期提醒已寫原目標日時不再寫保留原目標日。其他寫法照原文，封存的原文不變。"""
+    note = block.get("snapshot_note_zh")
+    signal, asof, target = (block.get(key) for key in ("signal_date", "expected_signal_date", "target_date"))
+    if not (isinstance(note, str) and cd.to_day(signal) and cd.to_day(asof) and cd.to_day(target)) or note.strip() != (
+        f"沿用較舊快照：訊號日 {cd.display_day(signal)}；本次分析資料日 {cd.display_day(asof)}；"
+        f"保留原目標日 {cd.display_day(target)}"
+    ):
+        return note
+    reminder = block.get("target_note_zh")
+    if isinstance(reminder, str) and cd.display_day(target) in reminder:
+        tail = ""
+    elif any(cd.same_day(target, day) for day in shown.get("target", ())):
+        tail = "，保留原目標日"
+    else:
+        tail = f"，保留原目標日 {cd.display_day(target)}"
+    return _older_snapshot_note(signal, asof, shown, tail)
+
+
+def _preopen_caption_lines(block: dict[str, Any], shown: dict[str, tuple[Any, ...]]) -> list[str]:
+    """H1 primary lines from the pre-open row, followed by the required disclosure.
+
+    shown：caption 其他行已寫的日期（signal 訊號日、asof 分析資料日、target 目標日），沿用較舊快照註記不再重複。
+    """
     probability, expected = safe_number(block.get("p_up")), safe_number(block.get("exp_ret"))
     rank, universe = block.get("rank"), block.get("universe_rows")
     tradable_rank, tradable_rows = block.get("rank_tradable"), block.get("tradable_rows")
@@ -1486,7 +1525,7 @@ def _preopen_caption_lines(block: dict[str, Any]) -> list[str]:
     if isinstance(chips_note, str) and chips_note.strip():
         lines.append(chips_note.strip())
     for field in ("snapshot_note_zh", "target_note_zh", "calendar_note_zh", "ledger_note_zh"):
-        note = block.get(field)
+        note = _preopen_snapshot_note(block, shown) if field == "snapshot_note_zh" else block.get(field)
         if isinstance(note, str) and note.strip() and note.strip() not in lines:
             lines.append(note.strip())
     if block.get("fixture") is True:
@@ -1608,7 +1647,9 @@ def report_caption(
                                  f"到期日：{cd.display_day(target, empty='尚未驗證日期')}"),
         # 開盤前版為主時，預測目標已在必要揭露。
         *([] if used else [f"目標：訊號收盤至同市場第{h}交易日收盤"]),
-        *(_preopen_caption_lines(preopen) if used else []),
+        # 上面已寫訊號收盤日、到期日與資料時間的資料日：沿用較舊快照註記不再重複這三個日期。
+        *(_preopen_caption_lines(preopen, {"signal": (preopen.get("signal_date"),), "target": (target,),
+                                           "asof": (report_data_time(payload)["asof"],)}) if used else []),
         ("C0 基準（備援）：" + c0_values.replace("：", " ", 2)) if used else c0_values,
         *_comparison_caption_lines(payload),
         caution + "。",
@@ -1676,7 +1717,9 @@ def selected_report_caption(
         *([_preopen_fallback_notice(preopen)] if preopen is not None and not used else []),
         *_signal_data_time_lines(payload, job_context, "資料日", payload.get("asof"),
                                  f"目標日：{cd.display_day(target, empty='尚未驗證日期')}"),
-        *(_preopen_caption_lines(preopen) if used else []),
+        # 資料日與目標日已寫在上一行；開盤前版自己的訊號日只在沿用較舊快照註記中寫一次。
+        *(_preopen_caption_lines(preopen, {"asof": (payload.get("asof"), report_data_time(payload)["asof"]),
+                                           "target": (target,)}) if used else []),
         selected_values,
         *_comparison_caption_lines(payload),
         "歷史時點完整性與交易效益未驗證。",
@@ -1696,16 +1739,24 @@ def _h63_xs_caption(
 ) -> str:
     """H63 report with the sealed U7 block: relative strength instead of the retired expanded_linear estimate."""
     lines = [f"{stock.code} {stock.name}｜H63 三個月相對強弱"]
+    asof = payload.get("asof")
     if block["status"] == "used":
+        # 資料時間緊接在資料日之後（同一天時併成一行）；U7 訊號日只在與資料日不同（沿用較舊 U7 快照）時另外列出。
+        signal = block.get("signal_date")
+        target = (("" if cd.same_day(signal, asof) else f"訊號日：{cd.display_day(signal, empty='未知')}；")
+                  + "目標：之後第63個交易日收盤（約三個月，日期未驗證）")
         lines += [
-            f"資料日：{cd.display_day(payload.get('asof'), empty='未知')}；訊號日：{cd.display_day(block.get('signal_date'), empty='未知')}；"
-            "目標：之後第63個交易日收盤（約三個月，日期未驗證）",
-            *report_data_time_lines(payload, job_context),
-            *_h63_xs_caption_lines(block),
+            *_signal_data_time_lines(payload, job_context, "資料日", asof, target),
+            *_h63_xs_caption_lines(block, {"signal": (signal,), "asof": (asof, report_data_time(payload)["asof"])}),
         ]
     else:
-        lines += [_h63_xs_notice(block), f"資料日：{cd.display_day(payload.get('asof'), empty='未知')}",
-                  *report_data_time_lines(payload, job_context)]
+        # 資料時間的資料日就是資料日時，發布與讀取時間接在資料日之後，不再另寫一次同一天；不同時保留兩行。
+        day = f"資料日：{cd.display_day(asof, empty='未知')}"
+        if cd.same_day(asof, report_data_time(payload)["asof"]):
+            data_lines = report_data_time_lines(payload, job_context, lead=day)
+        else:
+            data_lines = [day, *report_data_time_lines(payload, job_context)]
+        lines += [_h63_xs_notice(block), *data_lines]
     lines += [*_comparison_caption_lines(payload), "歷史時點完整性與交易效益未驗證。", *_report_caution_lines(payload),
               "長期限樣本重疊，訊號數不等於獨立樣本數。"]
     body_budget = TELEGRAM_CAPTION_BUDGET - len(REPORT_CAPTION_DISCLAIMER) - 1
@@ -1767,7 +1818,8 @@ def no_estimate_caption(
         *([_preopen_fallback_notice(preopen)] if preopen is not None and not used else []),
         ("C0 基準無法估計，原因：" if used else "原因：") + _no_estimate_reason_text(reason),
         *data_lines,
-        *(_preopen_caption_lines(preopen) if used else ["本報告只說明資料狀態，不含任何估計值。"]),
+        *(_preopen_caption_lines(preopen, {"asof": (payload.get("latest_data_date"), report_data_time(payload)["asof"])})
+          if used else ["本報告只說明資料狀態，不含任何估計值。"]),
         *_comparison_caption_lines(payload),
         "歷史PIT／公司行動／歷史普通股資格未驗證。",
     ]
