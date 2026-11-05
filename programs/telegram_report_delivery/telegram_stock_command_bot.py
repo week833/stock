@@ -1326,15 +1326,20 @@ def report_data_time(payload: dict[str, Any], read_at: Any = None) -> dict[str, 
     }
 
 
-def report_data_time_lines(payload: dict[str, Any], job_context: dict[str, Any] | None = None) -> list[str]:
-    """「資料：YYYYMMDD（發布 hh:mm，讀取 hh:mm）」 plus 「執行期間已有較新資料 Y」 when applicable."""
+def report_data_time_lines(
+    payload: dict[str, Any], job_context: dict[str, Any] | None = None, lead: str | None = None,
+) -> list[str]:
+    """「資料：YYYYMMDD（發布 hh:mm，讀取 hh:mm）」 plus 「執行期間已有較新資料 Y」 when applicable.
+
+    lead 取代開頭的「資料：YYYYMMDD」（訊號日或無法估計的分析資料日就是資料日、兩行併成一行時使用）。
+    """
     context = job_context if isinstance(job_context, dict) else {}
     current = report_data_time(payload, context.get("read_at"))
     read_stamp = _taipei_datetime(current["read_at"])
     now = datetime.now(cd._TAIPEI)
     data_line = (
-        f"資料：{cd.display_day(current['asof'], empty='未知')}"
-        f"（發布 {_caption_clock(current['published_at'], read_stamp)}，讀取 {_caption_clock(current['read_at'], now)}）"
+        (lead if lead is not None else f"資料：{cd.display_day(current['asof'], empty='未知')}")
+        + f"（發布 {_caption_clock(current['published_at'], read_stamp)}，讀取 {_caption_clock(current['read_at'], now)}）"
     )
     if current["not_latest"]:
         data_line += "［非最新資料］"
@@ -1374,6 +1379,18 @@ def report_data_time_lines(payload: dict[str, Any], job_context: dict[str, Any] 
     return lines
 
 
+def _signal_data_time_lines(
+    payload: dict[str, Any], job_context: dict[str, Any] | None, signal_label: str, signal_day: Any, target: str,
+) -> list[str]:
+    """訊號日行（「訊號收盤日：X；到期日：Y」）與資料時間行；資料日與訊號日相同時併成一行，
+    發布與讀取時間緊接在訊號日之後；不同時保留兩行。"""
+    signal = f"{signal_label}：{cd.display_day(signal_day, empty='未知')}"
+    if cd.same_day(signal_day, report_data_time(payload)["asof"]):
+        first, *rest = report_data_time_lines(payload, job_context, lead=signal)
+        return [f"{first}；{target}", *rest]
+    return [f"{signal}；{target}", *report_data_time_lines(payload, job_context)]
+
+
 def _preopen_h1_block(payload: dict[str, Any], horizon: int) -> dict[str, Any] | None:
     """The report's sealed pre-open H1 block (None for H63 or reports without one); malformed blocks never deliver."""
     if horizon != 1 or "preopen_h1" not in payload:
@@ -1410,7 +1427,9 @@ def _preopen_caption_lines(block: dict[str, Any]) -> list[str]:
     lines = [
         f"開盤前版：上漲機率 {100*probability:.2f}%；預估收盤報酬 {100*expected:+.2f}%",
         f"名次：全市場 {rank if isinstance(rank, int) else '未提供'}/{universe if isinstance(universe, int) else '未提供'}；{tradable}",
-        f"{block.get('gate_us_up_zh') or '前一晚美股漲跌未知'}；{block.get('us_overnight_status_zh') or '美股狀態未知'}",
+        # 美股收盤已納入（ok）是常態不另寫；休市、缺漏等狀態照列。
+        str(block.get("gate_us_up_zh") or "前一晚美股漲跌未知") + (
+            "" if block.get("us_overnight_status") == "ok" else f"；{block.get('us_overnight_status_zh') or '美股狀態未知'}"),
     ]
     chips_note = block.get("chips_note_zh")  # t 日籌碼未更新／不完整時才有：寫最新到幾號或成功/應有數量，不阻擋
     if isinstance(chips_note, str) and chips_note.strip():
@@ -1520,23 +1539,26 @@ def report_caption(
     preopen = _preopen_h1_block(payload, h)
     used = preopen is not None and preopen["status"] == "used"
     c0_values = f"上漲機率：{100*prediction['prob_up']:.2f}%；預估報酬：{100*prediction['expected_return']:+.2f}%"
+    target = (preopen or {}).get("target_date") if used else payload.get("target_session_date")
+    # 未驗證、效果未知與低於60%的提醒併成一句。
+    caution = "歷史PIT／公司行動／歷史普通股資格未驗證；效果未知、交易效益未驗證"
+    if accuracy is not None and accuracy < .60:
+        caution += "；" + ("C0 基準" if used else "") + "比較方向率低於60%，不能視為可靠預測"
     lines = [
         f"{stock.code} {stock.name}｜" + ("H1 收盤估計（開盤前版）" if used else f"C0 H{h} 收盤估計"),
-        f"訊號收盤日：{cd.display_day(payload['latest_data_date'])}；到期日："
-        f"{cd.display_day((preopen or {}).get('target_date') if used else payload.get('target_session_date'), empty='尚未驗證日期')}",
-        f"目標：訊號收盤至同市場第{h}交易日收盤",
+        # 資料時間緊接在訊號日之後（同一天時併成一行），caption 長度截斷不到。
+        *_signal_data_time_lines(payload, job_context, "訊號收盤日", payload["latest_data_date"],
+                                 f"到期日：{cd.display_day(target, empty='尚未驗證日期')}"),
+        # 開盤前版為主時，預測目標已在必要揭露。
+        *([] if used else [f"目標：訊號收盤至同市場第{h}交易日收盤"]),
         *(_preopen_caption_lines(preopen) if used else []),
         ("C0 基準（備援）：" + c0_values.replace("：", " ", 2)) if used else c0_values,
         *_comparison_caption_lines(payload),
-        "歷史PIT／公司行動／歷史普通股資格未驗證；效果未知；交易效益未驗證。",
+        caution + "。",
     ]
-    if accuracy is not None and accuracy < .60:
-        lines.append(("C0 基準" if used else "") + "比較方向率低於60%，不能視為可靠預測。")
-    if prediction.get("probability_constant_across_stocks") or prediction.get("expected_return_zero_baseline"):
-        lines.append("C0 基準屬簡單基準，可能產生相同結果；不具個股排序差異。" if used
-                     else "簡單基準可能產生相同結果；不具個股排序差異。")
-    # Data time right under the signal date so the caption budget never truncates it.
-    lines[2:2] = report_data_time_lines(payload, job_context)
+    # C0 只是備援值時，簡單基準的說明對主要判讀沒有幫助。
+    if not used and (prediction.get("probability_constant_across_stocks") or prediction.get("expected_return_zero_baseline")):
+        lines.append("簡單基準可能產生相同結果；不具個股排序差異。")
     if preopen is not None and not used:
         # The fallback notice sits right under the title (never truncated by the caption budget).
         lines.insert(1, _preopen_fallback_notice(preopen))
@@ -1592,16 +1614,17 @@ def selected_report_caption(
     lines = [
         f"{stock.code} {stock.name}｜第{h}交易日收盤估計" + ("（開盤前版）" if used else ""),
         *([_preopen_fallback_notice(preopen)] if preopen is not None and not used else []),
-        f"資料日：{cd.display_day(payload.get('asof'), empty='未知')}；目標日：{cd.display_day(target, empty='尚未驗證日期')}",
-        *report_data_time_lines(payload, job_context),
+        *_signal_data_time_lines(payload, job_context, "資料日", payload.get("asof"),
+                                 f"目標日：{cd.display_day(target, empty='尚未驗證日期')}"),
         *(_preopen_caption_lines(preopen) if used else []),
         selected_values,
         *_comparison_caption_lines(payload),
         "歷史時點完整性與交易效益未驗證。",
         *_report_caution_lines(payload),
     ]
-    if prediction.get("probability_constant_across_stocks") or prediction.get("expected_return_zero_baseline"):
-        lines.append(("備援的" if used else "") + "簡單基準可能產生相同結果；不具個股排序差異。")
+    # C0 只是備援值時，簡單基準的說明對主要判讀沒有幫助。
+    if not used and (prediction.get("probability_constant_across_stocks") or prediction.get("expected_return_zero_baseline")):
+        lines.append("簡單基準可能產生相同結果；不具個股排序差異。")
     if h == 63:
         lines.append("長期限樣本重疊，訊號數不等於獨立樣本數。")
     body_budget = TELEGRAM_CAPTION_BUDGET - len(REPORT_CAPTION_DISCLAIMER) - 1
@@ -1620,22 +1643,27 @@ def _preopen_fallback_notice(block: dict[str, Any]) -> str:
     return f"{notice}（{reason}：{reason_zh.strip()}）"
 
 
-# 分析程式對照表沒有的原因代碼：補上中文；查不到時以「資料或模型條件未滿足」顯示（呼叫端會附上代碼）。
+# 分析程式對照表沒有的原因代碼：補上中文；查不到時以「資料或模型條件未滿足」顯示並附上代碼。
 _NO_ESTIMATE_REASON_ZH_SUPPLEMENT = {"prediction_unavailable": "現有模型未產生有效估計"}
 _NO_ESTIMATE_REASON_ZH_UNKNOWN = "資料或模型條件未滿足"
 
 
 def _no_estimate_reason_text(reason: str) -> str:
-    """Chinese reason text from the analyzer's own table; unknown codes read 「資料或模型條件未滿足」 (the caller appends the code)."""
+    """Chinese reason text from the analyzer's own table; unknown codes read 「資料或模型條件未滿足」.
+
+    每個代碼都查得到中文時只顯示中文；有查不到的代碼時在括號附上原始代碼（唯一的線索）。
+    """
     try:
         from stock_daily_contract import _single_support_path
 
         _single_support_path()
         from tw_single_stock_c0 import _REASON_ZH
-    except Exception:  # informational only; the codes are shown either way
+    except Exception:  # 只影響說明文字；查不到中文的代碼一律附上
         _REASON_ZH = {}
     table = {**_NO_ESTIMATE_REASON_ZH_SUPPLEMENT, **_REASON_ZH}
-    return "、".join(table.get(part) or _NO_ESTIMATE_REASON_ZH_UNKNOWN for part in reason.split(",") if part)
+    parts = [part for part in reason.split(",") if part]
+    text = "、".join(table.get(part) or _NO_ESTIMATE_REASON_ZH_UNKNOWN for part in parts)
+    return text if parts and all(table.get(part) for part in parts) else f"{text}（{reason}）"
 
 
 def no_estimate_caption(
@@ -1646,13 +1674,18 @@ def no_estimate_caption(
     reason = str(payload.get("no_estimate_reason") or "unknown")
     preopen = _preopen_h1_block(payload, h)
     used = preopen is not None and preopen["status"] == "used"
+    days = (f"該股最後價格日：{cd.display_day(payload.get('stock_last_price_date'), empty='未知')}；"
+            f"分析資料日：{cd.display_day(payload.get('latest_data_date'), empty='未知')}")
+    # 資料時間的資料日就是分析資料日時，發布與讀取時間接在分析資料日之後，不再另寫一次同一天；不同時保留兩行。
+    if cd.same_day(payload.get("latest_data_date"), report_data_time(payload)["asof"]):
+        data_lines = report_data_time_lines(payload, job_context, lead=days)
+    else:
+        data_lines = [days, *report_data_time_lines(payload, job_context)]
     lines = [
         f"{stock.code} {stock.name}｜" + ("H1 收盤估計（開盤前版；C0 基準無法估計）" if used else f"C0 H{h} 收盤估計：無法估計"),
         *([_preopen_fallback_notice(preopen)] if preopen is not None and not used else []),
-        ("C0 基準無法估計，原因：" if used else "原因：") + f"{_no_estimate_reason_text(reason)}（{reason}）",
-        f"該股最後價格日：{cd.display_day(payload.get('stock_last_price_date'), empty='未知')}；"
-        f"分析資料日：{cd.display_day(payload.get('latest_data_date'), empty='未知')}",
-        *report_data_time_lines(payload, job_context),
+        ("C0 基準無法估計，原因：" if used else "原因：") + _no_estimate_reason_text(reason),
+        *data_lines,
         *(_preopen_caption_lines(preopen) if used else ["本報告只說明資料狀態，不含任何估計值。"]),
         *_comparison_caption_lines(payload),
         "歷史PIT／公司行動／歷史普通股資格未驗證。",

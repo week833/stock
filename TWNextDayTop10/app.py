@@ -123,7 +123,7 @@ def predict(project=None, namespace_root=None, no_open=False, *, c0_model=None, 
         c0_return_no_discrimination=return_no_discrimination, c0_no_stock_specific_model_signal=baseline_only)
     report_predictions, report_coverage = predictions, coverage
     display_direction, display_return = selected_direction, selected_return
-    warnings = meta.setdefault("warnings", [])
+    # 模型來源說明、回退原因與排序狀態由報告的模型來源區與本次摘要顯示一次；meta.warnings 只留上游資料警告。
     if choice.active:
         report_predictions, report_coverage = preopen_source.build_view(
             choice.snapshot, predictions, universe, coverage, engine_id=ENGINE_ID)
@@ -132,12 +132,6 @@ def predict(project=None, namespace_root=None, no_open=False, *, c0_model=None, 
         direction_no_discrimination = report_predictions.probability.nunique() <= 1
         return_no_discrimination = report_predictions.expected_return.nunique() <= 1
         baseline_only = False
-        warnings.append(choice.note())
-        warnings.append("C0 備援排序狀態：" + c0_ranking["c0_ranking_note"])
-    else:
-        if choice.status == "unavailable":
-            warnings.insert(0, choice.note())
-        warnings.append(ranking_note)
     model_fields = preopen_source.report_fields(choice)
     qa_overrides = dict(model=bool(active["artifact_binding"]["qa_override"]),
         namespace_root=str(paths.root) if namespace_root is not None else None,

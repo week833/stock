@@ -51,6 +51,29 @@ const DISPLAY_TEXT = {
     "model_pointer_changed_since_activation": "啟用後模型指標已變更",
     "consumer_source_changed_since_activation": "分析程式來源已變更",
     "activation_model_differs": "模型啟用標示不同",
+    // 共用 C0 契約與本程式的版本標籤（同 reporting.py；各市場資料日只陳述差異，不寫分析方式）。
+    "market_asof_differs": "各市場資料日不同", "market_asof_differs_per_market_inference": "各市場資料日不同",
+    "inference_code_differs_from_training": "分析程式與模型訓練時使用的程式不同",
+    "mutable_ref_changed_since_adoption": "部分來源參照已更新",
+    "contract_adoption_unverified": "目前契約採納狀態尚未驗證", "adoption_unverified": "採納紀錄尚未驗證",
+    "contract_adoption_receipt_missing": "契約採納紀錄不存在", "policy_version_mismatch": "資料規格版本不同",
+    "price_lags_scope": "價格資料日早於更新範圍截止日",
+    "price_actual_max_date_unknown": "價格實際最新日期未知，以更新範圍日期分析",
+    "price_series_vintage_stale": "部分股票價格資料版本較舊",
+    "current_classification_observed_after_data_asof": "普通股分類觀測日較分析資料日晚",
+    "stock_market_asof_lags_latest_market": "股票依所屬市場的資料日分析",
+    "pinned_head_unavailable_used_current": "原指定快照已不可讀，改採目前已發布資料",
+    "data_updated_since_caller_scope": "資料於指定範圍後重新發布，改用目前發布資料",
+    "optional_route_unavailable": "部分補充資料來源未提供", "readiness_unavailable": "資料就緒狀態無法取得",
+    "requested_asof_differs": "實際分析資料日與要求日期不同",
+    "stock_info_publication_not_complete": "股票基本資料發布尚未完成",
+    "explicit_model_differs_from_pointer": "指定模型與現役模型指標不同",
+    "current_daily_policy_schema_differs": "現行每日資料規格格式不同",
+    "current_C0_model_route_optional_in_policy": "現行規格把模型所需資料來源列為選用",
+    "C0_runtime_binding_missing": "現役模型執行識別未提供",
+    "C0_current_policy_drift_during_job": "執行期間現行資料規格已變更",
+    "in_sample_lookahead_not_recorded": "部分股票屬歷史資料試算，未寫入前瞻紀錄",
+    "skipped_data_lagged": "資料落後的股票未寫入前瞻紀錄", "forward_ledger_skipped": "本次未寫入前瞻紀錄",
     "current_policy_binding": "現行資料規格識別",
     "original_model_feature_contract": "模型原始特徵規格",
     "contract_adoption_ref": "規格採用紀錄",
@@ -97,23 +120,41 @@ function human(value, fallback = '其他狀態（原始紀錄保留）') {
   }
   return /^[0-9.,%+ /:\-]+$/.test(text) ? text : fallback;
 }
+// 資料時間表（同 reporting.py 的 _display_time）：流程時間戳與缺漏欄位（見資料來源與限制）不列；
+// 價格最新日、模型訓練資料日只在和分析資料日不同時列（模型訓練資料日未提供時也不列）；發布時間未宣告、沒有版本標籤時不列。
+const TIME_ROWS_HIDDEN = ['價格收集時間（最新）', '本次讀取時間', '模型啟用時間', '缺漏欄位'];
+const TIME_ROWS_IF_NOT_ANALYSIS_DAY = ['價格最新日', '模型訓練資料日'];
+const TIME_ROWS_IF_PROVIDED = ['模型訓練資料日'];
+const TIME_PUBLISHED_LABEL = 'head 發布時間（producer 宣告，未驗證）';
+const UNKNOWN_VALUES = ['unknown', 'none', 'unverified', 'not_yet_verified'];
+const provided = value => value !== null && value !== undefined && value !== '' && value !== '未提供';
+// 發布時間是 unknown 等佔位值時視同未宣告。
+const declared = value => provided(value) && !UNKNOWN_VALUES.includes(String(value).toLowerCase());
 function displayTime(source) {
-  const rows = source.rows.map(([originalLabel, originalValue]) => {
+  const analysis = source.rows.find(([label]) => label === '分析資料日')?.[1];
+  const rows = [];
+  for (const [originalLabel, originalValue] of source.rows) {
+    let label = String(originalLabel);
     let value = originalValue;
-    if (originalLabel === '版本標籤') {
+    if (TIME_ROWS_HIDDEN.includes(label) || (TIME_ROWS_IF_NOT_ANALYSIS_DAY.includes(label) && value === analysis)
+      || (TIME_ROWS_IF_PROVIDED.includes(label) && !provided(value))) continue;
+    if (label === '版本標籤') {
       const codes = [...new Set((data.version_labels ?? []).filter(item => item && typeof item === 'object').map(item => String(item.code)))].sort();
-      value = `${codes.length} 個${codes.length ? '：' + codes.map(code => human(code, '版本標示有差異')).join('、') : ''}`;
-    } else if (originalLabel === '缺漏欄位') {
-      value = fieldsMissing.length ? fieldsMissing.map(field => human(field, '其他必要欄位')).join('、') : '無';
-    } else if (typeof value === 'string' && ['unknown', 'none', 'unverified', 'not_yet_verified'].includes(value.toLowerCase())) {
+      if (!codes.length) continue;
+      // 已知代碼寫中文（同義合併）；沒有中文的代碼只寫項數，原始代碼保留於 report.json。
+      const known = [...new Set(codes.filter(code => Object.hasOwn(DISPLAY_TEXT, code)).map(code => DISPLAY_TEXT[code]))];
+      const unknown = codes.filter(code => !Object.hasOwn(DISPLAY_TEXT, code)).length;
+      const other = `${known.length ? '其他' : ''}版本標示有差異（${unknown} 項）`;
+      [label, value] = ['版本提醒', [...known, ...(unknown ? [other] : [])].join('、')];
+    } else if (label === TIME_PUBLISHED_LABEL) {
+      if (!declared(value)) continue;
+      label = '資料發布時間（提供者宣告，未驗證）';
+    } else if (typeof value === 'string' && UNKNOWN_VALUES.includes(value.toLowerCase())) {
       value = human(value);
     }
-    const label = String(originalLabel).replace('head 發布時間（producer 宣告，未驗證）', '資料發布時間（提供者宣告，未驗證）');
-    return [label, value];
-  });
-  return { ...source, rows,
-    summary: String(source.summary).replace('head 發布', '資料發布').replace('producer 宣告', '提供者宣告')
-      .replace(/\b(?:unknown|none|unverified|not_yet_verified)\b/gi, code => human(code)) };
+    rows.push([label, value]);
+  }
+  return { ...source, rows };
 }
 function forwardCalibration() {
   const raw = context.forward_calibration_versions ?? [];
@@ -140,6 +181,8 @@ const gate = data.preopen_gate ?? context.preopen_gate ?? null;
 const disclosure = data.model_disclosure ?? context.model_disclosure ?? null;
 // 開盤買進效果片語依快照配方（model_disclosure.trading_effect）；舊資料沒有此欄位時沿用配方 v1 原文（同 reporting.py）。
 const tradingEffect = String(disclosure?.trading_effect || '開盤買進 Top10 保留期平均為負');
+// 開盤前版排序說明的命中率子句；只在必要揭露與「使用限制」寫出（同 reporting.py 的 PREOPEN_HIT_RATE_NOTE）。
+const HIT_RATE_NOTE = '命中率指收盤報價方向，不代表交易獲利';
 const sourceNote = String(data.model_source_note ?? context.model_source_note ?? 'H1 模型來源：C0');
 if (preopen) {
   if (!preopenMeta || !['run_id', 'model_sha256', 'snapshot_sha256'].every(key => preopenMeta[key])) {
@@ -201,10 +244,14 @@ const status = row => {
   const reason = row.reason ?? row.exclusion_reason ?? row.status ?? '未提供原因';
   return human(reason, '其他排除原因（原始紀錄保留）');
 };
-const headers = ['展示序號', '股票代碼', '股票名稱', '市場', '下一交易日收漲機率', '下一交易日調整後收盤報酬',
-  ...(preopen ? ['可交易', '可交易名次'] : []), '模型來源', '資料日', '本股目標日', '資料提醒'];
+// 欄位：[鍵, 標題, 欄寬]。前六欄固定（E/F 為機率與報酬），Top10 與全股票預測各自取用（同 reporting.py）。
+const COLUMNS = [['display_order', '展示序號', 13], ['stock_id', '股票代碼', 16], ['name', '股票名稱', 24], ['market', '市場', 12],
+  ['probability', '下一交易日收漲機率', 24], ['expected_return', '下一交易日調整後收盤報酬', 30],
+  ...(preopen ? [['tradable', '可交易', 12], ['rank_tradable', '可交易名次', 14]] : []),
+  ['model_source_text', '模型來源', 22], ['data_date_text', '資料日', 28], ['target_date_text', '本股目標日', 28], ['data_reminder', '資料提醒', 65]];
+const STATUS_COLUMN = ['status', '分析狀態／排除原因', 62];
 const col = index => String.fromCharCode(64 + index);
-function predictionRow(row) {
+function predictionCells(row) {
   const probability = number(row.probability);
   const expectedReturn = number(row.expected_return);
   if (probability === null || probability < 0 || probability > 1 || expectedReturn === null) {
@@ -212,19 +259,33 @@ function predictionRow(row) {
   }
   // Both values are decimals. Excel's percentage format alone performs the
   // display conversion; the original return must never be divided by 100.
-  const values = [row.display_order, String(row.stock_id), row.name ?? '未提供', market(row.market), probability, expectedReturn];
-  if (preopen) values.push(row.tradable === true ? '是' : row.tradable === false ? '否' : '未提供', number(row.rank_tradable) ?? '—');
-  values.push(row.model_source_text ?? (row.model_source === 'c0' ? 'C0補充分析' : preopen ? '開盤前版' : 'C0'),
-    row.data_date_text ?? '未提供', row.target_date_text ?? '未驗證', row.data_reminder ?? '未提供');
-  return values;
+  return { display_order: row.display_order, stock_id: String(row.stock_id), name: row.name ?? '未提供', market: market(row.market),
+    probability, expected_return: expectedReturn,
+    tradable: row.tradable === true ? '是' : row.tradable === false ? '否' : '未提供', rank_tradable: number(row.rank_tradable) ?? '—',
+    model_source_text: row.model_source_text ?? (row.model_source === 'c0' ? 'C0補充分析' : preopen ? '開盤前版' : 'C0'),
+    data_date_text: row.data_date_text ?? '未提供', target_date_text: row.target_date_text ?? '未驗證',
+    data_reminder: row.data_reminder ?? '未提供', status: null };
 }
-const ranked = predictions.map(predictionRow);
+const cellsOf = (cells, columns) => columns.map(([key]) => cells[key]);
 const ids = new Set(predictions.map(row => `${row.market}:${row.stock_id}`));
 const missing = coverage.filter(row => !ids.has(`${row.market}:${row.stock_id}`));
-const allRows = [...ranked.map((row, index) => [...row, predictions[index].model_source === 'c0' && preopen ? 'C0補充分析' : preopen ? '開盤前版已預測' : '已分析']), ...missing.map(row => [
-  '未提供', String(row.stock_id), row.name ?? '未提供', market(row.market), '未提供', '未提供',
-  ...(preopen ? ['未提供', '—'] : []), '未提供', '未提供', '未驗證', '未提供', status(row),
-])];
+// 已預測列的分析狀態可由模型來源欄得知（留空）；只有未分析列的排除原因是新資訊，沒有未分析列時整欄不輸出。
+const allColumns = missing.length ? [...COLUMNS, STATUS_COLUMN] : COLUMNS;
+const allRows = [...predictions.map(predictionCells), ...missing.map(row => ({
+  display_order: '未提供', stock_id: String(row.stock_id), name: row.name ?? '未提供', market: market(row.market),
+  probability: '未提供', expected_return: '未提供', tradable: '未提供', rank_tradable: '—', model_source_text: '未提供',
+  data_date_text: '未提供', target_date_text: '未驗證', data_reminder: '未提供', status: status(row),
+}))].map(cells => cellsOf(cells, allColumns));
+// Top10：可交易／可交易名次只留在全股票預測（前段必為可交易、名次即展示序號）；全部同值的模型來源欄省略（來源見標題）；
+// 開盤前版的資料日／本股目標日／資料提醒各檔全部相同時改為表上方一行（C0 各市場日期可能不同，一律保留欄位）。
+const topCells = (data.top10 ?? predictions.slice(0, 10)).map(predictionCells);
+const uniformKeys = ['model_source_text', ...(preopen ? ['data_date_text', 'target_date_text', 'data_reminder'] : [])]
+  .filter(key => topCells.length && new Set(topCells.map(cells => cells[key])).size === 1);
+const topColumns = COLUMNS.filter(([key]) => !['tradable', 'rank_tradable', ...uniformKeys].includes(key));
+const commonParts = COLUMNS.filter(([key]) => uniformKeys.includes(key) && key !== 'model_source_text')
+  .map(([key, label]) => `${key === 'data_reminder' ? '' : `${label} `}${topCells[0][key]}`);
+const topCommon = commonParts.length ? `各檔共同：${commonParts.join('；')}。` : '';
+const topRows = topCells.map(cells => cellsOf(cells, topColumns));
 const wb = Workbook.create();
 const top = wb.worksheets.add('研究展示');
 const all = wb.worksheets.add('全股票預測');
@@ -241,57 +302,86 @@ function header(sheet, address) {
   sheet.getRange(address).format = { font: { name: font, size: 11, bold: true, color: '#000000' },
     horizontalAlignment: 'center', verticalAlignment: 'center', wrapText: true, rowHeight: 42 };
 }
-function writeRows(sheet, firstRow, rows, full) {
-  const labels = full ? [...headers, '分析狀態／排除原因'] : headers;
-  const lastCol = col(labels.length);
+function writeRows(sheet, firstRow, rows, columns) {
+  const lastCol = col(columns.length);
   const lastRow = firstRow + rows.length;
-  sheet.getRange(`A${firstRow}:${lastCol}${lastRow}`).values = [labels, ...rows];
+  const at = key => col(columns.findIndex(([name]) => name === key) + 1);
+  sheet.getRange(`A${firstRow}:${lastCol}${lastRow}`).values = [columns.map(([, label]) => label), ...rows];
   header(sheet, `A${firstRow}:${lastCol}${firstRow}`);
-  const widths = [13, 16, 24, 12, 24, 30, ...(preopen ? [12, 14] : []), 22, 28, 28, 65, 62];
-  for (let index = 0; index < labels.length; index++) {
-    sheet.getRangeByIndexes(0, index, lastRow, 1).format.columnWidth = widths[index];
-  }
+  columns.forEach(([, , width], index) => { sheet.getRangeByIndexes(0, index, lastRow, 1).format.columnWidth = width; });
   if (rows.length) {
     sheet.getRange(`B${firstRow + 1}:B${lastRow}`).setNumberFormat('@');
     sheet.getRange(`E${firstRow + 1}:E${lastRow}`).setNumberFormat('0.00%');
     sheet.getRange(`F${firstRow + 1}:F${lastRow}`).setNumberFormat('+0.00%;-0.00%;0.00%');
     sheet.getRange(`E${firstRow + 1}:F${lastRow}`).format.horizontalAlignment = 'right';
-    if (preopen) {
-      sheet.getRange(`G${firstRow + 1}:G${lastRow}`).format.horizontalAlignment = 'center';
-      sheet.getRange(`H${firstRow + 1}:H${lastRow}`).setNumberFormat('0');
-      sheet.getRange(`H${firstRow + 1}:H${lastRow}`).format.horizontalAlignment = 'right';
+    if (columns.some(([key]) => key === 'tradable')) {
+      sheet.getRange(`${at('tradable')}${firstRow + 1}:${at('tradable')}${lastRow}`).format.horizontalAlignment = 'center';
+      sheet.getRange(`${at('rank_tradable')}${firstRow + 1}:${at('rank_tradable')}${lastRow}`).setNumberFormat('0');
+      sheet.getRange(`${at('rank_tradable')}${firstRow + 1}:${at('rank_tradable')}${lastRow}`).format.horizontalAlignment = 'right';
     }
-    if (full) sheet.getRange(`${lastCol}${firstRow + 1}:${lastCol}${lastRow}`).format.wrapText = true;
-    sheet.getRange(`${col(headers.length)}${firstRow + 1}:${col(headers.length)}${lastRow}`).format.wrapText = true;
+    for (const key of ['data_reminder', 'status']) {
+      if (columns.some(([name]) => name === key)) sheet.getRange(`${at(key)}${firstRow + 1}:${at(key)}${lastRow}`).format.wrapText = true;
+    }
     sheet.getRange(`A${firstRow + 1}:${lastCol}${lastRow}`).format.rowHeight = 42;
   }
 }
-// 研究展示頁：標題、日期、排序說明、資料時間，接著模型來源（開盤前版說明／美股閘門／必要揭露，或回退原因），最後是 Top10 表。
-const topLast = col(headers.length);
+// 研究展示頁：標題、日期、排序說明、資料時間提示，接著模型來源（開盤前版說明／美股閘門／必要揭露，或回退原因與原因詳情），
+// Top10 各檔共同說明，最後是 Top10 表。
+const topLast = col(topColumns.length);
+const topWidth = topColumns.reduce((sum, [, , width]) => sum + width, 0);
+// 合併列的高度依文字長度估算（中日韓字元約兩個字寬），Top10 欄位變少、合併寬度變窄時文字不被截斷。
+const textUnits = text => [...String(text)].reduce((sum, char) => sum + (/[\u2E80-\uFFEF]/.test(char) ? 2 : 1), 0);
+const fitHeight = (text, minimum, line = 16) => Math.max(minimum, line * Math.ceil(textUnits(text) / Math.max(topWidth - 4, 20)) + 12);
 const gateStyle = { recommended_day: { color: '#1E7E34', fill: '#E6F4EA' },
   not_recommended_day: { color: '#C00000', fill: '#FDECEA' }, unknown: { color: '#555555', fill: '#F1F1F1' } };
-const banners = [];
+// 研究展示唯一的資料時間提示：非最新徽章；開盤前版另列各市場資料日（市場落後只在此可見，C0 見 D2）；
+// 提供者有宣告時列資料發布時間。分析日見 A2，報告產生時間見版本與資料。
+const timeRow = label => (data.data_time_display?.rows ?? []).find(([name]) => name === label)?.[1];
+const timeHint = `${dataTime.badge ? `【${dataTime.badge}】` : ''}${[
+  preopen && provided(timeRow('各市場資料日')) ? `各市場資料日 ${timeRow('各市場資料日')}` : '',
+  declared(timeRow(TIME_PUBLISHED_LABEL)) ? `資料發布 ${timeRow(TIME_PUBLISHED_LABEL)}（提供者宣告）` : '',
+].filter(Boolean).join('；')}`;
+// 開盤前版說明的顯示版（同 reporting.py 的 _describe_text；原文保留於 report.json）：去掉結尾「｜模型 <雜湊前 12 碼>」
+// 內部識別碼與閘門列已寫的美股漲跌段；訊號日→目標日與 A2／A3 的分析日、已證下一交易日相同時也不重複。
+function shownNote(text) {
+  let shown = text.replace(/｜模型 [^｜]*$/, '');
+  if (gate?.label) shown = shown.replace(/｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=｜|$)/, '');
+  const dates = /｜訊號日 (\d{8}) → 目標日 (\d{8})(?=｜|$)/.exec(shown);
+  if (dates && dates[1] === day8(context.base_session) && dates[2] === day8(context.target_session)) shown = shown.replace(dates[0], '');
+  return shown;
+}
+const shownSourceNote = preopen ? shownNote(sourceNote) : sourceNote;
+// 回退的原因詳情（快照實際日期等，同 reporting.py 的 _fallback_detail）；原因代碼只在紅字寫一次。
+const targetMismatch = /^snapshot target_date (\S*) != C0 verified next session (\S+)$/.exec(String(preopenStatus.detail ?? ''));
+const fallbackDetail = !preopenStatus.detail ? ''
+  : targetMismatch ? `快照目標日 ${day8(targetMismatch[1])}／已驗證下一交易日 ${day8(targetMismatch[2])}` : String(preopenStatus.detail);
+const banners = [{ text: preopen ? '展示順序：開盤前版可交易Top10與其餘快照股票保留原排序；快照未收錄但有可用資料者，另列C0補充分析，不混入Top10。'
+  : noStockRanking ? '無個股排序訊號；展示序號與前十檔不表示較佳。'
+  : '展示順序依模型數值；排序效果與交易效益未驗。', color: '#000000', height: 42 }];
+if (timeHint) banners.push({ text: timeHint, bold: Boolean(dataTime.not_latest), color: dataTime.not_latest ? '#C00000' : '#000000', height: 30 });
 if (preopen) {
-  banners.push({ text: sourceNote, bold: true, color: '#000000', height: 48 });
+  banners.push({ text: shownSourceNote, bold: true, color: '#000000', height: 48 });
   const style = gateStyle[gate?.code] ?? gateStyle.unknown;
   banners.push({ text: String(gate?.label ?? '前一晚美股漲跌未知'), bold: true, color: style.color, fill: style.fill, height: 36 });
   banners.push({ text: `【${disclosure.title}】`, bold: true, color: '#7A5C00', fill: '#FFFBEA', height: 30 });
   for (const line of disclosure.lines) banners.push({ text: `・${line}`, color: '#000000', fill: '#FFFBEA', height: 36 });
   if (disclosure.source) banners.push({ text: String(disclosure.source), color: '#555555', fill: '#FFFBEA', height: 36 });
 } else if (preopenStatus.status === 'unavailable') {
-  banners.push({ text: sourceNote, bold: true, color: '#FFFFFF', fill: '#C00000', height: 48 });
+  banners.push({ text: shownSourceNote, bold: true, color: '#FFFFFF', fill: '#C00000', height: 48 });
+  if (fallbackDetail) banners.push({ text: `原因詳情：${fallbackDetail}`, color: '#555555', height: 30 });
 } else {
-  banners.push({ text: sourceNote, color: '#000000', height: 30 });
+  banners.push({ text: shownSourceNote, color: '#000000', height: 30 });
 }
-const tableRow = 6 + banners.length;
-const topRows = (data.top10 ?? predictions.slice(0, 10)).map(predictionRow);
+if (topCommon) banners.push({ text: topCommon, color: '#000000', height: 30 });
+const tableRow = 4 + banners.length;
 base(top, `A1:${topLast}${tableRow + Math.max(topRows.length, 1)}`);
 top.getRange(`A1:${topLast}1`).merge();
-top.getRange('A1').values = [[preopen ? `開盤前版 H1 可交易 Top10：${human(context.ranking_note ?? '')}`
-  : `下一交易日收盤研究展示：${human(context.ranking_note ?? '效果未定；交易效益未驗')}`]];
+// 標題只寫名稱；排序說明在 A4，命中率與交易獲利的說明在必要揭露。
+const title = preopen ? '開盤前版 H1 可交易 Top10' : '下一交易日收盤研究展示';
+top.getRange('A1').values = [[title]];
 top.getRange(`A1:${topLast}1`).format.font = { name: font, size: 14, bold: true, color: '#000000' };
 top.getRange(`A1:${topLast}1`).format.wrapText = true;
-top.getRange(`A1:${topLast}1`).format.rowHeight = 64;
+top.getRange(`A1:${topLast}1`).format.rowHeight = fitHeight(title, 40, 22);
 top.getRange('A2:C3').values = [['分析日', null, date(context.analysis_asof ?? context.base_session ?? meta.asof)],
   [context.target_session ? '已證下一交易日' : '下一交易日未驗證', null, date(context.target_session)]];
 top.getRange('C2:C3').setNumberFormat('yyyymmdd');
@@ -301,73 +391,66 @@ for (const [row, text] of [[2, baseByMarket], [3, targetByMarket]]) {
   top.getRange(`D${row}`).values = [[`各市場：${text}`]];
   top.getRange(`D${row}:${topLast}${row}`).format.wrapText = true;
 }
-top.getRange(`A4:${topLast}4`).merge();
-top.getRange('A4').values = [[preopen ? '展示順序：開盤前版可交易Top10與其餘快照股票保留原排序；快照未收錄但有可用資料者，另列C0補充分析，不混入Top10。'
-  : noStockRanking ? '無個股排序訊號；展示序號與前十檔不表示較佳。'
-  : '展示順序依模型數值；排序效果與交易效益未驗。']];
-top.getRange(`A4:${topLast}4`).format.wrapText = true;
-top.getRange(`A4:${topLast}4`).format.rowHeight = 42;
-top.getRange(`A5:${topLast}5`).merge();
-top.getRange('A5').values = [[`${dataTime.badge ? `【${dataTime.badge}】` : ''}${dataTime.summary ?? '資料時間未提供'}`]];
-top.getRange(`A5:${topLast}5`).format.wrapText = true;
-top.getRange(`A5:${topLast}5`).format.rowHeight = 60;
-top.getRange(`A5:${topLast}5`).format.font = { name: font, size: 11, bold: Boolean(dataTime.not_latest),
-  color: dataTime.not_latest ? '#C00000' : '#000000' };
 banners.forEach((banner, index) => {
-  const address = `A${6 + index}:${topLast}${6 + index}`;
+  const address = `A${4 + index}:${topLast}${4 + index}`;
   top.getRange(address).merge();
-  top.getRange(`A${6 + index}`).values = [[banner.text]];
+  top.getRange(`A${4 + index}`).values = [[banner.text]];
   top.getRange(address).format.wrapText = true;
-  top.getRange(address).format.rowHeight = banner.height;
+  top.getRange(address).format.rowHeight = fitHeight(banner.text, banner.height);
   top.getRange(address).format.font = { name: font, size: 11, bold: Boolean(banner.bold), color: banner.color };
   if (banner.fill) top.getRange(address).format.fill = banner.fill;
 });
-writeRows(top, tableRow, topRows, false);
-base(all, `A1:${col(headers.length + 1)}${allRows.length + 1}`);
-writeRows(all, 1, allRows, true);
+writeRows(top, tableRow, topRows, topColumns);
+base(all, `A1:${col(allColumns.length)}${allRows.length + 1}`);
+writeRows(all, 1, allRows, allColumns);
 all.freezePanes.freezeRows(1);
-const warnings = Array.isArray(meta.warnings) ? meta.warnings : meta.warnings ? [meta.warnings] : [];
-const gateText = preopen ? String(gate?.label ?? '前一晚美股漲跌未知') : '不適用（本次 H1 未使用開盤前版）';
+// 來源提醒（同 reporting.py 的 _shown_warnings）：只列其他位置沒有的上游警告。資料過舊、落後市場、早於要求日與
+// 日曆未驗證已在資料新鮮度列（研究展示另有非最新徽章），版本標籤已在版本提醒列，固定的 C0 限制句已在資料來源與限制。
+const C0_LIMITATION_WARNING = 'C0 僅調整後收盤方向與報酬；歷史身分、PIT、公司行動與交易效益未驗。';
+const freshness = String(dataTime.rows.find(([label]) => label === '資料新鮮度')?.[1] ?? '');
+const labelCodes = new Set((data.version_labels ?? []).filter(item => item && typeof item === 'object').map(item => String(item.code)));
+const warnings = (Array.isArray(meta.warnings) ? meta.warnings : meta.warnings ? [meta.warnings] : []).filter(value => {
+  const text = String(value);
+  return !(text === C0_LIMITATION_WARNING || (text.startsWith('非最新資料：') && dataTime.badge)
+    || (text.startsWith('落後市場 ') && freshness.includes('落後市場：'))
+    || (text.startsWith('資料日早於要求日：') && freshness.includes('早於要求日'))
+    || (text.startsWith('日曆已驗證至 ') && dataTime.freshness_status === 'calendar_unverified_after')
+    || (text.startsWith('版本標籤：') && labelCodes.has(text.slice('版本標籤：'.length).split('（', 1)[0].trim())));
+});
+const requested = preopenStatus.requested_model_source ?? data.requested_model_source ?? 'auto';
+// 版本與資料只寫來源與設定：開盤前版說明、美股閘門、必要揭露全文與資料出處見研究展示；回退原因（含代碼）與原因詳情只在研究展示。
 const modelRows = preopen ? [
-  ['H1 顯示模型', String(preopenMeta.describe ?? sourceNote)],
-  ['H1 模型來源', `開盤前版（設定：${preopenStatus.requested_model_source ?? data.requested_model_source ?? 'auto'}；C0 保留為備援）`],
-  ['前一晚美股（Top10 閘門）', gateText],
-  ['開盤前版訊號日／目標日', `${day8(preopenMeta.signal_date)} → ${day8(preopenMeta.target_date)}`],
+  ['H1 模型來源', `開盤前版（設定：${requested}；C0 保留為備援）`],
   ['開盤前版 run_id', String(preopenMeta.run_id)],
-  ['開盤前版模型 SHA-256', String(preopenMeta.model_sha256)],
-  ['開盤前版快照 SHA-256', String(preopenMeta.snapshot_sha256)],
-  [String(disclosure.title), disclosure.lines.join('\n')],
-  ['揭露資料出處', String(disclosure.source ?? '未提供')],
+  [String(disclosure.title), '見研究展示'],
   ['C0 備援排序狀態', human(context.c0_ranking_note, 'C0 排序狀態（原始紀錄保留）')],
 ] : [
-  ['H1 模型來源', sourceNote],
-  ...(preopenStatus.status === 'unavailable'
-    ? [['開盤前版不可用原因代碼', `${preopenStatus.reason ?? '未提供'}${preopenStatus.detail ? `（${preopenStatus.detail}）` : ''}`]] : []),
+  ['H1 模型來源', `C0（設定：${requested}${preopenStatus.status === 'unavailable' ? '；開盤前版不可用，見研究展示' : ''}）`],
 ];
+const identityDay = context.ordinary_identity_verified_asof;
+// 資料缺漏時，模型種類、排序狀態與當前身分核對日期的「未提供」列不列（同 HTML 本次摘要）。
+const OPTIONAL_DETAIL = ['C0 備援排序狀態', '方向模型', '報酬模型', '排序狀態', '當前身分核對日期'];
 const detail = [
   [preopen ? 'H1 模型與資料' : '現役C0版本與資料', '內容'],
   ...modelRows,
   ...dataTime.rows.map(([label, value]) => [String(label), value === null || value === undefined || value === '' ? '未提供' : String(value)]),
-  ['行情基準日', date(context.base_session ?? meta.asof)], ['下一交易日', date(context.target_session)],
-  ...(baseByMarket ? [['各市場行情基準日（各市場以自己的資料日分析）', baseByMarket]] : []),
+  // 行情基準日與分析資料日相同、各市場行情基準日與各市場資料日相同，不另列；狀態列見資料來源與限制。
+  ['下一交易日', date(context.target_session)],
   ...(targetByMarket ? [['各市場下一交易日', targetByMarket]] : []),
-  ['未來日曆狀態', human(context.future_calendar_status)], ['來源狀態', human(meta.raw_status)],
-  ['目標與報酬單位', 'H1為下一個市場交易日收盤；預測前一交易日收盤至該日收盤的調整後報酬。原始資料及CSV保留小數，百分比僅為顯示換算。'],
-  ['資料窗', '各市場固定253個已證交易日；停牌、缺價或無效值不往更早日期移位補足。'],
   ['已分析股票數', predictions.length], ['未分析／排除股票數', missing.length],
-  [preopen ? 'C0 模型版本（備援）' : '現役模型版本', shown(context.model_version ?? model.model_version)],
+  // 不列模型版本（雜湊碼對判讀無用；完整識別見 report.json）。
   ['方向模型', human(context.selected_direction_kind, '其他方向模型（識別見既有資料）')], ['報酬模型', human(context.selected_return_kind, '其他報酬模型（識別見既有資料）')],
-  ['排序狀態', human(context.ranking_note)], ['機率校準', human(context.calibration_status)],
-  ['前瞻校準', forwardCalibration()],
-  ['正式與研究資格', '正式資格未確認；歷史成員與PIT未知不得升格。'],
-  ['模型與交易效果', preopen ? `保留期驗證見必要揭露；命中率不代表交易獲利；隔日${tradingEffect}。` : '效果未定；交易效益未驗。'],
-  ['當前身分核對日期', shown(context.ordinary_identity_verified_asof)],
-  ['當前身分觀測時間', shown(context.ordinary_identity_observed_at)],
-  ['歷史成員狀態', human(meta.historical_membership_status ?? 'unknown')],
-  ['資料公開可用時間（PIT）狀態', human(meta.pit_status ?? 'unknown')],
-  ['公司行動狀態', human(meta.corporate_actions_status ?? 'unknown')],
-  ['來源提醒', warnings.map(value => human(value, '資料提醒（原始紀錄保留）')).join('；') || '無新增提醒'],
-];
+  // C0 依模型數值展示時，排序狀態與研究展示的展示順序說明（A4）相同；無個股排序訊號時保留（含原因）。
+  ...(preopen ? [['排序狀態', human(context.ranking_note).replace(`；${HIT_RATE_NOTE}`, '')]]
+    : noStockRanking ? [['排序狀態', human(context.ranking_note)]] : []),
+  ['機率校準', human(context.calibration_status)],
+  // C0 的「效果未定；交易效益未驗」與資料來源與限制的「使用限制」相同，不另列。
+  ...(preopen ? [['模型與交易效果', `保留期驗證見必要揭露；隔日${tradingEffect}。`]] : []),
+  // 當前身分核對日期只在和分析日不同時列出。
+  ...(day8(identityDay) !== day8(context.analysis_asof ?? context.base_session ?? meta.asof)
+    ? [['當前身分核對日期', shown(identityDay)]] : []),
+  ...(warnings.length ? [['來源提醒', warnings.map(value => human(value, '資料提醒（原始紀錄保留）')).join('；')]] : []),
+].filter(([label, value]) => !(OPTIONAL_DETAIL.includes(label) && value === '未提供'));
 function writeDetails(sheet, rows) {
   base(sheet, `A1:B${rows.length}`);
   sheet.getRange(`A1:B${rows.length}`).values = rows;
@@ -384,34 +467,33 @@ function writeDetails(sheet, rows) {
   }
 }
 writeDetails(notes, detail);
+// H1 模型來源只在研究展示；沒有未提供欄位時不列該列。
 const lineageRows = [['資料來源與限制', '說明'],
-  ['H1 模型來源', preopen ? `開盤前版（${String(preopenMeta.describe ?? '')}）` : sourceNote],
   ['來源狀態', human(meta.raw_status)],
   ['下一交易日日曆', human(context.future_calendar_status)],
   ['歷史股票成員', human(meta.historical_membership_status ?? 'unknown')],
   ['資料公開可用時間（PIT）', human(meta.pit_status ?? 'unknown')],
   ['公司行動資料', human(meta.corporate_actions_status ?? 'unknown')],
-  ['未提供欄位', fieldsMissing.length ? fieldsMissing.map(field => human(field, '其他必要欄位')).join('、') : '無'],
-  ['模型與資料識別', '完整紀錄保留於原始報告資料檔（report.json）。'],
+  ...(fieldsMissing.length ? [['未提供欄位', fieldsMissing.map(field => human(field, '其他必要欄位')).join('、')]] : []),
   ['前瞻校準', forwardCalibration()],
   ['使用限制', '僅供研究；正式資格、排序效果與交易效益尚未確認。資料部分完成或未確認時，不表示限制已解除。'
-    + (preopen ? `命中率指收盤報價方向，不代表交易獲利；隔日${tradingEffect}。` : '')],
-  ['原始報告資料', '完整紀錄保留於原始報告資料檔（report.json）；此處不重複展開技術內容。']];
+    + (preopen ? `${HIT_RATE_NOTE}；隔日${tradingEffect}。` : '')],
+  ['原始報告資料', '完整紀錄保留於原始報告資料檔（report.json）。']];
 writeDetails(lineage, lineageRows);
 wb.recalculate();
 if (verify) {
   const checkDir = process.env.TOP10_EXCEL_CHECK_DIR;
   if (!checkDir || !(await fs.stat(checkDir)).isDirectory()) throw new Error('驗證需要TOP10_EXCEL_CHECK_DIR指向既有資料目錄。');
   const inspection = { prediction_rows: predictions.length, coverage_rows: coverage.length,
-    workbook_rows: allRows.length, headers: [...headers, '分析狀態／排除原因'],
+    workbook_rows: allRows.length, headers: allColumns.map(([, label]) => label),
     return_unit: data.return_unit, ranking_status: context.ranking_status, model_source: modelSource, ranges: [] };
   const views = [['研究展示', `A1:${topLast}${tableRow + topRows.length}`],
-    ['全股票預測', `A1:${col(headers.length + 1)}${Math.min(allRows.length + 1, 12)}`],
+    ['全股票預測', `A1:${col(allColumns.length)}${Math.min(allRows.length + 1, 12)}`],
     ['版本與資料', `A1:B${detail.length}`], ['資料來源與限制', `A1:B${Math.min(lineageRows.length, 12)}`]];
   for (let index = 0; index < views.length; index++) {
     const [sheetName, range] = views[index];
     const inspected = await wb.inspect({ kind: 'table', range: `'${sheetName}'!${range}`, include: 'values,formulas',
-      tableMaxRows: 8, tableMaxCols: headers.length + 1, maxChars: 2400 });
+      tableMaxRows: 8, tableMaxCols: allColumns.length, maxChars: 2400 });
     inspection.ranges.push({ sheet: sheetName, result: inspected.ndjson });
     const preview = await wb.render({ sheetName, range, scale: 1, format: 'png' });
     await fs.writeFile(path.join(checkDir, `excel_preview_${index + 1}.png`), new Uint8Array(await preview.arrayBuffer()));

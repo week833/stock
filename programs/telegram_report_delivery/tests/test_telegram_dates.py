@@ -56,14 +56,24 @@ def _c0_estimate_payload(**overrides):
 def test_c0_caption_shows_signal_and_target_dates_as_yyyymmdd(signal, target, shown_signal, shown_target):
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_estimate_payload(latest_data_date=signal,
                                                                          target_session_date=target))
-    assert caption.splitlines()[1] == f"訊號收盤日：{shown_signal}；到期日：{shown_target}"
+    # 資料日與訊號日相同：資料時間併入訊號日那一行
+    line = caption.splitlines()[1]
+    assert line.startswith(f"訊號收盤日：{shown_signal}（發布 ") and line.endswith(f"）；到期日：{shown_target}")
     assert "2026-10-0" not in caption
+
+
+def test_c0_caption_keeps_separate_data_line_when_data_day_differs():
+    payload = _c0_estimate_payload(data_time={"analysis_asof": "2026-10-01", "read_at_utc": "2026-10-02T08:00:00+00:00",
+                                              "head": {"published_at": "2026-10-02T07:40:00+00:00"}, "is_stale": True})
+    lines = bot.report_caption(bot.MODE_H1, STOCK, payload).splitlines()
+    assert lines[1] == "訊號收盤日：20261002；到期日：20261005"
+    assert lines[2].startswith("資料：20261001（發布 15:40，讀取 ") and lines[2].endswith("［非最新資料］")
 
 
 def test_c0_caption_data_time_line_is_yyyymmdd_with_taipei_clock():
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_estimate_payload())
     # 07:40Z = 15:40 Taipei, same day as the 08:00Z (16:00 Taipei) read.
-    assert "資料：20261002（發布 15:40，讀取 20261002 16:00）" in caption
+    assert "訊號收盤日：20261002（發布 15:40，讀取 20261002 16:00）；到期日：20261005" in caption
     newer = {"current_binding": {"asof": "2026-10-05", "snapshot_fingerprint": "e" * 64,
                                  "published_sources": [{"published_at": "2026-10-05T07:40:00+00:00"}]}}
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_estimate_payload(), newer)
@@ -76,8 +86,24 @@ def test_no_estimate_caption_shows_the_stock_last_price_day_as_yyyymmdd():
                                    stock_last_price_date="2026-09-30")
     caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
     assert "該股最後價格日：20260930；分析資料日：20261002" in caption
-    assert "（stock_price_older_than_asof）" in caption
+    # 原因代碼查得到中文時只顯示中文
+    assert "原因：該股價格資料停在分析資料日之前" in caption.splitlines() and "stock_price_older_than_asof" not in caption
     assert "2026-09-30" not in caption and "2026-10-02" not in caption
+
+
+def test_no_estimate_caption_writes_the_analysis_day_once():
+    payload = _c0_estimate_payload(report_class=bot.C0_NO_ESTIMATE_REPORT_CLASS, prediction=None,
+                                   no_estimate_reason="stock_price_older_than_asof", stock_last_price_date="2026-09-30")
+    lines = bot.report_caption(bot.MODE_H1, STOCK, payload).splitlines()
+    # 資料時間的資料日就是分析資料日：發布與讀取時間接在分析資料日之後，不再另寫「資料：20261002」
+    assert lines[2] == "該股最後價格日：20260930；分析資料日：20261002（發布 15:40，讀取 20261002 16:00）"
+    assert not any(line.startswith("資料：") for line in lines)
+    stale = dict(payload, data_time={"analysis_asof": "2026-10-01", "read_at_utc": "2026-10-02T08:00:00+00:00",
+                                     "head": {"published_at": "2026-10-02T07:40:00+00:00"}, "is_stale": True})
+    lines = bot.report_caption(bot.MODE_H1, STOCK, stale).splitlines()
+    # 日期不同：兩行都保留（非最新資料的警示也在）
+    assert lines[2] == "該股最後價格日：20260930；分析資料日：20261002"
+    assert lines[3].startswith("資料：20261001（發布 15:40，讀取 ") and lines[3].endswith("［非最新資料］")
 
 
 def test_logs_and_messages_use_the_compact_date():

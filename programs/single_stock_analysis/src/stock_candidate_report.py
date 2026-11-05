@@ -1739,8 +1739,14 @@ def _selected_metric_tables(payload):
                 rows.append([scope_name + "／" + indicator + ("\n" + label if conflict else ""), score(value), score(base_value),
                              count_pair("n_evaluated", "n_denominator"), count_pair("n_failed", "n_unscored"),
                              "；".join(comparison) or "僅列已提供結果"])
-    tables = [_table("選中模型最終測試", ["樣本／指標", "模型", "基準", "可評分／原始樣本", "失敗／未評分", "基準對照"],
-                     rows, [0.23, 0.14, 0.14, 0.17, 0.14, 0.18])] if rows else []
+    columns = ["樣本／指標", "模型", "基準", "可評分／原始樣本", "失敗／未評分", "基準對照"]
+    widths = [0.23, 0.14, 0.14, 0.17, 0.14, 0.18]
+    # 整欄都是「未提供」時不列該欄；第一欄是樣本名稱，一律保留。
+    keep = [index for index in range(len(columns))
+            if index == 0 or any(set(str(row[index]).split("／")) != {"未提供"} for row in rows)]
+    total = sum(widths[index] for index in keep)
+    tables = [_table("選中模型最終測試", [columns[index] for index in keep], [[row[index] for index in keep] for row in rows],
+                     [widths[index] / total for index in keep])] if rows else []
     return tables, list(dict.fromkeys(notes))
 
 
@@ -1749,10 +1755,17 @@ def _brief_reminders(payload, prediction_notes):
     failures = [note for note in prediction_notes if note.startswith(("方向分支", "報酬分支"))]
     prediction = payload.get("prediction") or {}
     calibration = prediction.get("calibration_status", (payload.get("metrics") or {}).get("calibration_status"))
+    # 開盤前版為主時，提醒註明是備援對照表的機率（開盤前版的機率是校準後）。
+    block = payload.get("preopen_h1") if payload.get("horizon_sessions") == 1 else None
+    owner = "備援對照表的" if isinstance(block, dict) and block.get("status") == "used" else ""
     if failures:
         reminders.append("估計限制：" + "；".join(dict.fromkeys(failures)) + "。")
+    elif calibration and str(calibration).startswith("uncalibrated") and _state(calibration).startswith("未校準"):
+        # 「機率校準」列已寫明未校準，這裡只補判讀。
+        reminders.append(owner + "上漲機率不能直接視為實際命中率。")
     elif not calibration or str(calibration).startswith("uncalibrated"):
-        reminders.append("機率尚未校準，不能直接視為實際命中率。")
+        # 沒有「機率校準」列，或該列顯示不出未校準（對照表沒有的代碼）：保留完整提醒。
+        reminders.append(owner + "機率尚未校準，不能直接視為實際命中率。")
     limitations = [str(value) for value in [*(payload.get("limitations") or []), *((payload.get("metrics") or {}).get("limitations") or [])]]
     specific = [value for value in limitations if any(key in value for key in ("本股", "本公司"))
                 and any(key in value for key in ("停牌", "處置", "下市", "減資"))
@@ -1840,8 +1853,7 @@ def _technical_summary(payload, view):
         features[name] = value
     for name in conflicts:
         features.pop(name, None)
-    returns = []
-    for n in (5, 20, 60):
+    for n in (5, 20, 60):  # 報酬數值只列在表格，段落不再複述
         if "return_" + str(n) not in features:
             continue
         value, unit = features["return_" + str(n)]
@@ -1852,9 +1864,6 @@ def _technical_summary(payload, view):
         else:
             display = _number(value)
         rows.append(["近 " + str(n) + " 日報酬", display])
-        returns.append("近 " + str(n) + " 日報酬 " + display)
-    if returns:
-        sentences.append("、".join(returns))
     if view["dates"]:
         rows.append(["圖表期間", view["dates"][0] + " 至 " + view["dates"][-1]])
         close = view["close"][-1]
@@ -1877,7 +1886,8 @@ def _technical_summary(payload, view):
         if value >= 0:
             if unit in {"times", "倍", "ratio", "fraction", "比例"}:
                 display = f"{value:,.2f} 倍"
-                sentences.append("20 日量比 " + display + "（" + ("高於" if value > 1 else "低於" if value < 1 else "等於") + " 1 倍）")
+                # 數值只列在表格，段落只寫與 1 倍的關係
+                sentences.append("20 日量比" + ("高於" if value > 1 else "低於" if value < 1 else "等於") + " 1 倍")
             else:
                 display = _number(value)
             rows.append(["20 日量比", display])
@@ -1901,11 +1911,38 @@ def _technical_body_notes(notes, insights):
             periods = re.findall(r"(?:高於|低於|等於)([\d／]+)日均線", text)
             return any("收盤" in item and all(any(period + label in item for label in ("日均線", "日均價", "筆均價", "筆均線"))
                        for group in periods for period in group.split("／")) for item in supplied)
-        if re.fullmatch(r"20日量比\d[\d,.]*倍（(?:高於|低於|等於)1倍）", text):
+        if re.fullmatch(r"20日量比(?:高於|低於|等於)1倍", text):
             return any("20日量比" in item for item in supplied)
         return False
 
     return [note for note in notes if not all(covered(clause) for clause in note.rstrip("。").split("；"))]
+
+
+def _technical_insights(insights, rows):
+    """解讀句的報酬、收盤價、均線與量比已在歷史價格摘要表列出同一數值時，只留方向或位置敘述；其他句照舊。"""
+    shown = {row[0]: row[1] for row in rows}
+    close = next((name for name in shown if "收盤價" in name), None)
+
+    def listed(name, number):  # 表格該列與解讀句是同一數值（解讀句只到小數兩位）
+        value = _num(re.sub(r"[,%+倍\s]", "", str(shown.get(name, ""))))
+        number = _num(number.replace(",", ""))
+        return value is not None and number is not None and abs(value - number) < 0.0051
+
+    result = []
+    for text in insights:
+        if match := re.fullmatch(r"既有((?:5|20|60)日(?:報酬)?[-+]?\d[\d,.]*%(?:、(?:5|20|60)日[-+]?\d[\d,.]*%)*)[；，](.+)", text):
+            pairs = re.findall(r"(5|20|60)日(?:報酬)?([-+]?\d[\d,.]*)%", match.group(1))
+            if all(listed("近 " + period + " 日報酬", number) for period, number in pairs):
+                text = "近 " + "／".join(period for period, _ in pairs) + " 日報酬：" + match.group(2)
+        elif match := re.fullmatch(r"(.*?收盤)(\d[\d,.]*)，((?:5|20|60)筆均價\d[\d,.]*(?:、(?:5|20|60)筆均價\d[\d,.]*)*)；收盤(.+)", text):
+            pairs = re.findall(r"(5|20|60)筆均價(\d[\d,.]*)", match.group(3))
+            if close and listed(close, match.group(2)) and all(listed(period + " 日均線", number) for period, number in pairs):
+                averages = " " + "／".join(period for period, _ in pairs) + " 日均線"
+                text = match.group(1) + re.sub(r"(?:所有)?(?:上述|各期)均價", averages, match.group(4))
+        elif (match := re.fullmatch(r"20日量比(\d[\d,.]*)倍，(.+)", text)) and listed("20 日量比", match.group(1)):
+            text = "20 日量比：" + match.group(2)
+        result.append(text)
+    return result
 
 
 def _preopen_percent(value, signed=False):
@@ -1924,6 +1961,7 @@ def _preopen_h1_view(payload):
         if block.get("status") == "fallback":
             notice += "原因：" + str(block.get("reason_zh") or "開盤前版不可用") + "。"
         return [notice], [], "本股預測（" + label + "）", []
+    import single_stock_preopen as preopen  # 「前一晚美股」與註記的顯示文字與 C0 PDF 共用
     rank, universe = block.get("rank"), block.get("universe_rows")
     rank_text = (f"第 {rank} 名／共 {universe} 檔" if type(rank) is int and type(universe) is int else _MISSING)
     tradable_rank, tradable_rows = block.get("rank_tradable"), block.get("tradable_rows")
@@ -1935,20 +1973,21 @@ def _preopen_h1_view(payload):
             ["預估收盤報酬（校準後）", _preopen_percent(block.get("exp_ret"), signed=True)],
             ["全市場名次", rank_text],
             ["可交易母體名次", tradable_text],
-            ["前一晚美股", str(block.get("gate_us_up_zh") or "前一晚美股漲跌未知") + "；"
-             + str(block.get("us_overnight_status_zh") or "美股狀態未知")],
+            ["前一晚美股", preopen.us_overnight_text(block)],
             ["訊號日至目標日", str(_day(block.get("signal_date")) or "未提供") + " 收盤至 "
-             + str(_day(block.get("target_date")) or "未提供") + " 收盤"],
-            ["模型說明", str(block.get("describe") or block.get("model_label") or "開盤前版")]]
+             + str(_day(block.get("target_date")) or "未提供") + " 收盤"]]
+    notes = preopen.describe_notes(block)  # describe 只列其他列沒有的註記；沒有就不列
+    if notes:
+        rows.append(["資料註記", notes])
     if block.get("fixture") is True:
         rows.append(["資料性質", "測試用假快照，不可作為正式資訊"])
     if block.get("target_date_consistent") is False:
         rows.append(["日期提醒", "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"])
-    paragraphs = ["H1 主要預測來源：開盤前版（HGB，含前一晚美股）。「備援對照」表為" + label + "，只供對照，不作為 H1 主要顯示。"]
     disclosure = [[str(name), str(text)] for name, text in block.get("disclosure_rows") or []
                   if isinstance(name, str) and isinstance(text, str)]
-    return (paragraphs, [_table("H1 開盤前版預測（主要顯示）", ["項目", "內容"], rows)], "備援對照：" + label,
-            [_table("開盤前版必要揭露", ["項目", "內容"], disclosure)] if disclosure else [])
+    # 主要／備援的分工與模型名稱只寫在兩張表的標題，不另寫說明段落。
+    return ([], [_table("H1 開盤前版預測（主要顯示）：" + preopen.model_name_text(block), ["項目", "內容"], rows)],
+            "備援對照：" + label, [_table("開盤前版必要揭露", ["項目", "內容"], disclosure)] if disclosure else [])
 
 
 def build_report_sections(payload: dict) -> list[dict]:
@@ -1979,15 +2018,16 @@ def build_report_sections(payload: dict) -> list[dict]:
         return _number(value, True) if value is not None else None
 
     profile = _company_profile(payload)
-    summary_rows = [["股票", _code(stock.get("stock_id")) + " " + _zh(profile.get("stock_name"), "股票名稱未提供")],
-                    ["市場與產業", market + ("／" + _zh(profile["industry"]) if profile.get("industry") else "")]]
+    identity_rows = [["股票", _code(stock.get("stock_id")) + " " + _zh(profile.get("stock_name"), "股票名稱未提供")],
+                     ["市場與產業", market + ("／" + _zh(profile["industry"]) if profile.get("industry") else "")]]
+    summary_rows = list(identity_rows)
     asof = _day(payload.get("asof"))
     if asof:
         summary_rows.append(["資料日", asof])
     else:
         prediction_notes.append("資料日未提供")
     target = _day(payload.get("target_session_date", pred.get("target_session_date")))
-    summary_rows.append(["預測目標", "訊號日收盤至同市場第 " + duration + " 個交易日收盤"])
+    summary_rows.append(["預測目標", "訊號日收盤至同市場第 " + duration + " 個交易日收盤（收盤對收盤報酬，非實際成交報酬）"])
     if target:
         summary_rows.append(["目標交易日收盤", target])
     else:
@@ -2017,8 +2057,17 @@ def build_report_sections(payload: dict) -> list[dict]:
     if any(note.startswith(("方向分支", "報酬分支")) for note in prediction_notes):
         insights["summary"] = []
     preopen_notes, preopen_tables, summary_title, preopen_disclosure = _preopen_h1_view(payload)
+    if preopen_tables:
+        # 開盤前版為主時，股票與市場移到主要表格；資料日與相同的目標日已在「訊號日至目標日」，
+        # 預測目標（同一個收盤對收盤定義）已在必要揭露。
+        preopen_tables[0]["rows"][:0] = identity_rows
+        shown = {"股票", "市場與產業", "資料日"}
+        if target and target == _day(payload["preopen_h1"].get("target_date")):
+            shown.add("目標交易日收盤")
+        if any(row[0] == "預測目標" for table in preopen_disclosure for row in table["rows"]):
+            shown.add("預測目標")
+        summary_rows = [row for row in summary_rows if row[0] not in shown]
     sections = [_section("summary", "一、預測摘要", [*preopen_notes, *insights["summary"], boundary + "機率與報酬皆有誤差。",
-                         "預測為第 " + duration + " 個交易日的收盤對收盤報酬，非實際成交報酬。",
                          *_brief_reminders(payload, prediction_notes)],
                          [*preopen_tables, _table(summary_title, ["項目", "內容"], summary_rows), *preopen_disclosure])]
     view = _price_view(payload)
@@ -2030,7 +2079,8 @@ def build_report_sections(payload: dict) -> list[dict]:
                        and item.get("unit") not in {"ratio", "fraction", "比例", "percent", "%", "百分比", "times", "倍"}
                        for item in payload.get("feature_values") or [])
     raw_units = bool(technical_tables and (view.get("volume_unit") == _unit(None) or raw_features))
-    sections.append(_section("technical", "二、價量與 5／20／60 日均線", [*insights["technical"], *technical_notes], technical_tables, view))
+    sections.append(_section("technical", "二、價量與 5／20／60 日均線",
+                             [*_technical_insights(insights["technical"], technical), *technical_notes], technical_tables, view))
     sources = _context_sources(payload)
     context_routes = _GLOBAL | {"official_sector_features", "finmind_industry_chain_flow"}
     comparisons, comparison_coverage, comparison_notes = _comparison_views(payload)
@@ -2054,10 +2104,13 @@ def build_report_sections(payload: dict) -> list[dict]:
     split = (metrics.get("splits") or {}).get("finaltest", (metrics.get("splits") or {}).get("test")) or {}
     start, end = _day(split.get("start")), _day(split.get("end"))
     period_note = ["最終測試訊號期間：" + start + " 至 " + end + "。"] if start and end else []
+    # MAE 說明只在表格列出報酬 MAE 時加上。
+    mae_note = ["報酬 MAE 為平均絕對誤差，以百分點表示，越低越好。"] if any(
+        "報酬 MAE" in row[0] for table in tables for row in table["rows"]) else []
     sections.append(_section("evaluation", "六、選中模型的最終測試表現", [
         *data_notes,
         *period_note,
-        "報酬 MAE 為平均絕對誤差，以百分點表示，越低越好。",
+        *mae_note,
         *notes], tables))
     # Every visible string, including chart legends and table cells, crosses this boundary.
     def convert(value):

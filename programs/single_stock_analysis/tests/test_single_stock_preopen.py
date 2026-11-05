@@ -715,3 +715,192 @@ def test_chips_note_follows_reader_text_and_meta_keeps_freshness(snapshot_root):
     block = preopen.build_h1_block(STOCK_6488, "2026-10-16")
     assert block["status"] == "used" and block["chips_note_zh"] is None
     assert "chips_freshness" not in block["meta"] and "degraded" not in block["meta"]
+
+
+# ---------------------------------------------------------------- trimmed display: each fact once, every warning kept
+
+
+def test_preopen_rows_drop_repeated_describe_parts_but_keep_warnings(snapshot_root):
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+    rows = dict(single._preopen_rows(preopen.build_h1_block(STOCK_6488, "2026-10-16", base_target_date="2026-10-19")))
+    assert rows["前一晚美股"] == "前一晚美股收漲（建議日）"  # 收盤已納入是常態，不另寫
+    assert not {"H1 主要來源", "模型說明", "資料註記"} & set(rows)  # describe 沒有其他註記時不列
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", us_status="missing",
+                  stale_routes=["finmind_margin"])
+    block = preopen.build_h1_block(STOCK_6488, "2026-10-16", base_target_date="2026-10-20")
+    rows = dict(single._preopen_rows(block))
+    assert rows["前一晚美股"] == "前一晚美股收漲（建議日）；前一晚美股收盤缺漏（以缺值推論，準確度可能下降）"
+    assert rows["資料註記"] == "美股資料最新日期 20261016｜" + block["chips_note_zh"]
+    assert "日期提醒" in rows
+    assert block["describe"].endswith("｜模型 " + "f" * 12)  # 封存的 describe 原文不變，只在顯示時略過
+
+
+def _c0_report_payload(**overrides):
+    payload = {"stock": dict(STOCK_6488), "horizon_sessions": 1, "estimate_status": "estimated",
+               "latest_data_date": "2026-10-16", "target_session_date": "2026-10-19", "stock_last_price_date": "2026-10-16",
+               "prediction": {"prob_up": 0.53, "expected_return": 0.001, "selected_direction_kind": "logistic",
+                              "selected_return_kind": "ridge", "calibration_status": "uncalibrated",
+                              "forward_calibration_status": "uncalibrated_no_forward_overlay"},
+               "comparison_metrics": {"direction_accuracy": 0.55, "nonflat_direction_count": 1000, "observed_count": 1100,
+                                      "mae": 0.012},
+               "training_scope": {"stock_count": 1700}, "coverage": {"eligible": 1690},
+               "data_time": {"analysis_asof": "2026-10-16", "asof_by_market": {"TPEX": "2026-10-16", "TWSE": "2026-10-16"},
+                             "price_max_date": "2026-10-16", "read_at_utc": "2026-10-16T12:00:00Z",
+                             "head": {"published_at": "2026-10-16T10:00:00Z"}, "model": {"training_asof": "2026-09-30"}},
+               "source_statuses": {"official_calendar": "SUCCESS", "finmind_dividend": "EMPTY"}}
+    payload.update(overrides)
+    return payload
+
+
+def _pdf_text(monkeypatch, path, payload):
+    """實際 _pdf 的 story 攤平成文字：段落一行、表格每格一行（名稱與內容相鄰）。"""
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Table
+    seen, original = [], SimpleDocTemplate.build
+
+    def build(self, story, **kwargs):
+        for item in story:
+            if isinstance(item, Paragraph):
+                seen.append(item.getPlainText())
+            elif isinstance(item, Table):
+                seen.extend(cell.getPlainText() for row in item._cellvalues for cell in row if isinstance(cell, Paragraph))
+        return original(self, story, **kwargs)
+
+    monkeypatch.setattr(SimpleDocTemplate, "build", build)
+    REAL_C0_PDF(path, payload, None)
+    return "\n".join(seen)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows 中文字型")
+def test_c0_pdf_h1_used_lists_each_fact_once(snapshot_root, tmp_path, monkeypatch):
+    pytest.importorskip("reportlab")
+    import re
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+    block = preopen.build_h1_block(STOCK_6488, "2026-10-16", base_target_date="2026-10-19")
+    text = _pdf_text(monkeypatch, tmp_path / "used.pdf", _c0_report_payload(preopen_h1=block))
+    for needle in ("C0 基準（備援）\n上漲機率 53.00%／預估報酬 +0.10%", "C0 基準（備援）機率校準\n尚未校準",
+                   "交易提醒", "命中率不代表交易獲利", "資料出處\n" + str(preopen.CALIBRATION_REPORT), "低於60%",
+                   "比較樣本筆數（全部／排除持平）\n1,100／1,000", "模型訓練資料日：20260930。",
+                   "H1 開盤前版（HGB，含前一晚美股；主要顯示）＋ C0 基準（備援）｜下一個市場交易日收盤估計｜上櫃"):
+        assert needle in text, needle
+    assert text.count("HGB，含前一晚美股") == 1  # 模型名稱只在副標寫一次
+    for repeated in ("H1 主要預測來源", "H1 主要來源", "模型 ffffffffffff", "前一晚美股收盤已納入", "本報告目標",
+                     "到期交易日", "見第", "模型訓練股票數", "本次推論股票數", "籌碼市場新聞", "基本面估值", "發布時間",
+                     "讀取時間", "模型效果及交易效益未驗證", "前瞻校正", "樣本外績效", "未來價格區間", "市場交易日曆",
+                     "本次結果", "已產生估計"):
+        assert repeated not in text, repeated
+    assert re.findall(r"^[一二三四五六]、\S+", text, re.M) == [
+        "一、摘要", "二、股價技術", "三、比較樣本與模型表現", "四、對應期限預測與說明", "五、資料時間與限制"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows 中文字型")
+def test_c0_pdf_keeps_every_warning_after_trimming(snapshot_root, tmp_path, monkeypatch):
+    pytest.importorskip("reportlab")
+    write_fixture(snapshot_root, signal_date="2026-10-15", target_date="2026-10-16", us_status="missing", gate_us_up=False,
+                  stale_routes=["finmind_margin"])
+    block = preopen.build_h1_block(STOCK_6488, "2026-10-15", base_target_date="2026-10-19")
+    data_time = {"analysis_asof": "2026-10-15", "asof_by_market": {"TPEX": "2026-10-15", "TWSE": "2026-10-16"},
+                 "price_max_date": "2026-10-16", "is_stale": True, "latest_expected_session": "2026-10-16",
+                 "stock_market": "TPEX", "stock_market_asof": "2026-10-15", "latest_market_asof": "2026-10-16",
+                 "stock_market_asof_lags": True, "model": {"training_asof": "2026-09-30"}}
+    payload = _c0_report_payload(preopen_h1=block, latest_data_date="2026-10-15", stock_last_price_date="2026-10-14",
+                                 data_time=data_time, stock_data_notes=["本股近 253 日有 2 日價格缺漏"],
+                                 comparison_metrics={"direction_accuracy": 0.52, "observed_count": 1100, "mae": 0.012},
+                                 source_statuses={"official_calendar": "SUCCESS", "finmind_price_adj": "PARTIAL"})
+    text = _pdf_text(monkeypatch, tmp_path / "warn.pdf", payload)
+    for warning in ("資料不完整，可信度較低", "資料備註：本股近 253 日有 2 日價格缺漏",
+                    "前一晚美股收盤缺漏（以缺值推論，準確度可能下降）", "t 日籌碼未更新：融資券最新到",
+                    "日期提醒", "到期交易日\n20261019", "【非最新資料】", "各市場：上櫃 20261015／上市 20261016",
+                    "本股所屬上櫃市場資料日 20261015", "本股最後價格日：20261014", "調整後股價\n部分資料",
+                    "比較樣本方向判斷率低於60%", "機率校準\n尚未校準"):
+        assert warning in text, warning
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows 中文字型")
+@pytest.mark.parametrize("case", ["fallback", "forced_c0", "no_estimate"])
+def test_c0_pdf_fallback_and_no_estimate_keep_their_reasons(snapshot_root, tmp_path, monkeypatch, case):
+    pytest.importorskip("reportlab")
+    write_fixture(snapshot_root, signal_date="2026-10-15")
+    if case == "fallback":
+        payload = _c0_report_payload(preopen_h1=preopen.build_h1_block(STOCK_6488, "2026-10-16"))
+        needles = ("【注意】開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準。原因：開盤前版快照的訊號日與本次分析資料日不同。",
+                   "本報告目標：", "到期交易日\n20261019", "模型效果及交易效益未驗證", "機率校準\n尚未校準",
+                   "上漲機率\n53.00%", "預估報酬\n+0.10%")
+        missing = ("開盤前版必要揭露", "C0 基準（備援）", "本次結果", "已產生估計")
+    elif case == "forced_c0":
+        payload = _c0_report_payload(preopen_h1=preopen.build_h1_block(STOCK_6488, "2026-10-16", source="c0"))
+        needles = ("【注意】依設定不使用開盤前版（h1_source_forced_c0），本次 H1 改用 C0 基準。", "本報告目標：")
+        missing = ("開盤前版必要揭露", "C0 基準（備援）", "本次結果", "已產生估計")
+    else:
+        payload = _c0_report_payload(horizon_sessions=63, estimate_status="no_estimate", prediction=None,
+                                     comparison_metrics={}, no_estimate_reason="stock_price_older_than_asof",
+                                     stock_last_price_date="2026-10-01")
+        # 本股最後價格日在第一章「原因」下方（README 契約），資料時間章不再重複
+        needles = ("本次結果\n無法估計", "原因\n該股價格資料停在分析資料日之前\n本股最後價格日\n20261001",
+                   "本次沒有可呈現的有效價格序列，技術圖與指標無法計算。", "本次沒有可用的模型比較資料。",
+                   "本報告目標：訊號日收盤至同市場第63個交易日收盤", "本次方向機率與報酬估計無法計算，原因見第一章。")
+        missing = ("最近一日漲跌", "方向判斷", "方向方法", "欄位保留", "上漲機率", "預估報酬", "價格最新日")
+    text = _pdf_text(monkeypatch, tmp_path / f"{case}.pdf", payload)
+    for needle in needles:
+        assert needle in text, needle
+    for needle in missing:
+        assert needle not in text, needle
+    if case == "no_estimate":
+        assert text.count("本股最後價格日") == 1
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows 中文字型")
+@pytest.mark.parametrize("preopen_used", [False, True], ids=["c0_h63", "h1_preopen_used"])
+def test_c0_pdf_no_estimate_lists_the_last_price_day_even_when_it_is_the_analysis_day(
+        snapshot_root, tmp_path, monkeypatch, preopen_used):
+    """原因不是價格過舊（例如 253 日不完整）時，本股最後價格日等於分析資料日，仍要列出一次（README 契約）。"""
+    pytest.importorskip("reportlab")
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+    extra = {"preopen_h1": preopen.build_h1_block(STOCK_6488, "2026-10-16", base_target_date="2026-10-19")} if preopen_used else {}
+    payload = _c0_report_payload(horizon_sessions=1 if preopen_used else 63, estimate_status="no_estimate", prediction=None,
+                                 comparison_metrics={}, no_estimate_reason="latest_exact_253_market_sessions_incomplete",
+                                 **extra)
+    text = _pdf_text(monkeypatch, tmp_path / "same_day.pdf", payload)
+    base = "C0 基準（備援）" if preopen_used else ""
+    assert f"{base}本次結果\n無法估計" in text
+    assert "原因\n最近253個交易日價格不完整\n本股最後價格日\n20261016" in text
+    assert text.count("本股最後價格日") == 1
+    assert "上漲機率\n無法計算" not in text and "預估報酬\n無法計算" not in text
+
+
+def test_selected_h1_summary_lists_identity_and_dates_once(formal_payload, snapshot_root, monkeypatch):
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    for base_target, consistent in (("2026-10-19", True), ("2026-10-20", False)):
+        write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+        item = copy.deepcopy(formal_payload)
+        item["target_session_date"] = base_target
+        item["preopen_h1"] = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                    base_target_date=base_target)
+        summary = report.build_report_sections(item)[0]
+        main, backup, disclosure = (dict(table["rows"]) for table in summary["tables"])
+        # 股票與市場移到主要表格；資料日與相同的目標日只在「訊號日至目標日」
+        assert main["股票"].startswith("2330 ") and main["市場與產業"].startswith("上市市場")
+        assert main["前一晚美股"] == "前一晚美股收漲（建議日）" and "模型說明" not in main and "資料註記" not in main
+        assert not {"股票", "市場與產業", "資料日"} & set(backup)
+        assert ("目標交易日收盤" in backup) is not consistent and ("日期提醒" in main) is not consistent
+        # 預測目標（同一個收盤對收盤定義）只在必要揭露寫一次
+        assert "預測目標" not in backup and disclosure["預測目標"].startswith("下一交易日收盤相對訊號日收盤的方向（收盤對收盤）")
+        # 未校準由備援表「機率校準」列呈現；提醒段落註明是備援對照表的機率（開盤前版是校準後）
+        assert backup["機率校準"] == "未校準" and "備援對照表的上漲機率不能直接視為實際命中率。" in summary["paragraphs"]
+        # 主要／備援的分工與模型名稱只寫在表名，不另寫段落
+        assert summary["tables"][0]["title"] == "H1 開盤前版預測（主要顯示）：HGB，含前一晚美股"
+        assert not any("H1 主要預測來源" in text for text in summary["paragraphs"])
+        visible = "\n".join(report._visible_strings([summary]))
+        assert visible.count("HGB，含前一晚美股") == 1 and "模型 ffffffffffff" not in visible
+
+
+def test_selected_h1_reminder_names_the_backup_probability_for_an_unmapped_status(formal_payload, snapshot_root, monkeypatch):
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+    item = copy.deepcopy(formal_payload)
+    item["prediction"]["calibration_status"] = "uncalibrated_new_reason"
+    item["preopen_h1"] = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                base_target_date="2026-10-19")
+    summary = report.build_report_sections(item)[0]
+    # 「機率校準」列顯示不出未校準：保留完整提醒，並註明是備援對照表的機率
+    assert dict(summary["tables"][1]["rows"])["機率校準"] == "未確認（原始狀態見資料檔）"
+    assert "備援對照表的機率尚未校準，不能直接視為實際命中率。" in summary["paragraphs"]

@@ -852,6 +852,16 @@ def test_selected_finaltest_only_with_mae_denominators_and_worse_results(payload
     assert payload == original
 
 
+def test_selected_finaltest_hides_unavailable_columns_and_mae_note_without_mae_rows(payload, content_converter):
+    tables, _ = report._selected_metric_tables(payload)
+    # 基準與失敗／未評分整欄都是「未提供」：不列這兩欄，其餘欄寬按比例放大
+    assert tables[0]["columns"] == ["樣本／指標", "模型", "可評分／原始樣本", "基準對照"]
+    assert all(len(row) == 4 for row in tables[0]["rows"]) and sum(tables[0]["widths"]) == pytest.approx(1.0)
+    assert "報酬 MAE 為平均絕對誤差" not in section_text(report.build_report_sections(copy.deepcopy(payload)), "evaluation")
+    payload["metrics"]["holdout"]["expanded_hgb"] = {"return": {"mae": 0.14, "n_denominator": 1000, "n_evaluated": 987}}
+    assert "報酬 MAE 為平均絕對誤差" in section_text(report.build_report_sections(payload), "evaluation")
+
+
 def test_selected_conflicting_finaltest_remains_visible_without_picking_better(payload, content_converter):
     payload["metrics"]["holdout"]["expanded_linear"]["direction"]["accuracy"] = 0.49
     text = section_text(report.build_report_sections(payload), "evaluation")
@@ -875,8 +885,10 @@ def test_reminders_group_critical_gaps_without_full_limitations_chapter(payload,
     summary = next(section for section in sections if section["id"] == "summary")
     reminders = report._brief_reminders(payload, ["第 63 交易日日期未驗證", "長期限標籤重疊，訊號日數不等於獨立樣本"])
     assert len(reminders) <= 2
-    for important in ("機率尚未校準", "處置交易"):
+    for important in ("不能直接視為實際命中率", "處置交易"):
         assert important in "\n".join(reminders)
+    # 未校準狀態由摘要表「機率校準」列呈現，提醒段落只補判讀
+    assert dict(summary["tables"][0]["rows"])["機率校準"].startswith("未校準")
     for omitted in ("日期未驗證", "訊號日數", "資產負債表", "資料缺口", "不能視為完整分析"):
         assert omitted not in section_text([summary])
     assert "歷史公告時點或歷史成分股資格仍有未驗證項" not in "\n".join(reminders)
@@ -908,7 +920,8 @@ def test_unknown_availability_never_becomes_current_data_gap_list(payload, conte
     for omitted in ("資料缺口", "歷史狀態來源", "日期未驗證", "不能視為完整分析"):
         assert omitted not in summary
     assert "第 63 個交易日收盤" in summary
-    assert "機率尚未校準" in summary
+    assert "不能直接視為實際命中率" in summary
+    assert dict(sections[0]["tables"][0]["rows"])["機率校準"].startswith("未校準")
     assert not report._historical_timing_unconfirmed(payload)
     assert report._HISTORICAL_TIMING_RISK not in section_text(sections)
     assert len(payload["source_manifest"]) == 20
@@ -1023,7 +1036,8 @@ def test_technical_summary_uses_supplied_returns_volume_ratio_and_ma_relations(p
     assert rows["20 日量比"] == "0.52 倍"
     summary = "\n".join(technical["paragraphs"])
     assert "收盤高於 60 日均線、低於 5／20 日均線" in summary
-    assert "20 日量比 0.52 倍（低於 1 倍）" in summary
+    # 量比數值只列在表格，段落只寫與 1 倍的關係
+    assert "20 日量比低於 1 倍" in summary and "0.52" not in summary
     for recommendation in ("買進", "賣出", "推薦", "因為", "帶動股價"):
         assert recommendation not in summary
     assert payload == before
@@ -1057,9 +1071,13 @@ def test_new_technical_insights_replace_covered_legacy_sentence_but_keep_real_wa
     technical = next(s for s in report.build_report_sections(payload) if s["id"] == "technical")
     text = section_text([technical])
     assert text.count(warning) == 1
-    assert ("近 5 日報酬 2.30%" in "\n".join(technical["paragraphs"])) is (not new_context)
+    # 表格已有的收盤價、均線、報酬與量比數值：舊段落與新解讀都不再複述，只留位置或方向敘述
+    assert "2.30%" not in "\n".join(technical["paragraphs"]) and "0.52" not in "\n".join(technical["paragraphs"])
     if new_context:
-        assert technical["paragraphs"] == [*insights, warning]
+        assert technical["paragraphs"] == ["收盤等於 5／20／60 日均線。", "近 5／20／60 日報酬：短中期方向不同。",
+                                           "20 日量比：量能低於20日基準。", insights[3], warning]
+    else:
+        assert "收盤等於 5／20／60 日均線" in technical["paragraphs"][0]
     rows = dict(technical["tables"][0]["rows"])
     assert rows["近 20 日報酬"] == "-1.23%" and rows["20 日量比"] == "0.52 倍"
     assert technical["chart"]["close"] == [100] * 60
@@ -1069,11 +1087,16 @@ def test_new_technical_insights_replace_covered_legacy_sentence_but_keep_real_wa
 def test_partial_technical_insights_do_not_hide_uncovered_legacy_description(payload, content_converter, monkeypatch):
     payload["report_context"] = {"schema": "single-stock-report-context-v1", "stock_id": "2330", "asof": payload["asof"],
                                  "sources": [], "statuses": []}
+    asof = date.fromisoformat(payload["asof"])
+    payload["price_history"] = [{"date": (asof - timedelta(days=59 - i)).isoformat(), "close": 100,
+                                 "volume": 1000, "price_basis": "adjusted"} for i in range(60)]
     monkeypatch.setattr(report, "build_report_insights", lambda item: {
         "summary": [], "technical": ["20日波動指標2.01%，短窗口波動較低。"], "fundamentals": [],
         "flows": [], "context": [], "data_notes": []})
     technical = next(s for s in report.build_report_sections(payload) if s["id"] == "technical")
-    assert "近 5 日報酬 2.30%" in "\n".join(technical["paragraphs"])
+    # 解讀沒涵蓋的均線位置照舊保留；報酬數值只列在表格
+    assert "收盤等於 5／20／60 日均線" in "\n".join(technical["paragraphs"])
+    assert dict(technical["tables"][0]["rows"])["近 5 日報酬"] == "2.30%"
 
 
 def test_technical_summary_does_not_compute_missing_features_from_prices(payload, content_converter):
@@ -1113,7 +1136,27 @@ def test_technical_features_must_match_stock_date_and_declared_scale(payload, co
     rows = dict(technical["tables"][0]["rows"])
     assert rows["近 5 日報酬"] == "2.3%"
     assert "近 20 日報酬" not in rows and "近 60 日報酬" not in rows
-    assert "20 日量比 1.10 倍（高於 1 倍）" in "".join(technical["paragraphs"])
+    assert rows["20 日量比"] == "1.10 倍" and "20 日量比高於 1 倍" in "".join(technical["paragraphs"])
+
+
+def test_technical_insights_drop_numbers_only_when_the_table_shows_the_same_value():
+    rows = [["近 5 日報酬", "2.30%"], ["還原收盤價", "101"], ["5 日均線", "100"], ["20 日量比", "0.52 倍"]]
+    same = ["2026-10-16同口徑收盤101，5筆均價100；收盤高於所有上述均價。",
+            "20日量比0.52倍，量能低於自身20日基準，價格變動未伴隨放量。", "既有20日波動指標2.01%、60日2.68%，短窗口波動較低。"]
+    assert report._technical_insights(same, rows) == [
+        "2026-10-16同口徑收盤高於 5 日均線。", "20 日量比：量能低於自身20日基準，價格變動未伴隨放量。", same[2]]
+    # 收盤價與表格不同、20 日報酬不在表格、量比不同：不是重複，數值照舊保留
+    other = ["2026-10-16同口徑收盤102，5筆均價100；收盤高於所有上述均價。",
+             "既有5日報酬+2.30%、20日-1.23%；短期反彈與中期回落並存。", "20日量比0.60倍，量能低於自身20日基準。"]
+    assert report._technical_insights(other, rows) == other
+
+
+def test_unmapped_uncalibrated_status_keeps_the_full_calibration_reminder(payload, content_converter):
+    payload["prediction"]["calibration_status"] = "uncalibrated_new_reason"
+    summary = report.build_report_sections(payload)[0]
+    # 對照表沒有的代碼：「機率校準」列顯示不出未校準，提醒段落保留完整句
+    assert dict(summary["tables"][0]["rows"])["機率校準"] == "未確認（原始狀態見資料檔）"
+    assert "機率尚未校準，不能直接視為實際命中率。" in summary["paragraphs"]
 
 
 def test_windows_traditional_conversion():
@@ -1288,7 +1331,9 @@ def test_grouped_data_notes_do_not_repeat_summary_disclosures_or_common_cautions
     sections = report.build_report_sections(payload)
     evaluation = section_text(sections, "evaluation")
     summary = section_text(sections, "summary")
-    assert summary.count("機率尚未校準") == 1 and summary.count("未來交易日曆未核實") == 1
+    # 未校準只由摘要表「機率校準」列呈現一次，提醒段落只補判讀
+    assert summary.count("未校準") == 1 and summary.count("不能直接視為實際命中率") == 1
+    assert summary.count("未來交易日曆未核實") == 1
     assert "機率尚未校準" not in evaluation and "目標交易日尚未驗證" not in evaluation
     assert "同口徑基期" in evaluation and "歷史公告時點未核實，回測可能偏樂觀" in evaluation
     assert report._RAW_VALUE_NOTE not in evaluation and report._HISTORICAL_TIMING_RISK not in evaluation

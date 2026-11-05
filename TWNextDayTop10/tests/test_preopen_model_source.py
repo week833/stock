@@ -198,9 +198,14 @@ def test_predict_shows_preopen_top10_when_snapshot_is_fresh(loaded_scope, model,
     assert "base_session_by_market" not in context
     assert context["c0_base_session_by_market"] == {"TPEX": T, "TWSE": D}
     assert context["preopen_status"]["expected_signal_date"] == D.replace("-", "")
-    # HTML：模型來源、describe、建議日、必要揭露。
+    # HTML：模型來源、describe 顯示版（只在模型來源區寫一次；結尾「｜模型 <雜湊前 12 碼>」內部識別碼、Top10 上方閘門
+    # 已寫的美股漲跌段，以及與本次摘要相同的訊號日→目標日不重複）、建議日、必要揭露。
     describe = preopen_source.prepared_reader()[0].describe(meta)
-    assert html.count(describe) >= 1 and "H1 模型來源：開盤前版" in html
+    dates = "｜訊號日 " + D.replace("-", "") + " → 目標日 " + NEXT_D.replace("-", "")
+    shown = re.sub(r"｜美股收漲（建議日）｜模型 [^｜]*$", "", describe.replace(dates, ""))
+    assert dates in describe and shown != describe and html.count(shown) == 1 and describe not in html
+    assert "分析日：" + D.replace("-", "") + "；下一交易日：" + NEXT_D.replace("-", "") + "。" in html
+    assert "H1 模型來源：開盤前版" in html
     assert "建議日：前一晚美股收漲" in html and "非建議日" not in html
     assert "開盤前版可交易 Top10" in html and "開盤前版不可用" not in html
     for text in DISCLOSURE_NUMBERS:
@@ -213,13 +218,12 @@ def test_predict_shows_preopen_top10_when_snapshot_is_fresh(loaded_scope, model,
     assert (disclosure["recipe"], disclosure["recipe_entry"]) == (None, "h1pre_final_nogc_xs")
     assert payload["preopen_gate"]["label"] == V1_GATE[True][1]
     assert context["trading_effect_status"] == "開盤買進 Top10 保留期平均為負；交易效益未證"
-    assert "命中率指收盤報價方向，不代表交易獲利（隔日開盤買進 Top10 保留期平均為負）。" in html
     assert "命中率指收盤報價方向，不代表交易獲利；隔日開盤買進 Top10 保留期平均為負。" in html
     # Excel：揭露與閘門文字寫入儲存格，可交易欄位存在。
     strings = _xlsx_strings(output)
     for text in ("必要揭露（開盤前版 H1）", "建議日：前一晚美股收漲", "可交易名次", "AUC 0.608", meta["run_id"]):
         assert text in strings
-    assert "保留期驗證見必要揭露；命中率不代表交易獲利；隔日開盤買進 Top10 保留期平均為負。" in strings
+    assert "保留期驗證見必要揭露；隔日開盤買進 Top10 保留期平均為負。" in strings
     assert "命中率指收盤報價方向，不代表交易獲利；隔日開盤買進 Top10 保留期平均為負。" in strings
     visible = tmp_path / "visible" / (NEXT_D.replace("-", "") + ".xlsx")
     assert visible.is_file()
@@ -263,8 +267,7 @@ def test_predict_discloses_recipe_v2_numbers(loaded_scope, model, monkeypatch, t
     for text in (*V2_DISCLOSURE_NUMBERS, "建議日：前一晚美股收漲（保留期此條件下 Top10 命中 65.3%）",
                  "命中率指收盤報價方向，不代表交易獲利；隔日開盤買進 Top10 保留期平均約為零（約 +0.01%／日）。"):
         assert text in html and text in strings
-    assert "不代表交易獲利（隔日開盤買進 Top10 保留期平均約為零（約 +0.01%／日））。" in html
-    assert "保留期驗證見必要揭露；命中率不代表交易獲利；隔日開盤買進 Top10 保留期平均約為零（約 +0.01%／日）。" in strings
+    assert "保留期驗證見必要揭露；隔日開盤買進 Top10 保留期平均約為零（約 +0.01%／日）。" in strings
     for text in V1_ONLY_TEXTS:
         assert text not in html and text not in strings
 
@@ -318,7 +321,9 @@ def test_predict_auto_falls_back_to_c0_when_snapshot_is_stale(loaded_scope, mode
     assert banner in _xlsx_strings(output)
     assert "研究展示（最多十檔）" in html and "可交易名次" not in html
     assert len(payload["predictions"]) == len(fx.STOCKS)
-    assert payload["meta"]["warnings"][0].startswith("開盤前版不可用（preopen_stale")
+    # 回退警示（含原因代碼）只在紅色提示寫一次；meta.warnings 只留上游資料警告。
+    assert payload["model_source_note"] == banner and html.count(banner) == 1
+    assert not any(str(line).startswith("開盤前版不可用") for line in payload["meta"]["warnings"])
 
 
 def test_predict_preopen_required_fails_before_forward_ledger(loaded_scope, model, monkeypatch, tmp_path):
