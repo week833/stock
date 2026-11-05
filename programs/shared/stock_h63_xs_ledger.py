@@ -284,7 +284,8 @@ def record_block(root: Any, frame: pd.DataFrame, header: Dict[str, Any], *, upda
                  recorded_at: Optional[dt.datetime] = None) -> Dict[str, Any]:
     """Write one immutable block (parquet + header) for header['decision_date'] and header['key_material'].
 
-    Returns {'status': recorded | already_recorded | conflicting_repeat, 'entry_key', 'parquet', 'header'}."""
+    Returns {'status': recorded | already_recorded | conflicting_repeat, 'entry_key', 'parquet', 'header'}.  A repeat
+    of an intact block completes the index line / latest pointer that an interrupted run left unwritten."""
     paths = Paths(root)
     key = entry_key(header["key_material"])
     decision = header["decision_date"]
@@ -295,12 +296,16 @@ def record_block(root: Any, frame: pd.DataFrame, header: Dict[str, Any], *, upda
         if pq_path.exists() or js_path.exists():
             try:
                 old = json.loads(js_path.read_text(encoding="utf-8"))
-                same = old.get("rows_sha256") == digest
-            except (OSError, ValueError):
+                same = old.get("rows_sha256") == digest and sha256_file(pq_path) == old.get("parquet_sha256") \
+                    and old.get("entry_key") == key and old.get("decision_date") == decision  # 身分欄位也要相符
+            except (FileNotFoundError, ValueError):  # 缺檔或無法解析才算不同；檔案被占用等讀取錯誤直接丟出
                 same = False
             kind = "already_recorded" if same else "conflicting_repeat"
             record_event(paths, kind, decision_date=decision, entry_key=key, rows_sha256=digest)
-            return {"status": kind, "entry_key": key, "parquet": str(pq_path), "header": str(js_path)}
+            out = {"status": kind, "entry_key": key, "parquet": str(pq_path), "header": str(js_path)}
+            if same:  # 前次寫完區塊後中斷：依既有 header 補完 index／latest（原 recorded_at，區塊檔不動）
+                out["indexed"], out["completed"] = _publish(paths, old, pq_path, js_path, update_latest, resume=True)
+            return out
         _write_new(pq_path, lambda tmp: frame.to_parquet(tmp, index=False, compression="zstd"))
         full = dict(header)
         full.update(schema=BLOCK_SCHEMA, entry_key=key, rows_sha256=digest, row_count=int(len(frame)),
@@ -308,32 +313,118 @@ def record_block(root: Any, frame: pd.DataFrame, header: Dict[str, Any], *, upda
                     recorded_at=stamp_utc(moment),
                     recorded_at_taipei=moment.astimezone(TAIPEI).strftime("%Y%m%d %H:%M:%S"),
                     prereg_review_sha256=PREREGISTERED_REVIEW_V3_SHA256)
-        write_new_json(js_path, core.jsonable(full))
-        header_sha = sha256_file(js_path)
-        line = {"schema": INDEX_SCHEMA, "decision_date": decision, "entry_key": key, "run_id": header.get("run_id"),
-                "recorded_at": full["recorded_at"], "parquet": pq_path.relative_to(paths.root).as_posix(),
-                "parquet_sha256": full["parquet_sha256"], "header": js_path.relative_to(paths.root).as_posix(),
-                "header_sha256": header_sha, "rows_sha256": digest, "row_count": int(len(frame)),
-                "model_sha256": (header.get("model") or {}).get("model_sha256"),
-                "date_gate_ok": bool((header.get("gate") or {}).get("ok")), "trigger": header.get("trigger"),
-                "prev_line_sha256": None}
-        indexed = True
+        stored = core.jsonable(full)
+        write_new_json(js_path, stored)
+        indexed, _ = _publish(paths, stored, pq_path, js_path, update_latest)
+    return {"status": "recorded", "entry_key": key, "parquet": str(pq_path), "header": str(js_path),
+            "indexed": indexed}
+
+
+def _publish(paths: Paths, stored: Dict[str, Any], pq_path: Path, js_path: Path, update_latest: bool, *,
+             resume: bool = False) -> Tuple[bool, List[str]]:
+    """Index line + latest pointer of a written block, both from its stored header.  resume (a repeat of an intact
+    block) writes only the missing steps; its read errors raise and it never appends to a broken index
+    (_index_missing).  Returns (indexed, steps written)."""
+    header_sha = sha256_file(js_path)
+    line = {"schema": INDEX_SCHEMA, "decision_date": stored["decision_date"], "entry_key": stored["entry_key"],
+            "run_id": stored.get("run_id"), "recorded_at": stored["recorded_at"],
+            "parquet": pq_path.relative_to(paths.root).as_posix(), "parquet_sha256": stored["parquet_sha256"],
+            "header": js_path.relative_to(paths.root).as_posix(), "header_sha256": header_sha,
+            "rows_sha256": stored["rows_sha256"], "row_count": int(stored["row_count"]),
+            "model_sha256": (stored.get("model") or {}).get("model_sha256"),
+            "date_gate_ok": bool((stored.get("gate") or {}).get("ok")), "trigger": stored.get("trigger"),
+            "prev_line_sha256": None}
+    steps: List[str] = []
+    indexed = True
+    if not resume or _index_missing(paths, line):
+        error: Optional[str] = None
         try:
             line["prev_line_sha256"] = _last_line_sha(paths)
             append_line(paths.index, line)
         except OSError as exc:
+            error = str(exc)
+        if error is None and resume and read_index(paths)[0][-1:] != [line]:  # 重讀確認寫入的行可解析才算 indexed
+            error = "appended index line is unreadable"
+        if error is None:
+            steps.append("index")
+        else:
             indexed = False
-            record_event(paths, "unindexed", decision_date=decision, entry_key=key, error=str(exc))
-        if update_latest:
-            replace_json(paths.latest, {"schema": LATEST_SCHEMA, "decision_date": decision, "entry_key": key,
-                                        "header": js_path.relative_to(paths.root).as_posix(),
-                                        "header_sha256": header_sha, "parquet_sha256": full["parquet_sha256"],
-                                        "rows_sha256": digest, "recorded_at": full["recorded_at"],
-                                        "indexed": indexed})
+            record_event(paths, "unindexed", decision_date=line["decision_date"], entry_key=line["entry_key"],
+                         header_sha256=header_sha, error=error)  # 重跑補 index 前以此背書（_index_missing）
+    if update_latest:
+        pointer = {"schema": LATEST_SCHEMA, "decision_date": line["decision_date"], "entry_key": line["entry_key"],
+                   "header": line["header"], "header_sha256": header_sha, "parquet_sha256": line["parquet_sha256"],
+                   "rows_sha256": line["rows_sha256"], "recorded_at": line["recorded_at"], "indexed": indexed}
+        if not resume or _latest_behind(paths, pointer):
+            replace_json(paths.latest, pointer)
             with contextlib.suppress(FileNotFoundError):
                 paths.refusal.unlink()
-    return {"status": "recorded", "entry_key": key, "parquet": str(pq_path), "header": str(js_path),
-            "indexed": indexed}
+            steps.append("latest")
+    if resume and steps:
+        record_event(paths, "publish_completed", decision_date=line["decision_date"], entry_key=line["entry_key"],
+                     steps=steps, recorded_at=line["recorded_at"])
+    return indexed, steps
+
+
+def _index_missing(paths: Paths, line: Dict[str, Any]) -> bool:
+    """resume: True when the index has no line for this block yet and one may be appended.  The header must be the
+    one its index line recorded, or without one the one latest.json (pointing at this block) and every unindexed
+    event of this block recorded (h63xs_block_sha_mismatch); a header with no such record, a broken chain and a last
+    line cut mid-write are left for a person, never indexed by appending (h63xs_block_unverified,
+    h63xs_index_broken).  Read errors raise, like _latest_behind.  So a first write whose index append, unindexed
+    event and latest.json all failed stays unverified on every repeat: no record can vouch for its header."""
+    entries, chain = read_index(paths)
+    pinned = {e.get("header_sha256") for e in entries if e.get("entry_key") == line["entry_key"]
+              and e.get("header") == line["header"]}
+    if pinned - {line["header_sha256"]}:  # header 已和 index 記錄的不同：不補發 latest
+        raise LedgerError("h63xs_block_sha_mismatch", line["header"])
+    if pinned:
+        return False
+    recorded: List[Any] = []  # index 缺行：改比對 latest 與 unindexed 事件記錄的 header sha
+    with contextlib.suppress(FileNotFoundError, ValueError, AttributeError):
+        current = json.loads(paths.latest.read_text(encoding="utf-8"))
+        if current.get("schema") == LATEST_SCHEMA and current.get("entry_key") == line["entry_key"]:
+            recorded.append(current.get("header_sha256"))
+    recorded += _unindexed_header_shas(paths, line["entry_key"])
+    if any(sha != line["header_sha256"] for sha in recorded):  # 任一記錄和現在的 header 不同：不補 index
+        raise LedgerError("h63xs_block_sha_mismatch", line["header"])
+    if not recorded:  # latest 已移到別的區塊、又沒有記下 header sha 的事件：無從確認 header 未被改過，交給人工
+        raise LedgerError("h63xs_block_unverified", line["header"])
+    tail = paths.index.read_bytes()[-1:] if paths.index.exists() else b""
+    if not chain["ok"] or tail not in (b"", b"\n"):  # 損壞的鏈、或前次追加寫到一半的行：不自動補 index，交給人工
+        raise LedgerError("h63xs_index_broken", "broken_at=%s" % (chain["broken_at"] or "end"))
+    return True
+
+
+def _unindexed_header_shas(paths: Paths, key: str) -> List[Any]:
+    """header_sha256 recorded by each unindexed event of this block (events written before that field existed, and
+    lines cut mid-write, record none).  A missing events file records none; other read errors raise."""
+    try:
+        raw = paths.events.read_bytes()
+    except FileNotFoundError:
+        return []
+    shas = []
+    for text in raw.splitlines():
+        with contextlib.suppress(ValueError, AttributeError):
+            event = json.loads(text)
+            if event.get("event") == "unindexed" and event.get("entry_key") == key \
+                    and event.get("header_sha256") is not None:
+                shas.append(event["header_sha256"])
+    return shas
+
+
+def _latest_behind(paths: Paths, pointer: Dict[str, Any]) -> bool:
+    """True when latest.json does not publish this block yet: missing or broken, pointing at a block recorded
+    earlier, or this block still marked unindexed.  A newer block keeps the pointer; other read errors raise."""
+    try:
+        current = json.loads(paths.latest.read_text(encoding="utf-8"))
+        if current.get("schema") != LATEST_SCHEMA:
+            return True
+        if current.get("entry_key") == pointer["entry_key"]:
+            return current != pointer and dict(current, indexed=pointer["indexed"]) == pointer
+        return parse_utc(current["recorded_at"]) < parse_utc(pointer["recorded_at"])
+    except (FileNotFoundError, ValueError, KeyError, TypeError, AttributeError):
+        return True
 
 
 def record_refusal(root: Any, reason: str, detail: str, **fields: Any) -> None:
@@ -570,7 +661,12 @@ def review(root: Any) -> Dict[str, Any]:
         summary["matured_decision_dates"] = int(len(frozen["decision_date"].unique())) if len(frozen) else 0
         if len(frozen) and len(chosen):
             fz = frozen[frozen["entry_key"].isin(set(chosen.to_numpy()))]
-            use = settled.merge(fz[["entry_key", "stock_id", "beats_median"]], on=["entry_key", "stock_id"])
+            # 計分樣本、標籤與報酬都取凍結檔：凍結時仍 pending 的列日後成熟、或歷史價格修訂，都不改變已凍結的區塊；
+            # 作廢是區塊層級的效力（日曆修正後決策日不是交易日），凍結不覆蓋，仍依每日重算的狀態排除
+            label = ["status", "r63", "label_end", "label_ok"]
+            valid = settled[settled["status"] != "void_decision_not_session"]
+            use = valid.drop(columns=label).merge(fz[["entry_key", "stock_id", "beats_median"] + label],
+                                                  on=["entry_key", "stock_id"])
             use = use[use["eligible"].astype(bool) & use["label_ok"].astype(bool) & use["date_gate_ok"].astype(bool)
                       & (use["status"] == "matured")]
             daily, blocks = _metrics(use)
