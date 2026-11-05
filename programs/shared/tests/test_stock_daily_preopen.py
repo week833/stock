@@ -99,15 +99,19 @@ def test_reader_roundtrip_and_freshness(tmp_path):
     assert snap.meta["signal_date"] == "2026-10-16" and snap.signal_date == "2026-10-16"
     with pytest.raises(PreopenUnavailable) as e:
         load_latest(tmp_path, expected_signal_date="2026-10-15")
-    assert e.value.reason == "preopen_stale"
-    assert e.value.detail == "快照訊號日 20261016，預期 20261015"
-    assert str(e.value) == "preopen_stale: 快照訊號日 20261016，預期 20261015"
+    assert e.value.reason == "preopen_future_signal"
+    assert e.value.detail == "快照訊號日 20261016，本次分析資料日 20261015"
+    assert str(e.value) == "preopen_future_signal: 快照訊號日 20261016，本次分析資料日 20261015"
     _assert_tw(e.value.detail)
     _assert_no_iso(e.value.detail)
     # expected_signal_date 也可給 date 物件；detail 一樣是 YYYYMMDD
     with pytest.raises(PreopenUnavailable) as e2:
         load_latest(tmp_path, expected_signal_date=dt.date(2026, 10, 14))
-    assert e2.value.detail == "快照訊號日 20261016，預期 20261014"
+    assert e2.value.detail == "快照訊號日 20261016，本次分析資料日 20261014"
+    # 快照訊號日早於本次分析資料日：不拒用，沿用較舊快照並註記
+    older = load_latest(tmp_path, expected_signal_date="2026-10-19")
+    assert older.meta["snapshot_freshness"]["status"] == "stale"
+    assert "沿用較舊快照" in older.meta["snapshot_note_zh"]
 
 
 def test_reader_rejects_tampered_snapshot(tmp_path):
@@ -355,9 +359,9 @@ def test_feature_parity_with_research_panel():
 def test_latest_prospective_keeps_last_publication():
     d = pd.DataFrame({"signal_date": ["2026-10-16"] * 3, "stock_id": ["2330", "2330", "2317"],
                       "recorded_at": ["2026-10-18T22:00:00+00:00", "2026-10-18T23:30:00+00:00", "2026-10-18T22:00:00+00:00"],
-                      "p_up": [0.4, 0.6, 0.5]})
+                      "run_id": ["first", "last", "first"], "p_up": [0.4, 0.6, 0.5]})
     out = producer.latest_prospective(d)
-    assert len(out) == 2
+    assert len(out) == 1 and set(out["run_id"]) == {"last"}
     assert float(out[out["stock_id"] == "2330"]["p_up"].iloc[0]) == 0.6
 
 
@@ -443,9 +447,9 @@ def test_reader_detail_texts_are_traditional_chinese_with_values(tmp_path):
 def test_reason_text_covers_every_reason_code():
     source = Path(reader.__file__).read_text(encoding="utf-8")
     raised = set(re.findall(r'PreopenUnavailable\("(\w+)"', source))
-    assert raised == REASON_CODES, "讀取器拋出的原因代碼與測試清單不一致"
-    assert set(REASON_TEXT_ZH) == REASON_CODES, "REASON_TEXT_ZH 必須涵蓋全部原因代碼"
-    for code in sorted(REASON_CODES):
+    assert raised <= set(REASON_TEXT_ZH), "讀取器拋出的原因代碼必須有繁中對應"
+    assert REASON_CODES <= set(REASON_TEXT_ZH), "REASON_TEXT_ZH 必須保留既有原因代碼"
+    for code in sorted(REASON_CODES | raised):
         zh = REASON_TEXT_ZH[code]
         assert zh and re.search(r"[一-鿿]", zh), code
         assert reason_text(code) == f"{code}：{zh}"
@@ -713,6 +717,11 @@ def _only_manifest(root):
 
 
 def test_predict_manifest_marks_chips_freshness_and_require_flag(tmp_path, monkeypatch, capsys):
+    # 只在本測試注入假已驗證日曆（最後交易日 = 假訊號日 2026-10-16），守門為 ok，籌碼判定只受本測試固定資料控制
+    sessions = [d.strftime("%Y-%m-%d") for d in pd.bdate_range("2026-09-01", "2026-10-16")]
+    monkeypatch.setattr(producer, "load_verified_calendar",
+                        lambda path=None, routes=None, central=None: producer.calendar_from_sessions(
+                            {"TWSE": sessions, "TPEx": sessions}, path="fake", sha256="f" * 64, source="test"))
     common = ["predict", "--no-latest", "--target-date", "2026-10-19"]
     # 新鮮：chips_freshness=ok、degraded=false；--no-latest 不寫 latest.json
     root = _fake_predict(monkeypatch, tmp_path / "ok")

@@ -160,12 +160,12 @@ def test_c0_cautions_are_one_line_and_simple_baseline_only_when_c0_is_primary(sn
 
 
 def test_c0_h1_caption_fallback_notice_is_right_under_the_title(snapshot_root):
-    block = _block(snapshot_root, signal="2026-10-15")
+    block = _block(snapshot_root, signal="2026-10-17")
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="c0"))
     lines = caption.splitlines()
     assert lines[0] == "2330 台積電｜C0 H1 收盤估計"
     # 原因代碼後補中文說明（代碼：中文）
-    assert lines[1] == "開盤前版不可用（preopen_stale：開盤前版快照的訊號日與本次分析資料日不同），本次 H1 改用 C0 基準"
+    assert lines[1] == "開盤前版不可用（preopen_future_signal：開盤前版快照的訊號日晚於本次分析資料日），本次 H1 改用 C0 基準"
     assert "上漲機率：50.00%；預估報酬：+0.00%" in caption
     assert "開盤前版：" not in caption and "揭露：" not in caption
 
@@ -178,11 +178,11 @@ def test_selected_h1_caption_used_and_fallback(snapshot_root):
     assert "C0 基準備援（選定模型）：上漲機率 61.23%；預估報酬 +1.23%" in caption
     _assert_disclosure(caption)
     assert len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
-    stale = _block(snapshot_root, signal="2026-10-15", label=preopen.SELECTED_BASE_LABEL)
+    stale = _block(snapshot_root, signal="2026-10-17", label=preopen.SELECTED_BASE_LABEL)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _selected_payload(preopen_h1=stale))
     lines = caption.splitlines()
     assert lines[0] == "2330 台積電｜第1交易日收盤估計"
-    assert lines[1] == "開盤前版不可用（preopen_stale：開盤前版快照的訊號日與本次分析資料日不同），本次 H1 改用 C0 基準，單股已啟用選定模型"
+    assert lines[1] == "開盤前版不可用（preopen_future_signal：開盤前版快照的訊號日晚於本次分析資料日），本次 H1 改用 C0 基準，單股已啟用選定模型"
     assert "上漲機率：61.23%；預估報酬：+1.23%" in caption
 
 
@@ -244,11 +244,18 @@ def test_h63_and_reports_without_block_keep_previous_captions(snapshot_root):
 def test_h1_caption_shows_chip_freshness_note_only_when_present(snapshot_root):
     """籌碼未更新或不完整時 caption 多一行（最新到幾號／成功/應有數量）；新鮮時沒有這一行；舊區塊照常傳送。"""
     write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", stale_routes=["finmind_margin"])
+    pointer = snapshot_root / "predictions" / "latest.json"
+    meta = json.loads(pointer.read_text(encoding="utf-8"))
+    meta.update(calendar_gate={"status": "closures_file_invalid"}, ledger={"status": "error"})
+    pointer.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     block = preopen.build_h1_block({"stock_id": "2330", "market": "TWSE"}, "2026-10-16", base_label=preopen.C0_BASE_LABEL)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="preopen"))
     lines = caption.splitlines()
     us_line = lines.index("前一晚美股收漲（建議日）")  # 美股收盤已納入（ok）時只寫漲跌
     assert lines[us_line + 1] == "t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）"
+    for field in ("calendar_note_zh", "ledger_note_zh"):
+        assert block[field] and block[field] == block["meta"][field]
+        assert caption.count(block[field]) == 1
     assert "C0 基準（備援）" in caption and "命中率不代表交易獲利" in caption
     assert caption.endswith(bot.REPORT_CAPTION_DISCLAIMER) and len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
     write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", partial_routes=["finmind_institutional"])
@@ -264,6 +271,101 @@ def test_h1_caption_shows_chip_freshness_note_only_when_present(snapshot_root):
     legacy.pop("chips_note_zh", None)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=legacy, h1_display_source="preopen"))
     assert "籌碼" not in caption and "開盤前版：上漲機率" in caption
+
+
+# ------------------------------------------------------------------------------------------------------------------
+# 沿用較舊快照（訊號日 20261016、原目標日 20261019；本次分析資料日 20261019）：警示保留一次，其他行已寫的日期不重複
+# ------------------------------------------------------------------------------------------------------------------
+OLDER_SNAPSHOT_NOTE = "沿用較舊快照：訊號日 20261016；本次分析資料日 20261019；保留原目標日 20261019"
+OLDER_DATA_TIME = {"analysis_asof": "2026-10-19", "read_at_utc": "2026-10-20T00:35:00+00:00",
+                   "head": {"published_at": "2026-10-19T08:00:00+00:00"}}
+DATE_REMINDER = "日期提醒：沿用開盤前版原目標日 20261019；本報告日曆目標日 20261020，預測日期與數值維持原值。"
+# 本報告日曆目標日 20261020（與原目標日不同，有日期提醒）或未提供（沒有日期提醒）
+WITH_AND_WITHOUT_REMINDER = pytest.mark.parametrize("base_target", ["2026-10-20", None], ids=["date_reminder", "no_reminder"])
+
+
+def _older_block(snapshot_root, base_target, label=preopen.C0_BASE_LABEL):
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19")
+    block = preopen.build_h1_block({"stock_id": "2330", "market": "TWSE"}, "2026-10-19", base_label=label,
+                                   base_target_date=base_target)
+    # 封存區塊的原文不變，只在 caption 顯示時改寫
+    assert block["status"] == "used" and block["snapshot_note_zh"] == OLDER_SNAPSHOT_NOTE
+    assert block["target_note_zh"] == (DATE_REMINDER if base_target else None)
+    return block
+
+
+def _assert_older_snapshot_caption(caption, note, base_target):
+    lines = caption.splitlines()
+    assert note in lines and caption.count("沿用較舊快照") == 1
+    assert caption.count("20261016") == 1 and "本次分析資料日 20261019" not in caption
+    if base_target:
+        assert DATE_REMINDER in lines and "保留原目標日" not in caption
+    else:
+        assert "日期提醒" not in caption
+    assert "【測試用假快照" in caption and "命中率不代表交易獲利" in caption
+    assert caption.endswith(bot.REPORT_CAPTION_DISCLAIMER) and len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
+
+
+@WITH_AND_WITHOUT_REMINDER
+def test_c0_h1_caption_with_an_older_snapshot_writes_each_date_once(snapshot_root, base_target):
+    """訊號收盤日、到期日與資料時間各有一行：快照註記縮成不重複日期的說法；有日期提醒時不寫保留原目標日。"""
+    block = _older_block(snapshot_root, base_target)
+    payload = _c0_payload(latest_data_date="2026-10-19", target_session_date=base_target, data_time=OLDER_DATA_TIME,
+                          preopen_h1=block, h1_display_source="preopen")
+    caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
+    lines = caption.splitlines()
+    # 訊號日與資料日不同：兩行都保留
+    assert lines[1] == "訊號收盤日：20261016；到期日：20261019"
+    assert lines[2].startswith("資料：20261019（發布 20261019 16:00，讀取 ")
+    note = "沿用較舊快照（訊號日早於本次分析資料日）" if base_target else "沿用較舊快照（訊號日早於本次分析資料日，保留原目標日）"
+    _assert_older_snapshot_caption(caption, note, base_target)
+    assert "C0 基準（備援）：上漲機率 50.00%；預估報酬 +0.00%" in caption and "C0 基準比較方向率低於60%" in caption
+
+
+@WITH_AND_WITHOUT_REMINDER
+def test_selected_h1_caption_with_an_older_snapshot_writes_each_date_once(snapshot_root, base_target):
+    """選定模型 caption 只寫資料日與目標日：開盤前版的訊號日留在快照註記，資料日不再重複。"""
+    block = _older_block(snapshot_root, base_target, label=preopen.SELECTED_BASE_LABEL)
+    payload = _selected_payload(asof="2026-10-19", target_session_date=base_target,
+                                generated_at="2026-10-20T00:30:00+00:00", preopen_h1=block)
+    caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
+    lines = caption.splitlines()
+    assert lines[1].startswith("資料日：20261019（發布 ") and lines[1].endswith("）；目標日：20261019")
+    note = ("沿用較舊快照（訊號日 20261016 早於本次分析資料日）" if base_target
+            else "沿用較舊快照（訊號日 20261016 早於本次分析資料日，保留原目標日）")
+    _assert_older_snapshot_caption(caption, note, base_target)
+    assert "C0 基準備援（選定模型）：上漲機率 61.23%；預估報酬 +1.23%" in caption
+
+
+@WITH_AND_WITHOUT_REMINDER
+def test_no_estimate_h1_caption_with_an_older_snapshot_keeps_the_signal_and_target_days(snapshot_root, base_target):
+    """無法估計的 caption 沒有訊號日、目標日行：訊號日（與沒有日期提醒時的原目標日）留在快照註記。"""
+    block = _older_block(snapshot_root, base_target)
+    payload = _c0_payload(report_class=bot.C0_NO_ESTIMATE_REPORT_CLASS, prediction=None,
+                          no_estimate_reason="stock_price_older_than_asof", stock_last_price_date="2026-10-01",
+                          latest_data_date="2026-10-19", target_session_date=base_target, data_time=OLDER_DATA_TIME,
+                          preopen_h1=block)
+    caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
+    assert caption.splitlines()[2].startswith("該股最後價格日：20261001；分析資料日：20261019（發布 20261019 16:00，讀取 ")
+    note = ("沿用較舊快照（訊號日 20261016 早於本次分析資料日）" if base_target
+            else "沿用較舊快照（訊號日 20261016 早於本次分析資料日，保留原目標日 20261019）")
+    _assert_older_snapshot_caption(caption, note, base_target)
+    assert "歷史PIT／公司行動／歷史普通股資格未驗證。" in caption
+
+
+def test_other_snapshot_note_wording_is_shown_verbatim(snapshot_root):
+    """讀取器改用其他寫法時照原文顯示（警示不可消失）；新快照沒有沿用註記。"""
+    block = _older_block(snapshot_root, "2026-10-20")
+    block["snapshot_note_zh"] = "沿用較舊快照：訊號日 20261016（讀取器改版後的其他寫法）"
+    for payload in (_c0_payload(latest_data_date="2026-10-19", target_session_date="2026-10-20",
+                                data_time=OLDER_DATA_TIME, preopen_h1=block),
+                    _selected_payload(asof="2026-10-19", target_session_date="2026-10-20", preopen_h1=block)):
+        caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
+        assert block["snapshot_note_zh"] in caption.splitlines() and caption.count("沿用較舊快照") == 1
+        assert DATE_REMINDER in caption.splitlines()
+    fresh = _block(snapshot_root)
+    for payload in (_c0_payload(preopen_h1=fresh), _selected_payload(preopen_h1=fresh)):
+        assert "沿用較舊快照" not in bot.report_caption(bot.MODE_H1, STOCK, payload)
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -402,7 +504,7 @@ def test_end_to_end_manifest_recipe_through_single_stock_block(snapshot_root, re
 
 
 def test_fallback_blocks_never_show_a_disclosure_whatever_the_recipe(snapshot_root):
-    block = _block(snapshot_root, signal="2026-10-15")
+    block = _block(snapshot_root, signal="2026-10-17")
     block["observed_meta"] = {**block.get("observed_meta", {}), "recipe": V2_RECIPE}
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="c0"))
     assert "揭露：" not in caption and "配方" not in caption

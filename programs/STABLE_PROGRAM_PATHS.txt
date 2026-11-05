@@ -40,6 +40,9 @@ programs\shared\CHECK_ENV.cmd
 programs\shared\date_format.py
 programs\shared\find_python.cmd
 programs\shared\finmind_producer.py
+programs\shared\h63_xs_schedule\H63_XS_SCHEDULE_DEFINITION.json
+programs\shared\h63_xs_schedule\INSTALL_H63_XS_SCHEDULE.ps1
+programs\shared\h63_xs_schedule\REMOVE_H63_XS_SCHEDULE.ps1
 programs\shared\path_contract.py
 programs\shared\preopen_schedule\INSTALL_PREOPEN_SCHEDULE.ps1
 programs\shared\preopen_schedule\PREOPEN_SCHEDULE_DEFINITION.json
@@ -47,6 +50,7 @@ programs\shared\preopen_schedule\REMOVE_PREOPEN_SCHEDULE.ps1
 programs\shared\preopen_schedule\RUN_CENTRAL_UPDATE.ps1
 programs\shared\price_adj_central_rebuild.py
 programs\shared\price_adj_commit_rebuild.py
+programs\shared\RUN_H63_XS_DAILY.cmd
 programs\shared\RUN_PREOPEN_DAILY.cmd
 programs\shared\stock_daily_active_evidence.py
 programs\shared\stock_daily_application_scope.py
@@ -69,6 +73,12 @@ programs\shared\stock_daily_price_quality.py
 programs\shared\stock_daily_selected_cache.py
 programs\shared\stock_daily_selected_cache_worker.py
 programs\shared\stock_daily_selected_deployment.py
+programs\shared\stock_h63_xs.py
+programs\shared\stock_h63_xs_core.py
+programs\shared\stock_h63_xs_data.py
+programs\shared\stock_h63_xs_fixture.py
+programs\shared\stock_h63_xs_ledger.py
+programs\shared\stock_h63_xs_reader.py
 programs\shared\stock_report_comparison.py
 programs\shared\stock_report_comparison_full_history.py
 programs\shared\tests\conftest.py
@@ -81,10 +91,16 @@ programs\shared\tests\test_finmind_producer_date_key.py
 programs\shared\tests\test_stock_daily_candidate_model.py
 programs\shared\tests\test_stock_daily_candidate_runtime.py
 programs\shared\tests\test_stock_daily_preopen.py
+programs\shared\tests\test_stock_daily_preopen_stitch_repair.py
 programs\shared\tests\test_stock_daily_selected_cache.py
 programs\shared\tests\test_stock_daily_selected_cache_worker.py
 programs\shared\tests\test_stock_daily_selected_context_performance.py
 programs\shared\tests\test_stock_daily_selected_deployment.py
+programs\shared\tests\test_stock_h63_xs.py
+programs\shared\tests\test_stock_h63_xs_core.py
+programs\shared\tests\test_stock_h63_xs_data.py
+programs\shared\tests\test_stock_h63_xs_ledger.py
+programs\shared\tests\test_stock_h63_xs_reader.py
 programs\shared\tests\test_stock_report_comparison.py
 programs\shared\tests\test_stock_report_comparison_full_history.py
 programs\shared\tests\test_selected_report_parsed_evidence_context.py
@@ -109,6 +125,7 @@ programs\single_stock_analysis\RUN_SINGLE_STOCK_TOMORROW_OPEN.cmd
 programs\single_stock_analysis\src\published_single_stock_projection.py
 programs\single_stock_analysis\src\report_comparison_bridge.py
 programs\single_stock_analysis\src\run_single_stock_entry.py
+programs\single_stock_analysis\src\single_stock_h63_xs.py
 programs\single_stock_analysis\src\single_stock_preopen.py
 programs\single_stock_analysis\src\stock_candidate_report.py
 programs\single_stock_analysis\src\stock_data_sources.py
@@ -137,6 +154,7 @@ programs\single_stock_analysis\tests\test_selected_cache_task_installer.py
 programs\single_stock_analysis\tests\test_single_candidate_entry.py
 programs\single_stock_analysis\tests\test_single_current_c0.py
 programs\single_stock_analysis\tests\test_single_per_market_asof.py
+programs\single_stock_analysis\tests\test_single_stock_h63_xs.py
 programs\single_stock_analysis\tests\test_single_stock_preopen.py
 programs\single_stock_analysis\tests\test_stock_candidate_report.py
 programs\single_stock_analysis\tests\test_stock_candidate_report_read_only_storage.py
@@ -179,6 +197,7 @@ programs\telegram_report_delivery\tests\conftest.py
 programs\telegram_report_delivery\tests\test_mix_report_sender.py
 programs\telegram_report_delivery\tests\test_run_send_latest_report_entrypoint.py
 programs\telegram_report_delivery\tests\test_telegram_dates.py
+programs\telegram_report_delivery\tests\test_telegram_h63_xs_caption.py
 programs\telegram_report_delivery\tests\test_telegram_preopen_h1_caption.py
 programs\telegram_report_delivery\tests\test_telegram_report_sender.py
 programs\telegram_report_delivery\tests\test_telegram_selected_deployment.py

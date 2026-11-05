@@ -1,4 +1,4 @@
-"""H1 次日報告：C0 推論與前瞻帳冊照常執行；開盤前版快照可用且新鮮時 H1 顯示開盤前版，否則回退 C0。
+"""H1 次日報告：C0 推論與前瞻帳冊照常執行；開盤前版快照可用時 H1 顯示開盤前版（較舊或目標日不同時沿用並註記），真正不可用才回退 C0。
 
 不在本機訓練任何模型；開盤前版只透過共用唯讀 reader 讀取（preopen_source.py）。
 """
@@ -34,7 +34,7 @@ def now():
 def predict(project=None, namespace_root=None, no_open=False, *, c0_model=None, c0_forward_db=None, model_source=None):
     """Shared C0 coefficients predict H1 adjusted-close returns; no fitting occurs.
 
-    ``model_source``：auto（預設；開盤前版可用且新鮮才用，否則回退 C0）、preopen（必須用開盤前版）、
+    ``model_source``：auto（預設；開盤前版可用就用，較舊時沿用並註記，真正不可用才回退 C0）、preopen（必須用開盤前版）、
     c0（強制舊行為）。未指定時讀環境變數 TOP10_MODEL_SOURCE。C0 推論與前瞻帳冊在三種模式都照常執行。
     """
     from daily_contract import (load_c0_model, bind_daily_snapshot,
@@ -49,7 +49,7 @@ def predict(project=None, namespace_root=None, no_open=False, *, c0_model=None, 
         inputs = load_c0_inputs(project, runtime_binding=active)
         axes, universe, meta = inputs["market_sessions"], inputs["universe"], inputs["metadata"]
         evidence, binding = inputs["evidence"], inputs["policy_binding"]
-    # 新鮮度：以本次 C0 輸入的台股最新交易日為 expected_signal_date；preopen 模式不可用時在寫入前瞻帳冊前失敗。
+    # 以本次 C0 輸入的台股最新交易日為 expected_signal_date（較舊快照沿用並註記）；preopen 模式真正不可用時在寫入前瞻帳冊前失敗。
     with stage("讀取開盤前版 H1 快照（唯讀）"):
         choice = preopen_source.choose(requested_source, source_origin, meta["asof"])
     with stage("共用 C0 次日方向與報酬預測"):
@@ -73,7 +73,7 @@ def predict(project=None, namespace_root=None, no_open=False, *, c0_model=None, 
         # session; the report is filed under the latest of them (all are shown).
         target = max(target_by_market.values())
     future_status = "verified_declared_session" if target is not None else "not_yet_verified"
-    # 已驗證的下一交易日存在時，開盤前版目標日必須一致（auto 回退 C0；preopen 失敗）。
+    # 已驗證的下一交易日與開盤前版目標日不同時，沿用原目標日並加日期提醒（不回退、不失敗）。
     choice = preopen_source.confirm_target(choice, target)
     print(choice.note(), flush=True)
     statuses = {(row.market, row.stock_id): row.prediction_status for row in forecast.itertuples()}
@@ -259,7 +259,7 @@ def market_sessions(predicted, asof_by_market, asof):
 def check(namespace_root=None, model_source=None):
     """Validate the canonical C0 artifact and six-route context without inference.
 
-    另以唯讀方式檢查開盤前版快照是否可用且新鮮（不寫任何檔案）；model source = preopen 且不可用時失敗。
+    另以唯讀方式檢查開盤前版快照是否可用（較舊只註記；不寫任何檔案）；model source = preopen 且不可用時失敗。
     """
     requested_source, source_origin = preopen_source.resolve_model_source(model_source)
     print("Python：" + sys.version.split()[0] + "；" + sys.executable, flush=True)
@@ -301,7 +301,7 @@ def main(argv=None):
     parser.add_argument("--c0-forward-db", help="隔離 QA forward DB override；正常預設使用 canonical ledger")
     parser.add_argument("--namespace-root", help="隔離 QA 產物根；不改正常資料／模型來源")
     parser.add_argument("--model-source", choices=preopen_source.MODEL_SOURCES, default=None,
-        help="H1 模型來源：auto（預設；開盤前版可用且新鮮才用，否則改用 C0）、preopen（必須用開盤前版，"
+        help="H1 模型來源：auto（預設；開盤前版可用就用，較舊時沿用並註記，真正不可用才改用 C0）、preopen（必須用開盤前版，"
              "不可用即失敗）、c0（強制舊行為）；未指定時讀環境變數 " + preopen_source.MODEL_SOURCE_ENV)
     args = parser.parse_args(argv)
     try:

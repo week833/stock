@@ -1,7 +1,7 @@
 """單股 H1「開盤前版」疊加層：只透過 stock_daily_preopen_reader 唯讀取用快照，不寫任何共用狀態。
 
 H1 報告優先顯示開盤前版快照中本股那一列（模型名稱、p_up、exp_ret、全市場／可交易名次、前一晚美股、
-describe(meta) 中其他列沒有的註記與必要揭露）。快照不可用、過期（signal_date 不等於本次單股分析的資料日）、
+describe(meta) 中其他列沒有的註記與必要揭露）。較舊可用快照保留原訊號／目標日並註記；快照真正不可用、
 讀取失敗或沒有本股時，回退 C0 基準並在報告醒目標示原因代碼。H63 不受影響。
 
 原本的 C0／選定模型機器欄位（prediction、prob_up、expected_return）一律照舊，仍由原驗證程式重現；
@@ -10,7 +10,7 @@ describe(meta) 中其他列沒有的註記與必要揭露）。快照不可用�
 snapshot_sha256 與 model_sha256 留下可稽核的身分。
 
 來源開關（優先序：命令列 --h1-source ＞ 環境變數 DSTOCK_SINGLE_H1_SOURCE ＞ 預設 auto）：
-- auto：快照可用且新鮮就用開盤前版，否則回退 C0 基準並標示原因；
+- auto：快照可用就用開盤前版，較舊日期註記沿用；真正不可用才回退 C0 基準並標示原因；
 - preopen：必須使用開盤前版，不可用即停止（PreopenRequiredError，rc=2）；
 - c0：強制舊行為：不讀取開盤前版、不加入 preopen_h1 區塊。
 
@@ -147,6 +147,7 @@ REASON_ZH = {
     "preopen_no_latest": "尚無開盤前版快照",
     "preopen_schema_mismatch": "開盤前版指標檔格式不符",
     "preopen_stale": "開盤前版快照的訊號日與本次分析資料日不同",
+    "preopen_future_signal": "開盤前版快照的訊號日晚於本次分析資料日",
     "preopen_snapshot_missing": "開盤前版快照檔缺失",
     "preopen_snapshot_sha_mismatch": "開盤前版快照雜湊不符",
     "preopen_snapshot_columns": "開盤前版快照欄位不完整",
@@ -165,7 +166,8 @@ US_STATUS_ZH = {"ok": "前一晚美股收盤已納入", "holiday": "前一晚美
                 "missing": "前一晚美股收盤缺漏（以缺值推論，準確度可能下降）"}
 _META_KEYS = ("schema", "snapshot_schema", "run_id", "signal_date", "target_date", "target_date_source", "snapshot",
               "snapshot_sha256", "rows", "model_id", "model_sha256", "recipe", "created_at", "us_overnight",
-              "gate_us_up", "central_head_sha256", "fixture", "chips_freshness", "degraded")
+              "gate_us_up", "central_head_sha256", "fixture", "chips_freshness", "degraded",
+              "calendar_note_zh", "ledger_note_zh", "snapshot_note_zh", "snapshot_freshness")
 _ROW_KEYS = ("signal_date", "target_date", "stock_id", "market", "p_up", "p_up_raw", "exp_ret", "exp_ret_raw",
              "rank", "rank_tradable", "tradable", "signal_close", "adj_close", "amt20", "feature_coverage")
 
@@ -264,19 +266,11 @@ def _unavailable(block, source, reason, detail="", meta=None):
     return _fallback(block, reason, detail, meta=meta)
 
 
-def _observed_meta(reader, root):
-    """過期等情形下，記錄實際看到的快照身分（只讀指標檔；失敗就略過）。"""
-    try:
-        return reader.read_latest_meta(root)
-    except Exception:  # noqa: BLE001 - 僅供說明，不影響回退
-        return None
-
-
 def build_h1_block(stock, expected_signal_date, *, source=None, root=None, base_label=C0_BASE_LABEL,
                    consumer="single_c0", base_target_date=None):
     """回傳本股的開盤前版 H1 區塊（status=used／fallback／disabled）。
 
-    expected_signal_date 為本次單股分析本股所屬市場的資料日；快照 signal_date 必須相同。
+    expected_signal_date 為本次單股分析本股所屬市場的資料日；較舊快照保留原日期，未來訊號仍拒用。
     source=None 時讀 DSTOCK_SINGLE_H1_SOURCE（預設 auto）。source=preopen 且不可用時丟
     PreopenRequiredError；auto 時任何讀取錯誤（Exception）都只回退，不中斷 C0 報告。
     """
@@ -296,11 +290,13 @@ def build_h1_block(stock, expected_signal_date, *, source=None, root=None, base_
         block["root"] = str(reader.root_dir(root))
         snapshot = reader.load_latest(root, expected_signal_date=expected)
     except reader.PreopenUnavailable as exc:
-        meta = _observed_meta(reader, root) if exc.reason == "preopen_stale" else None
-        return _unavailable(block, source, exc.reason, exc.detail, meta=meta)
+        return _unavailable(block, source, exc.reason, exc.detail)
     except Exception as exc:  # noqa: BLE001 - 損壞的快照不可讓 C0 報告失敗
         return _unavailable(block, source, "preopen_read_error", type(exc).__name__ + ": " + str(exc))
     meta = snapshot.meta
+    signal, declared_target = _day(meta.get("signal_date")), _day(meta.get("target_date"))
+    if signal is not None and signal > expected:
+        return _unavailable(block, source, "preopen_future_signal", f"signal_date={signal} analysis_asof={expected}", meta=meta)
     meta_summary = {key: _clean(meta.get(key)) for key in _META_KEYS if key in meta}
     chosen = disclosure_for(meta)  # 依快照配方選必要揭露（舊快照＝v1）
     try:
@@ -315,7 +311,9 @@ def build_h1_block(stock, expected_signal_date, *, source=None, root=None, base_
         return _unavailable(block, source, "preopen_market_mismatch",
                             f"snapshot market {row.get('market')} != {block['market']}", meta=meta)
     p_up, exp_ret = _finite(row.get("p_up")), _finite(row.get("exp_ret"))
-    if p_up is None or not 0 <= p_up <= 1 or exp_ret is None or _day(row.get("signal_date")) != expected:
+    if (p_up is None or not 0 <= p_up <= 1 or exp_ret is None or signal is None
+            or _day(row.get("signal_date")) != signal or declared_target is None or declared_target <= signal
+            or _day(row.get("target_date")) != declared_target):
         return _unavailable(block, source, "preopen_row_invalid",
                             f"p_up={row.get('p_up')} exp_ret={row.get('exp_ret')} signal_date={row.get('signal_date')}",
                             meta=meta)
@@ -325,6 +323,9 @@ def build_h1_block(stock, expected_signal_date, *, source=None, root=None, base_
     tradable = bool(row.get("tradable"))
     target = _day(row.get("target_date") or meta.get("target_date"))
     base_target = _day(base_target_date)
+    target_note = ("日期提醒：沿用開盤前版原目標日 " + cd.display_day(target) +
+                   "；本報告日曆目標日 " + cd.display_day(base_target) + "，預測日期與數值維持原值。"
+                   if base_target is not None and target != base_target else None)
     us = meta.get("us_overnight") if isinstance(meta.get("us_overnight"), dict) else {}
     gate = meta.get("gate_us_up")
     block.update(
@@ -344,6 +345,8 @@ def build_h1_block(stock, expected_signal_date, *, source=None, root=None, base_
                        "前一晚美股未收漲（非建議日）" if gate is False else "前一晚美股漲跌未知"),
         fixture=meta.get("fixture") is True,
         chips_note_zh=_chips_note(reader, meta),
+        calendar_note_zh=meta.get("calendar_note_zh"), ledger_note_zh=meta.get("ledger_note_zh"),
+        snapshot_note_zh=meta.get("snapshot_note_zh"), target_note_zh=target_note,
         describe=reader.describe(meta), row=row, meta=meta_summary,
         disclosure=dict(chosen["facts"]), disclosure_rows=[list(item) for item in chosen["rows"]],
     )

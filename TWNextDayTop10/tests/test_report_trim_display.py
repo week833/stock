@@ -8,9 +8,11 @@ import csv
 from datetime import datetime
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pandas as pd
+import pytest
 
 import preopen_source
 import reporting
@@ -21,6 +23,14 @@ PROJECT = Path(__file__).resolve().parents[1]
 NOW = datetime.fromisoformat("2026-10-24T12:00:00+08:00")
 TPEX_DAY = "2026-10-21"
 TARGET_MISMATCH = "snapshot target_date 2026-10-26 != C0 verified next session 2026-10-23"
+# 共用 reader 格式的快照說明：沿用較舊快照（訊號日 20261021 早於分析日 20261022，原目標日 20261022），
+# 以及快照為最新、只有目標日 20261026 與本報告日曆（20261023）不同。
+STALE_DESCRIBE = ("開盤前版 H1（HGB，含前一晚美股）｜訊號日 20261021 → 目標日 20261022｜"
+                  "前一晚美股收盤缺漏（以缺值推論，準確度可能下降）｜"
+                  "沿用較舊快照：訊號日 20261021；本次分析資料日 20261022；保留原目標日 20261022｜"
+                  "美股收漲（建議日）｜模型 cccccccccccc")
+MISMATCH_DESCRIBE = ("開盤前版 H1（HGB，含前一晚美股）｜訊號日 20261022 → 目標日 20261026｜"
+                     "前一晚美股收盤缺漏（以缺值推論，準確度可能下降）｜美股收漲（建議日）｜模型 cccccccccccc")
 
 
 def _data_time(stale=True, published=None, training="2026-10-30"):
@@ -78,6 +88,16 @@ def _sheets(output):
 def _report(predictions, coverage, meta, context, root):
     output = reporting.report(PROJECT, predictions, coverage, meta, {}, NOW, namespace_root=root, report_context=context)
     return output, json.loads((output.parent / "report.json").read_text(encoding="utf-8"))
+
+
+def _reminder_fields(describe, snapshot_target, snapshot=None):
+    """正式 confirm_target 接上日期提醒（本報告日曆目標日 20261023）後的報告模型來源欄位。"""
+    snapshot = snapshot or SimpleNamespace(frame=pd.DataFrame({"tradable": [True]}), meta={
+        "target_date": snapshot_target, "run_id": "r", "model_sha256": "m" * 64, "snapshot_sha256": "s" * 64,
+        "gate_us_up": True})
+    choice = preopen_source.PreopenChoice("auto", "default", "preopen", "available", snapshot=snapshot,
+                                          expected_signal_date=ASOF, describe_text=describe)
+    return preopen_source.report_fields(preopen_source.confirm_target(choice, "2026-10-23"))
 
 
 # ---------------------------------------------------------------- Top10 與歷史比較
@@ -199,6 +219,29 @@ def test_preopen_html_drops_describe_parts_shown_elsewhere_but_keeps_warnings(tm
     assert "訊號日 20261021 → 目標日 20261023" in _html(tmp_path, payload)
 
 
+@pytest.mark.parametrize("describe,snapshot_target,signal", [
+    (STALE_DESCRIBE, "2026-10-22", "20261021"), (MISMATCH_DESCRIBE, "2026-10-26", "20261022"),
+], ids=["stale_snapshot", "target_mismatch"])
+def test_html_states_original_target_once_in_the_date_reminder(tmp_path, describe, snapshot_target, signal):
+    fields = _reminder_fields(describe, snapshot_target)
+    note, original = fields["preopen_meta"]["target_note_zh"], snapshot_target.replace("-", "")
+    page = _html(tmp_path, _payload(**fields))
+    # 完整日期提醒只在模型來源區寫一次；本次摘要不加原目標日括號，快照註記的「保留原目標日」與訊號日→目標日不重複。
+    assert page.count(note) == 1 and page.count("原目標日") == 1 and page.count("本報告日曆") == 1
+    assert "分析日：20261022；下一交易日：20261023。" in page
+    assert "保留原目標日" not in page and "訊號日 " + signal + " → 目標日 " + original not in page
+    # 其餘警示照列：美股缺漏的準確度提醒、沿用較舊快照（較舊訊號日與本次分析資料日）。
+    assert "準確度可能下降" in page
+    stale = "沿用較舊快照：訊號日 20261021；本次分析資料日 20261022；日期提醒：" in page
+    assert stale is (describe == STALE_DESCRIBE)
+    # 沒有日期提醒的舊報告資料：本次摘要照舊註記原目標日，快照說明照列。
+    fields["preopen_meta"].update(describe=describe, target_note_zh=None)
+    page = _html(tmp_path, _payload(**fields))
+    assert "下一交易日：20261023（本報告日曆；H1 沿用開盤前版原目標日 " + original + "）。" in page
+    assert "訊號日 " + signal + " → 目標日 " + original in page and "日期提醒" not in page
+    assert ("保留原目標日 " + original in page) is (describe == STALE_DESCRIBE)
+
+
 # ---------------------------------------------------------------- CSV 與 Excel
 
 
@@ -266,3 +309,27 @@ def test_excel_c0_fallback_detail_and_rows_not_repeated(available_case, monkeypa
     assert "排序狀態" not in notes and "模型與交易效果" not in notes and "現役模型版本" not in notes
     assert "展示順序依模型數值；排序效果與交易效益未驗。" in texts and "交易效益尚未確認" in lineage["使用限制"]
     assert payload["preopen_status"]["detail"] == TARGET_MISMATCH  # 原始資料不改寫
+
+
+def test_excel_and_html_state_original_target_once_for_stale_snapshot(available_case, monkeypatch, tmp_path):
+    monkeypatch.setenv("TOP10_VISIBLE_REPORT_ROOT", str(tmp_path / "visible"))
+    monkeypatch.delenv("TOP10_EXCEL_VERIFY", raising=False)
+    snapshot = available_case.snapshot
+    snapshot.frame["signal_date"], snapshot.frame["target_date"] = "2026-10-21", "2026-10-22"
+    snapshot.meta.update(signal_date="2026-10-21", target_date="2026-10-22", gate_us_up=True)
+    context = {**available_case.context, "target_session": "2026-10-23", "calendar_verified": True,
+               **_reminder_fields(STALE_DESCRIBE, "2026-10-22", snapshot)}
+    view, coverage = _view(available_case)
+    output, payload = _report(view, coverage, available_case.meta, context, tmp_path / "d")
+    note = payload["preopen_meta"]["target_note_zh"]
+    html = (output.parent / "report.html").read_text(encoding="utf-8")
+    with ZipFile(output) as archive:
+        workbook = "\n".join(str(value) for index in range(1, 5)
+                             for value in _xlsx_sheet(archive, f"xl/worksheets/sheet{index}.xml")[1].values())
+    # HTML、Excel 各自只寫一次完整日期提醒；原目標日不在快照註記、本次摘要或訊號日→目標日重複，沿用較舊快照照列。
+    for text in (html, workbook):
+        assert text.count(note) == 1 and text.count("原目標日") == 1 and "保留原目標日" not in text
+        assert "沿用較舊快照：訊號日 20261021；本次分析資料日 20261022；日期提醒：" in text
+        assert "訊號日 20261021 → 目標日 20261022" not in text and "準確度可能下降" in text
+    assert "分析日：20261022；下一交易日：20261023。" in html
+    assert "保留原目標日 20261022" in payload["preopen_meta"]["describe"]  # 原始報告資料不改寫

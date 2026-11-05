@@ -35,6 +35,7 @@ AMBIENT_ENV_NAMES = frozenset(
         "STOCK_SHARED_DATA_ROOT",
         "STOCK_ANALYSIS_FORCE_NEXT_TRADE_DATE",
         "STOCK_DAILY_PREOPEN_ROOT",
+        "STOCK_H63_XS_ROOT",
     }
 )
 
@@ -69,6 +70,18 @@ def _isolated_preopen_root(_empty_preopen_root, monkeypatch):
     # (D:\TWStockData\program_data\stock_daily_preopen).  Tests that need a snapshot
     # write a fixture and point STOCK_DAILY_PREOPEN_ROOT at it themselves.
     monkeypatch.setenv("STOCK_DAILY_PREOPEN_ROOT", str(_empty_preopen_root))
+
+
+@pytest.fixture(scope="session")
+def _empty_h63_xs_root(tmp_path_factory):
+    return tmp_path_factory.mktemp("h63_xs_empty_root")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_h63_xs_root(_empty_h63_xs_root, monkeypatch):
+    # H63 reports read the U7 snapshot and its display switch (ADR-0009); tests never read the production root
+    # (D:\TWStockData\program_data\stock_h63_xs).  Tests that need a snapshot point STOCK_H63_XS_ROOT at a fixture.
+    monkeypatch.setenv("STOCK_H63_XS_ROOT", str(_empty_h63_xs_root))
 
 
 @pytest.fixture

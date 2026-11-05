@@ -22,6 +22,7 @@ from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
+import date_format as cd
 from report_comparison_bridge import attach_report_comparison, report_comparison_rows
 from stock_report_analysis import build_report_insights, normalize_news_title
 
@@ -179,6 +180,28 @@ def _attach_preopen_h1(payload):
     attach = _PREOPEN_H1_ATTACHER.get()
     if (attach is not None and isinstance(payload, dict) and payload.get("schema") == FORMAL_SCHEMA
             and payload.get("horizon_sessions") == 1 and "preopen_h1" not in payload):
+        attach(payload)
+
+
+# 單股入口（single_stock_h63_xs.selected_h63_overlay）包住 generate_selected_reports 時才設定（ADR-0009）；
+# 只對尚無 U7 區塊的正式 H63 payload 呼叫一次。區塊存在時 H63 改顯示三個月相對強弱，H1 不受影響。
+H63_XS_SCHEMA = "single-stock-h63-xs-v1"
+_H63_XS_ATTACHER = contextvars.ContextVar("single_stock_h63_xs_attacher", default=None)
+
+
+@contextlib.contextmanager
+def h63_xs_attacher(function):
+    token = _H63_XS_ATTACHER.set(function)
+    try:
+        yield
+    finally:
+        _H63_XS_ATTACHER.reset(token)
+
+
+def _attach_h63_xs(payload):
+    attach = _H63_XS_ATTACHER.get()
+    if (attach is not None and isinstance(payload, dict) and payload.get("schema") == FORMAL_SCHEMA
+            and payload.get("horizon_sessions") == 63 and "h63_xs" not in payload):
         attach(payload)
 
 
@@ -717,6 +740,8 @@ def _check_payload(payload):
             raise CandidateReportError("deployment_binding_invalid", "正式報告的啟用身分或模型綁定不一致。")
     if "preopen_h1" in payload:
         _check_preopen_h1(payload)
+    if "h63_xs" in payload:
+        _check_h63_xs(payload)
     context = _report_context(payload)
     if context is not None and (str(context.get("stock_id")) != str((payload.get("stock") or {}).get("stock_id"))
             or not _day(context.get("asof")) or _day(context.get("asof")) != _day(payload.get("asof"))
@@ -737,6 +762,42 @@ def _check_preopen_h1(payload):
         valid = isinstance(block.get("notice"), str) and bool(block["notice"].strip())
     if not valid:
         raise CandidateReportError("preopen_block_invalid", "開盤前版 H1 區塊格式或身分不正確，停止產出。")
+
+
+_H63_STRENGTHS = {"relatively_strong", "neutral", "relatively_weak", "out_of_scope"}
+_H63_NUMERIC_KEYS = ("p", "p_raw", "band", "factors", "rank_eligible", "relative_strength", "score_centred")
+
+
+def _check_h63_xs(payload):
+    block = payload.get("h63_xs")
+    valid = (isinstance(block, dict) and block.get("schema") == H63_XS_SCHEMA
+             and payload.get("horizon_sessions") == 63 and block.get("status") in {"used", "fallback", "disabled"}
+             and str(block.get("stock_id")) == str((payload.get("stock") or {}).get("stock_id")))
+    if valid and block["status"] == "used":
+        p = _num(block.get("p"))
+        signal, asof = _day(block.get("signal_date")), _day(payload.get("asof"))
+        band = block.get("band") if isinstance(block.get("band"), dict) else None
+        identity = block.get("identity") if isinstance(block.get("identity"), dict) else {}
+        rows = block.get("disclosure_rows")
+        valid = (p is not None and 0 <= p <= 1 and signal is not None and asof is not None and signal <= asof
+                 and block.get("relative_strength") in _H63_STRENGTHS and band is not None
+                 and isinstance(rows, list) and bool(rows)
+                 and all(isinstance(row, list) and len(row) == 2 and all(isinstance(x, str) for x in row) for row in rows)
+                 and all(_SHA.fullmatch(str(identity.get(key, ""))) for key in ("entry_key", "row_sha256", "model_sha256")))
+        if valid and signal < asof:
+            weekdays = sum(1 for offset in range(1, (date.fromisoformat(asof) - date.fromisoformat(signal)).days + 1)
+                           if (date.fromisoformat(signal).toordinal() + offset) % 7 not in (6, 0))
+            valid = weekdays <= 5
+        if valid and band.get("status") in {"ok", "ok_no_cqr"}:
+            low, high = _num(band.get("q10")), _num(band.get("q90"))
+            valid = low is not None and high is not None and low <= 0 <= high
+        elif valid:
+            valid = band.get("q10") is None and band.get("q90") is None
+    elif valid:
+        valid = (isinstance(block.get("notice"), str) and bool(block["notice"].strip())
+                 and not any(key in block for key in _H63_NUMERIC_KEYS))
+    if not valid:
+        raise CandidateReportError("h63_xs_block_invalid", "H63 三個月相對強弱區塊格式或身分不正確，停止產出。")
 
 
 def _report_title(payload):
@@ -1766,13 +1827,16 @@ def _brief_reminders(payload, prediction_notes):
     elif not calibration or str(calibration).startswith("uncalibrated"):
         # 沒有「機率校準」列，或該列顯示不出未校準（對照表沒有的代碼）：保留完整提醒。
         reminders.append(owner + "機率尚未校準，不能直接視為實際命中率。")
+    return [*reminders, *_stock_reminders(payload)]
+
+
+def _stock_reminders(payload):
+    """本股提醒（處置交易、停牌、下市、減資）：H1、無 U7 區塊的 H63 與 U7 檢視都列一次。"""
     limitations = [str(value) for value in [*(payload.get("limitations") or []), *((payload.get("metrics") or {}).get("limitations") or [])]]
     specific = [value for value in limitations if any(key in value for key in ("本股", "本公司"))
                 and any(key in value for key in ("停牌", "處置", "下市", "減資"))
                 and not any(key in value for key in ("未確認", "未驗證", "缺少", "未知"))]
-    if specific:
-        reminders.append("本股提醒：" + "；".join(dict.fromkeys(_zh(value) for value in specific)))
-    return reminders
+    return ["本股提醒：" + "；".join(dict.fromkeys(_zh(value) for value in specific))] if specific else []
 
 
 _HISTORICAL_TIMING_RISK = "部分歷史資料的公告時點未能確認，回測表現可能偏樂觀。"
@@ -1820,7 +1884,11 @@ def _report_machine_evidence(payload):
             "technical_units": {item["name"]: item.get("unit") for item in payload.get("feature_values") or []
                                 if isinstance(item, dict) and item.get("name") in {"return_5", "return_20", "return_60", "volume_ratio_20"}},
             "context_diagnostics": {key: _brief_context(payload, items, key)[1] for key, items in groups.items()},
-            "evaluation_diagnostics": _selected_metric_tables(payload)[1]}
+            "evaluation_diagnostics": _selected_metric_tables(payload)[1],
+            **({"h63_disposition": {"display_source": (payload["h63_xs"].get("display_source") or "none"),
+                                    "selected_prediction_role": "停用顯示的 expanded_linear H63 輸出，只供重現驗證，不得當作預測使用",
+                                    "adr": "ADR-0009"}}
+               if payload.get("horizon_sessions") == 63 and isinstance(payload.get("h63_xs"), dict) else {})}
 
 
 def _prediction_blocker(prediction):
@@ -1976,18 +2044,162 @@ def _preopen_h1_view(payload):
             ["前一晚美股", preopen.us_overnight_text(block)],
             ["訊號日至目標日", str(_day(block.get("signal_date")) or "未提供") + " 收盤至 "
              + str(_day(block.get("target_date")) or "未提供") + " 收盤"]]
-    notes = preopen.describe_notes(block)  # describe 只列其他列沒有的註記；沒有就不列
+    dated = block.get("target_date_consistent") is False  # 目標日與本報告日曆不同：列「日期提醒」
+    target_note = block.get("target_note_zh")
+    target_note = re.sub(r"^日期提醒：", "", target_note).strip() if isinstance(target_note, str) else ""
+
+    def shown(note):  # 原目標日已寫在「日期提醒」列：快照註記顯示時去掉「；保留原目標日」，封存的原文不變
+        return re.sub(r"；保留原目標日 [^；｜]*", "", note) if dated and target_note else note
+
+    notes = shown(preopen.describe_notes(block))  # describe 只列其他列沒有的註記；沒有就不列
     if notes:
         rows.append(["資料註記", notes])
     if block.get("fixture") is True:
         rows.append(["資料性質", "測試用假快照，不可作為正式資訊"])
-    if block.get("target_date_consistent") is False:
-        rows.append(["日期提醒", "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"])
+    description = str(block.get("describe") or "")
+    for field, title in (("snapshot_note_zh", "資料沿用"), ("calendar_note_zh", "日曆註記"),
+                         ("ledger_note_zh", "帳冊註記")):
+        note = block.get(field)
+        if isinstance(note, str) and note.strip() and note not in description:
+            rows.append([title, shown(note)])
+    if dated:  # 列名已是「日期提醒」，內容不重複同名前綴
+        rows.append(["日期提醒", target_note or "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"])
     disclosure = [[str(name), str(text)] for name, text in block.get("disclosure_rows") or []
                   if isinstance(name, str) and isinstance(text, str)]
     # 主要／備援的分工與模型名稱只寫在兩張表的標題，不另寫說明段落。
     return ([], [_table("H1 開盤前版預測（主要顯示）：" + preopen.model_name_text(block), ["項目", "內容"], rows)],
             "備援對照：" + label, [_table("開盤前版必要揭露", ["項目", "內容"], disclosure)] if disclosure else [])
+
+
+def _h63_pct(value, digits=1, signed=False):
+    number = _num(value)
+    return _MISSING if number is None else f"{number * 100:{'+' if signed else ''},.{digits}f}%"
+
+
+_H63_FACTOR_FORMAT = {"f_ivol60": "annual", "f_max5": "pct", "f_hi52": "signed", "f_rev_yoy": "signed",
+                      "f_rev_high12": "signed", "f_ep": "pct", "f_bm": "ratio"}
+
+
+def _h63_factor_value(factor, block):
+    value = _num(factor.get("value"))
+    if value is None:
+        return "缺值（排名以 0 計）"
+    kind = _H63_FACTOR_FORMAT.get(factor.get("name"), "ratio")
+    if kind == "annual":
+        text = "年化 " + _h63_pct(value)
+    elif kind == "pct":
+        text = _h63_pct(value, 2)
+    elif kind == "signed":
+        text = _h63_pct(value, 1, signed=True)
+    else:
+        text = f"{value:,.3f}"
+    if factor.get("name") == "f_rev_yoy" and block.get("revenue_period"):
+        period = str(block["revenue_period"]).replace("-", "")
+        available = cd.display_day(block.get("revenue_available_at"), empty="")
+        text += "（營收月份 " + period + ("，" + available + " 起可用" if available else "") + "）"
+    return text
+
+
+def _h63_fit_through(model):
+    cutoff = cd.calendar_day_of(model.get("fit_cutoff_exclusive"))
+    return "未提供" if cutoff is None else cd.display_day(date.fromordinal(cutoff.toordinal() - 1))
+
+
+def _h63_xs_view(payload, base_rows, boundary, summary_insights):
+    """H63 帶 U7 區塊時的第一章與第六章內容（ADR-0009）；H1 與無區塊的 H63 不經過這裡。"""
+    block = payload["h63_xs"]
+    # 快照是新的（訊號日＝資料日）時，這一天只在「訊號日至目標」寫一次；沿用較舊快照時兩個日期都列，保留差異。
+    same_day = block.get("status") == "used" and cd.same_day(block.get("signal_date"), payload.get("asof"))
+    basics = [*base_rows, *([] if same_day else [["資料日", cd.display_day(payload.get("asof"), empty="未提供")]])]
+    basic_table = _table("本股基本資料", ["項目", "內容"], basics)
+    reminders = _stock_reminders(payload)  # 只補本股提醒；選定模型的校準提醒與 U7 無關
+    evaluation_paragraphs = ["報酬區間為名目 80%：回測中約 2 成實際結果落在區間外；大盤單邊行情時偏窄。",
+                             "逐日指標彼此高度相關（相鄰兩日相關約 0.97），不可把每天當獨立樣本。"]
+    if block.get("status") != "used":
+        notice = ("【注意】" if block.get("status") == "fallback" else "") + str(block.get("notice")) + "。"
+        return {"paragraphs": [notice, *summary_insights, boundary + "H63 三個月相對強弱本次未顯示數字。", *reminders],
+                "tables": [basic_table], "evaluation_paragraphs": evaluation_paragraphs, "evaluation_tables": []}
+    in_scope = block.get("in_scope") is True
+    p_text = _h63_pct(block.get("p"))
+    if not in_scope:
+        p_text += "（不在模型適用範圍，僅上市櫃普通股；機率固定 50%，不提供方向判斷）"
+    rows = [["跑贏同期多數股票的機率", p_text],
+            ["相對強弱", str(block.get("relative_strength_zh") or "未知")
+             + ("（55% 以上偏強、45% 以下偏弱，其餘中性）" if in_scope else "")]]
+    rank, total = block.get("rank_eligible"), block.get("eligible_count")
+    if in_scope:
+        rows.append(["合格母體排名", f"第 {rank:,} 名／共 {total:,} 檔（依分數由強到弱）"
+                     if type(rank) is int and type(total) is int else "不在合格母體，以插入方式排名"])
+    band = block.get("band") or {}
+    if band.get("status") in {"ok", "ok_no_cqr"}:
+        band_text = (_h63_pct(band.get("q10"), signed=True) + " 至 " + _h63_pct(band.get("q90"), signed=True)
+                     + "（約 10% 機率低於下限、10% 機率高於上限；不是預測報酬）")
+    else:
+        band_text = "本次無法提供（見註記）"
+    rows.append(["三個月報酬 80% 區間", band_text])
+    rows.append(["訊號日至目標", cd.display_day(block.get("signal_date"), empty="未提供")
+                 + " 收盤至之後第 63 個交易日收盤（約三個月；確切日期待交易日曆）"])
+    rows.append(["信賴度", "低：只判斷相對全市場強弱，不判斷大盤方向；大盤下跌期間，相對偏強的股票仍可能下跌"])
+    model = block.get("model") or {}
+    b = _num(model.get("b"))
+    rows.append(["模型", "U7 全市場排名（7 因子）" + (f"，斜率 b＝{b:.3f}" if b is not None else "")
+                 + "（訓練資料截至 " + _h63_fit_through(model) + "）"])
+    identity = block.get("identity") or {}
+    head = str(identity.get("central_head_sha256") or "")[:8] or "未提供"
+    rows.append(["資料", "中央資料 " + head
+                 + ("" if same_day else "（訊號日 " + cd.display_day(block.get("signal_date"), empty="未提供") + "）")
+                 + "；2025 年底以前的價格採 20261009 保存的歷史資料（補齊 2022 年 9 月至 2025 年 3 月的缺洞）"])
+    forward = block.get("forward_record") or {}
+    if forward.get("first_decision_date"):
+        rows.append(["前瞻紀錄", "自 " + cd.display_day(forward.get("first_decision_date")) + " 起每日記錄全市場；已到期 "
+                     + str(forward.get("matured_decision_dates") or 0) + " 個決策日；判定："
+                     + str(forward.get("verdict_zh") or "資料不足") + "（正式判定需 3 個 63 日區塊）"])
+    else:
+        rows.append(["前瞻紀錄", "尚未開始記錄"])
+    notes = [str(note) for note in block.get("notes_zh") or [] if isinstance(note, str) and note.strip()]
+    if notes:
+        rows.append(["註記", "；".join(notes)])
+    factor_rows = []
+    for factor in block.get("factors") or []:
+        signed = _num(factor.get("signed_rank"))
+        factor_rows.append([str(factor.get("label_zh") or factor.get("name")), _h63_factor_value(factor, block),
+                            _MISSING if signed is None else f"{signed:+.2f}"])
+    paragraphs = ["H63 主要顯示：U7 全市場排名法（ADR-0009）。原選定模型（expanded_linear）的 H63 估計已停用顯示，"
+                  "只保留在資料檔供重現驗證。"]
+    if block.get("trend_sentence_zh"):
+        paragraphs.append(str(block["trend_sentence_zh"]))
+    disclosure = [[str(name), str(text)] for name, text in block.get("disclosure_rows") or []
+                  if isinstance(name, str) and isinstance(text, str)]
+    if not any(name == "預測目標" for name, _ in disclosure):  # 第六章必要揭露已有同一定義時，第一章不重複
+        paragraphs.append("預測目標：本股自訊號日收盤起第 63 個交易日收盤的報酬，是否高於同日合格上市櫃股票報酬的中位數；"
+                          "不是上漲機率，也不是可成交報酬。")
+    paragraphs += [*summary_insights, boundary + "機率與區間皆有誤差。", *reminders]
+    tables = [_table("H63 三個月相對強弱（主要顯示）", ["項目", "內容"], rows),
+              _table("排名因子（相對同日合格股票，-1 最弱至 +1 最強，已依方向調整）", ["因子", "本股原始值", "方向調整後排名"],
+                     factor_rows, [0.42, 0.38, 0.20]),
+              basic_table]
+    evaluation_tables = [_table("H63 必要揭露", ["項目", "內容"], disclosure)] if disclosure else []
+    return {"paragraphs": paragraphs, "tables": tables, "evaluation_paragraphs": evaluation_paragraphs,
+            "evaluation_tables": evaluation_tables}
+
+
+def _h63_display_dates(sections):
+    """H63 帶 U7 區塊的報告：可見文字與價格圖日期軸標籤的 ISO 日期改為 YYYYMMDD（圖表只以日期當標籤，位置依序號）。"""
+    for section in sections:
+        chart = section.get("chart")
+        if isinstance(chart, dict):
+            for key in ("dates", "notes"):
+                if isinstance(chart.get(key), list):
+                    chart[key] = [cd.display_text(text) for text in chart[key]]
+        section["title"] = cd.display_text(section["title"])
+        section["paragraphs"] = [cd.display_text(text) for text in section["paragraphs"]]
+        for table in section["tables"]:
+            table["title"] = cd.display_text(table["title"])
+            if table.get("note"):
+                table["note"] = cd.display_text(table["note"])
+            table["columns"] = [cd.display_text(text) for text in table["columns"]]
+            table["rows"] = [[cd.display_text(cell) for cell in row] for row in table["rows"]]
+    return sections
 
 
 def build_report_sections(payload: dict) -> list[dict]:
@@ -2056,20 +2268,25 @@ def build_report_sections(payload: dict) -> list[dict]:
         boundary = "本報告使用已啟用模型。"
     if any(note.startswith(("方向分支", "報酬分支")) for note in prediction_notes):
         insights["summary"] = []
-    preopen_notes, preopen_tables, summary_title, preopen_disclosure = _preopen_h1_view(payload)
-    if preopen_tables:
-        # 開盤前版為主時，股票與市場移到主要表格；資料日與相同的目標日已在「訊號日至目標日」，
-        # 預測目標（同一個收盤對收盤定義）已在必要揭露。
-        preopen_tables[0]["rows"][:0] = identity_rows
-        shown = {"股票", "市場與產業", "資料日"}
-        if target and target == _day(payload["preopen_h1"].get("target_date")):
-            shown.add("目標交易日收盤")
-        if any(row[0] == "預測目標" for table in preopen_disclosure for row in table["rows"]):
-            shown.add("預測目標")
-        summary_rows = [row for row in summary_rows if row[0] not in shown]
-    sections = [_section("summary", "一、預測摘要", [*preopen_notes, *insights["summary"], boundary + "機率與報酬皆有誤差。",
-                         *_brief_reminders(payload, prediction_notes)],
-                         [*preopen_tables, _table(summary_title, ["項目", "內容"], summary_rows), *preopen_disclosure])]
+    h63_view = (_h63_xs_view(payload, summary_rows[:2], boundary, insights["summary"])
+                if horizon == 63 and isinstance(payload.get("h63_xs"), dict) else None)
+    if h63_view is not None:
+        sections = [_section("summary", "一、預測摘要", h63_view["paragraphs"], h63_view["tables"])]
+    else:
+        preopen_notes, preopen_tables, summary_title, preopen_disclosure = _preopen_h1_view(payload)
+        if preopen_tables:
+            # 開盤前版為主時，股票與市場移到主要表格；資料日與相同的目標日已在「訊號日至目標日」，
+            # 預測目標（同一個收盤對收盤定義）已在必要揭露。
+            preopen_tables[0]["rows"][:0] = identity_rows
+            shown = {"股票", "市場與產業", "資料日"}
+            if target and target == _day(payload["preopen_h1"].get("target_date")):
+                shown.add("目標交易日收盤")
+            if any(row[0] == "預測目標" for table in preopen_disclosure for row in table["rows"]):
+                shown.add("預測目標")
+            summary_rows = [row for row in summary_rows if row[0] not in shown]
+        sections = [_section("summary", "一、預測摘要", [*preopen_notes, *insights["summary"], boundary + "機率與報酬皆有誤差。",
+                             *_brief_reminders(payload, prediction_notes)],
+                             [*preopen_tables, _table(summary_title, ["項目", "內容"], summary_rows), *preopen_disclosure])]
     view = _price_view(payload)
     technical, technical_notes = _technical_summary(payload, view)
     technical_notes = _technical_body_notes(technical_notes, insights["technical"])
@@ -2096,22 +2313,28 @@ def build_report_sections(payload: dict) -> list[dict]:
                 raw_units = True
         paragraphs = [*insights[key], *comparison_notes[key], *_context_body_notes(diagnostics)]
         sections.append(_section(key, title, paragraphs=paragraphs, tables=[*comparisons[key], *tables]))
-    calibration_disclosed = any("未校準" in text for text in [
-        *sections[0]["paragraphs"], *(str(row[1]) for row in summary_rows)])
-    data_notes = _display_data_notes(payload, insights["data_notes"], raw_units=raw_units,
-        comparisons=any(comparisons.values()), calibration=calibration_disclosed, calendar=not target)
-    tables, notes = _selected_metric_tables(payload)
-    split = (metrics.get("splits") or {}).get("finaltest", (metrics.get("splits") or {}).get("test")) or {}
-    start, end = _day(split.get("start")), _day(split.get("end"))
-    period_note = ["最終測試訊號期間：" + start + " 至 " + end + "。"] if start and end else []
-    # MAE 說明只在表格列出報酬 MAE 時加上。
-    mae_note = ["報酬 MAE 為平均絕對誤差，以百分點表示，越低越好。"] if any(
-        "報酬 MAE" in row[0] for table in tables for row in table["rows"]) else []
-    sections.append(_section("evaluation", "六、選中模型的最終測試表現", [
-        *data_notes,
-        *period_note,
-        *mae_note,
-        *notes], tables))
+    if h63_view is not None:
+        data_notes = _display_data_notes(payload, insights["data_notes"], raw_units=raw_units,
+            comparisons=any(comparisons.values()), calibration=True, calendar=True)
+        sections.append(_section("evaluation", "六、H63 模型驗證與限制",
+                                 [*data_notes, *h63_view["evaluation_paragraphs"]], h63_view["evaluation_tables"]))
+    else:
+        calibration_disclosed = any("未校準" in text for text in [
+            *sections[0]["paragraphs"], *(str(row[1]) for row in summary_rows)])
+        data_notes = _display_data_notes(payload, insights["data_notes"], raw_units=raw_units,
+            comparisons=any(comparisons.values()), calibration=calibration_disclosed, calendar=not target)
+        tables, notes = _selected_metric_tables(payload)
+        split = (metrics.get("splits") or {}).get("finaltest", (metrics.get("splits") or {}).get("test")) or {}
+        start, end = _day(split.get("start")), _day(split.get("end"))
+        period_note = ["最終測試訊號期間：" + start + " 至 " + end + "。"] if start and end else []
+        # MAE 說明只在表格列出報酬 MAE 時加上。
+        mae_note = ["報酬 MAE 為平均絕對誤差，以百分點表示，越低越好。"] if any(
+            "報酬 MAE" in row[0] for table in tables for row in table["rows"]) else []
+        sections.append(_section("evaluation", "六、選中模型的最終測試表現", [
+            *data_notes,
+            *period_note,
+            *mae_note,
+            *notes], tables))
     # Every visible string, including chart legends and table cells, crosses this boundary.
     def convert(value):
         if isinstance(value, str):
@@ -2122,6 +2345,8 @@ def build_report_sections(payload: dict) -> list[dict]:
             return {k: v if k == "id" else convert(v) for k, v in value.items()}
         return value
     converted = convert(sections)
+    if h63_view is not None:
+        converted = _h63_display_dates(converted)
     seen = set()
     for section in converted:
         paragraphs = []
@@ -2524,6 +2749,7 @@ def _validate_candidate_report(payload, pdf_path):
 def write_candidate_report(payload: dict, output_dir: Path) -> dict:
     """Publish a unique PDF/JSON bundle by one directory rename, only after preflight."""
     _attach_preopen_h1(payload)
+    _attach_h63_xs(payload)
     attach_report_comparison(payload)
     sections = build_report_sections(payload)
     output_dir = Path(output_dir)
