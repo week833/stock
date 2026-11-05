@@ -119,16 +119,44 @@ def test_c0_h1_caption_shows_preopen_as_primary_and_c0_as_backup(snapshot_root):
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="preopen"))
     lines = caption.splitlines()
     assert lines[0] == "2330 台積電｜H1 收盤估計（開盤前版）"
-    assert lines[1] == "訊號收盤日：20261016；到期日：20261019"
-    assert lines[2].startswith("資料：20261016")
+    # 資料日與訊號日相同：資料時間併入訊號日那一行（緊接在訊號日之後）
+    assert lines[1].startswith("訊號收盤日：20261016（發布 20261016 16:00，讀取 ") and lines[1].endswith("）；到期日：20261019")
     assert f"開盤前版：上漲機率 {100 * block['p_up']:.2f}%；預估收盤報酬 {100 * block['exp_ret']:+.2f}%" in caption
     assert f"名次：全市場 {block['rank']}/{block['universe_rows']}；可交易 {block['rank_tradable']}/{block['tradable_rows']}" in caption
-    assert "前一晚美股收漲（建議日）；前一晚美股收盤已納入" in caption
+    # 美股收盤已納入是常態，不另寫；開盤前版為主時預測目標只在揭露中寫一次
+    assert "前一晚美股收漲（建議日）" in lines and "前一晚美股收盤已納入" not in caption
+    assert "目標：" not in caption
     assert "【測試用假快照" in caption
     _assert_disclosure(caption)
     assert "C0 基準（備援）：上漲機率 50.00%；預估報酬 +0.00%" in caption
     assert "C0 基準比較方向率低於60%" in caption
     assert caption.endswith(bot.REPORT_CAPTION_DISCLAIMER) and len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
+
+
+@pytest.mark.parametrize("status,expected", [
+    ("missing", "前一晚美股收漲（建議日）；前一晚美股收盤缺漏（以缺值推論，準確度可能下降）"),
+    ("holiday", "前一晚美股收漲（建議日）；前一晚美股休市"),
+])
+def test_h1_caption_keeps_the_us_overnight_status_unless_it_is_ok(snapshot_root, status, expected):
+    """美股收盤已納入（ok）是常態不另寫；缺漏、休市照列，「準確度可能下降」的警示不可少。"""
+    write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", us_status=status)
+    block = preopen.build_h1_block({"stock_id": "2330", "market": "TWSE"}, "2026-10-16", base_label=preopen.C0_BASE_LABEL)
+    for payload in (_c0_payload(preopen_h1=block), _selected_payload(preopen_h1=block)):
+        caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
+        assert expected in caption.splitlines(), caption
+        assert len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
+
+
+def test_c0_cautions_are_one_line_and_simple_baseline_only_when_c0_is_primary(snapshot_root):
+    used = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=_block(snapshot_root))).splitlines()
+    legacy = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload()).splitlines()
+    assert ("歷史PIT／公司行動／歷史普通股資格未驗證；效果未知、交易效益未驗證；C0 基準比較方向率低於60%，"
+            "不能視為可靠預測。") in used
+    assert "歷史PIT／公司行動／歷史普通股資格未驗證；效果未知、交易效益未驗證；比較方向率低於60%，不能視為可靠預測。" in legacy
+    # C0 只是備援值時不加簡單基準說明；C0 是主要顯示時照舊
+    assert not any("簡單基準" in line for line in used)
+    assert "簡單基準可能產生相同結果；不具個股排序差異。" in legacy
+    assert "目標：訊號收盤至同市場第1交易日收盤" in legacy
 
 
 def test_c0_h1_caption_fallback_notice_is_right_under_the_title(snapshot_root):
@@ -165,14 +193,15 @@ def test_no_estimate_h1_caption_with_preopen_row(snapshot_root):
                           preopen_h1=block)
     caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
     assert caption.splitlines()[0] == "2330 台積電｜H1 收盤估計（開盤前版；C0 基準無法估計）"
-    assert "C0 基準無法估計，原因：該股價格資料停在分析資料日之前（stock_price_older_than_asof）" in caption
+    # 原因代碼都查得到中文時只顯示中文
+    assert caption.splitlines()[1] == "C0 基準無法估計，原因：該股價格資料停在分析資料日之前"
     assert "開盤前版：上漲機率" in caption and "不含任何估計值" not in caption
     _assert_disclosure(caption)
 
 
 @pytest.mark.parametrize("reason,expected", [
-    ("prediction_unavailable", "現有模型未產生有效估計（prediction_unavailable）"),
-    ("some_future_code", "資料或模型條件未滿足（some_future_code）"),
+    ("prediction_unavailable", "現有模型未產生有效估計"),  # 都查得到中文：不附代碼
+    ("some_future_code", "資料或模型條件未滿足（some_future_code）"),  # 有查不到的代碼：附上原始代碼
     ("stock_price_older_than_asof,some_future_code",
      "該股價格資料停在分析資料日之前、資料或模型條件未滿足（stock_price_older_than_asof,some_future_code）"),
 ])
@@ -180,7 +209,7 @@ def test_no_estimate_reason_always_has_chinese_text(snapshot_root, reason, expec
     payload = _c0_payload(report_class=bot.C0_NO_ESTIMATE_REPORT_CLASS, prediction=None,
                           no_estimate_reason=reason, stock_last_price_date="2026-10-01")
     caption = bot.report_caption(bot.MODE_H1, STOCK, payload)
-    assert f"原因：{expected}" in caption
+    assert f"原因：{expected}" in caption.splitlines()
 
 
 def test_forced_c0_caption_states_the_setting(snapshot_root, monkeypatch):
@@ -218,7 +247,7 @@ def test_h1_caption_shows_chip_freshness_note_only_when_present(snapshot_root):
     block = preopen.build_h1_block({"stock_id": "2330", "market": "TWSE"}, "2026-10-16", base_label=preopen.C0_BASE_LABEL)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="preopen"))
     lines = caption.splitlines()
-    us_line = next(i for i, line in enumerate(lines) if line.startswith("前一晚美股收漲（建議日）；"))
+    us_line = lines.index("前一晚美股收漲（建議日）")  # 美股收盤已納入（ok）時只寫漲跌
     assert lines[us_line + 1] == "t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）"
     assert "C0 基準（備援）" in caption and "命中率不代表交易獲利" in caption
     assert caption.endswith(bot.REPORT_CAPTION_DISCLAIMER) and len(caption) <= bot.TELEGRAM_CAPTION_BUDGET

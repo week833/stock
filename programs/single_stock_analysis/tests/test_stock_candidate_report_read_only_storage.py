@@ -458,4 +458,7 @@ def test_new_policy_bundle_contains_no_html_or_large_evidence(
     if horizon == 1:
         assert stored["preopen_h1"] == case.payload["preopen_h1"]
         assert "開盤前版中文說明" in "\n".join(report._visible_strings(sidecar["sections"]))
+        # 模型名稱只在主要表的表名出現一次
+        assert "H1 開盤前版預測（主要顯示）：開盤前版中文說明" in visible and visible.count("開盤前版中文說明") == 1
+        assert "61.00%" in visible
     assert len(case.loads) == len(case.closes) == 2  # One write operation and one independent validation.

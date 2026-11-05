@@ -188,11 +188,13 @@ def test_csv_preserves_numbers_escaping_and_one_shared_row_context(report_case, 
     reporting._write_csv(destination, payload)
     with destination.open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    predictions = [row for row in rows if row["資料類型"] in {"研究展示", "全部已分析股票"}]
-    assert len(predictions) == 4
-    assert [row["下一交易日收漲機率（小數）"] for row in predictions] == ["0.625", "0.5"] * 2
-    assert [row["下一交易日調整後收盤報酬（小數）"] for row in predictions] == ["-0.0125", "0.002"] * 2
-    assert [row["股票名稱"] for row in predictions] == ["'=合成股票", "未提供"] * 2
-    assert len({row["原始脈絡資料"] for row in predictions}) == 1
-    assert json.loads(predictions[0]["原始脈絡資料"])["target_session"] == "20261019"
+    # 每檔只寫一列（前十檔以欄位標示，C0 欄名為「研究展示」）；共同脈絡只寫一列「報告脈絡」，其餘原始資料見 report.json。
+    assert [row["資料類型"] for row in rows] == ["全部已分析股票", "全部已分析股票", "模型來源與必要揭露", "報告脈絡"]
+    predictions = rows[:2]
+    assert [row["下一交易日收漲機率（小數）"] for row in predictions] == ["0.625", "0.5"]
+    assert [row["下一交易日調整後收盤報酬（小數）"] for row in predictions] == ["-0.0125", "0.002"]
+    assert [row["股票名稱"] for row in predictions] == ["'=合成股票", "未提供"]
+    assert [row["研究展示"] for row in predictions] == ["是", "是"] and "Top10" not in rows[0]
+    assert {row["原始脈絡資料"] for row in predictions} == {""}
+    assert json.loads(rows[-1]["原始脈絡資料"])["target_session"] == "20261019"
     assert row_context_calls == [True]

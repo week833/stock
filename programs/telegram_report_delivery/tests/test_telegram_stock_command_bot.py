@@ -2187,7 +2187,7 @@ def test_c0_no_estimate_report_is_accepted_with_reason_and_data_time(
     assert fake_published_heads["refs"][0]["manifest_sha256"] == HEAD_SHA  # the report's own pinned head
     caption = bot.report_caption(bot.MODE_H1, NO_ESTIMATE_STOCK, payload)
     assert caption.splitlines()[0] == "1591 fixture｜C0 H1 收盤估計：無法估計"
-    assert "（latest_exact_253_market_sessions_incomplete）" in caption
+    assert "原因：最近253個交易日價格不完整" in caption.splitlines()  # 查得到中文時不附代碼
     assert "該股最後價格日：20261008" in caption
     assert "不含任何估計值" in caption and "上漲機率" not in caption
 

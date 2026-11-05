@@ -320,14 +320,23 @@ def _report_number(value,digits=2,*,percent=False,signed=False):
 
 
 def _data_time_lines(payload):
-    """Human-readable dates from the data actually read; machine values stay untouched."""
-    data_time=payload.get('data_time') or {};head=data_time.get('head') or {};model=data_time.get('model') or {}
-    markets='／'.join(f"{_market_zh(market)} {_day(day)}" for market,day in sorted((data_time.get('asof_by_market') or {}).items()))
-    lines=[f"分析資料日：{_day(data_time.get('analysis_asof'))}；各市場：{markets or '未提供'}。",
-        f"價格最新日：{_day(data_time.get('price_max_date'))}；本股最後價格日：{_day(payload.get('stock_last_price_date'))}。",
-        f"發布時間（發布者宣告，尚未獨立驗證）：{_clock(head.get('published_at'))}。",
-        f"讀取時間：{_clock(data_time.get('read_at_utc'))}；報告產生時間：{_clock(payload.get('generated_at'))}。",
-        f"模型訓練資料日：{_day(model.get('training_asof'))}；模型啟用時間：{_clock(model.get('activated_at_utc'))}。"]
+    """Human-readable dates from the data actually read; machine values stay untouched.
+
+    分析資料日已在第一章與頁尾，只在各市場日期與它不同時另列；價格日期只在與分析資料日不同時列出
+    （無法估計時本股最後價格日一律列在第一章「原因」下方，這裡不再重複）。
+    發布、讀取、報告產生與模型啟用時間只留在 JSON 的 data_time。
+    """
+    data_time=payload.get('data_time') or {};model=data_time.get('model') or {}
+    analysis=_day(data_time.get('analysis_asof'))
+    by_market={market:_day(day) for market,day in (data_time.get('asof_by_market') or {}).items()}
+    lines=[]
+    if any(day!=analysis for day in by_market.values()):
+        lines.append(f"分析資料日：{analysis}；各市場：{'／'.join(f'{_market_zh(market)} {day}' for market,day in sorted(by_market.items()))}。")
+    prices=(_day(data_time.get('price_max_date')),_day(payload.get('stock_last_price_date')))
+    if payload.get('estimate_status')=='no_estimate':
+        if prices[0]!=analysis:lines.append(f"價格最新日：{prices[0]}。")
+    elif any(day!=analysis for day in prices):lines.append(f"價格最新日：{prices[0]}；本股最後價格日：{prices[1]}。")
+    lines.append(f"模型訓練資料日：{_day(model.get('training_asof'))}。")
     if data_time.get('stock_market_asof_lags'):
         lines.append(f"本股所屬{_market_zh(data_time.get('stock_market'))}市場資料日 {_day(data_time.get('stock_market_asof'))}，早於其他市場最新日 {_day(data_time.get('latest_market_asof'))}；本股依自己的市場資料日估計。")
     if data_time.get('is_stale'):
@@ -449,7 +458,7 @@ def _preopen_block(payload):
 def _preopen_fields(stock,stock_asof,h1_source,target=None):
     """H1 only: the pre-open block (fresh snapshot row or a labelled C0 fallback); C0 machine fields stay unchanged.
 
-    h1_source=c0 is the old behaviour: no block at all, so the report is the same as before this overlay.
+    h1_source=c0 is the old behaviour: no block at all, so the report has no pre-open section.
     """
     if preopen.resolve_source(h1_source)=='c0':return {}
     block=preopen.build_h1_block(stock,stock_asof,source=h1_source,base_label=preopen.C0_BASE_LABEL,
@@ -463,14 +472,15 @@ def _preopen_rows(block):
     if block.get('tradable') is True and isinstance(tradable_rank,int):
         tradable=f'第 {tradable_rank} 名／共 {tradable_rows} 檔'+('（可交易 Top10）' if tradable_rank<=10 else '')
     else:tradable='不在可交易母體（20 日均成交金額未達 2,000 萬元或收盤低於 10 元）'
-    rows=[('H1 主要來源','開盤前版（HGB，含前一晚美股）'),
-        ('上漲機率（開盤前版，校準後）',_report_number(block.get('p_up'),percent=True)),
+    rows=[('上漲機率（開盤前版，校準後）',_report_number(block.get('p_up'),percent=True)),
         ('預估收盤報酬（開盤前版，校準後）',_report_number(block.get('exp_ret'),percent=True,signed=True)),
         ('全市場名次',f'第 {rank} 名／共 {universe} 檔' if isinstance(rank,int) and isinstance(universe,int) else '未提供'),
         ('可交易母體名次',tradable),
-        ('前一晚美股',f"{block.get('gate_us_up_zh') or '前一晚美股漲跌未知'}；{block.get('us_overnight_status_zh') or '美股狀態未知'}"),
-        ('訊號日至目標日',f"{_day(block.get('signal_date'))} 收盤至 {_day(block.get('target_date'))} 收盤"),
-        ('模型說明',str(block.get('describe') or block.get('model_label') or '開盤前版'))]
+        ('前一晚美股',preopen.us_overnight_text(block)),
+        ('訊號日至目標日',f"{_day(block.get('signal_date'))} 收盤至 {_day(block.get('target_date'))} 收盤")]
+    # describe 只列其他列沒有的註記（籌碼、日曆等）；沒有註記就不列。
+    notes=preopen.describe_notes(block)
+    if notes:rows.append(('資料註記',notes))
     if block.get('fixture') is True:rows.append(('資料性質','測試用假快照，不可作為正式資訊'))
     if block.get('target_date_consistent') is False:
         rows.append(('日期提醒','開盤前版目標日與 C0 日曆推得的到期交易日不同，請以各自來源核對'))
@@ -495,7 +505,9 @@ def _pdf(path,payload,report_view=None):
         return Paragraph(html.escape(str(text)).replace('\n','<br/>'),styles[style])
     story=[]
     def text(value,style='body'):story.append(paragraph(value,style))
-    def section(number,title):text(f'{number}、{title}','heading')
+    # 章節依實際列出的順序編號（沒有資料的章節不列）。
+    numbers=iter('一二三四五六')
+    def section(title):text(f'{next(numbers)}、{title}','heading')
     def table(rows):
         cells=[[paragraph('項目'),paragraph('內容')]]+[[paragraph(name),paragraph(value)] for name,value in rows]
         item=Table(cells,colWidths=[142,width-142],repeatRows=1,hAlign='LEFT')
@@ -519,35 +531,48 @@ def _pdf(path,payload,report_view=None):
     preopen_h1=_preopen_block(payload);preopen_used=bool(preopen_h1 and preopen_h1.get('status')=='used')
     # C0 labels gain a "backup" prefix only when the pre-open row is the H1 primary display.
     base='C0 基準（備援）' if preopen_used else ''
+    comparison=payload.get('report_comparison') or {}
+    # 基本面估值章只在有歷史比較數值時列出；沒有時，有值的產業併入副標。
+    fundamentals=bool(comparison.get('metrics'));industry=stock.get('source_industry')
+    market=_market_zh(stock.get('market'))+('／'+str(industry) if industry and not fundamentals else '')
     text(f"{stock['stock_id']} {stock_name} 個股分析報告",'title')
-    if preopen_used:text(f'H1 開盤前版（主要顯示）＋ C0 基準（備援）｜{duration}收盤估計｜{_market_zh(stock.get("market"))}','subtitle')
-    else:text(f'現行 C0 模型｜H{h}｜{duration}收盤估計｜{_market_zh(stock.get("market"))}','subtitle')
+    # 開盤前版的模型名稱只在副標寫一次（表格與資料註記不再重複）。
+    if preopen_used:text(f'H1 開盤前版（{preopen.model_name_text(preopen_h1)}；主要顯示）＋ C0 基準（備援）｜{duration}收盤估計｜{market}','subtitle')
+    else:text(f'現行 C0 模型｜H{h}｜{duration}收盤估計｜{market}','subtitle')
     if preopen_h1 and not preopen_used:
         text('【注意】'+str(preopen_h1.get('notice'))+'。'+('原因：'+str(preopen_h1.get('reason_zh') or '開盤前版不可用')+'。'
             if preopen_h1.get('status')=='fallback' else ''),'notice')
     if notes:text('資料備註：'+'；'.join(notes),'small')
-    section('一','摘要')
+    section('摘要')
     if preopen_used:
-        text('H1 主要預測來源：開盤前版（HGB，含前一晚美股）。下方 C0 基準只作備援對照，不作為 H1 主要顯示。')
-        table(_preopen_rows(preopen_h1))
-    summary=[('分析資料日',_day(payload.get('latest_data_date'))),(base+'本次結果','已產生估計' if estimated else '無法估計')]
+        rows=_preopen_rows(preopen_h1)
+        # C0 基準備援值併成一列；無法估計時改由下表的本次結果與原因說明。
+        if estimated:rows.append((base,f"上漲機率 {value(pred.get('prob_up'),percent=True)}／預估報酬 {value(pred.get('expected_return'),percent=True,signed=True)}"))
+        table(rows)
+    summary=[('分析資料日',_day(payload.get('latest_data_date')))]
+    # 有估計時機率與報酬本身就說明已產生估計；無法估計時只列結果與原因，不列「無法計算」的機率與報酬。
+    if not estimated:summary.append((base+'本次結果','無法估計'))
     signal_close=pred.get('signal_close')
     if signal_close is None and report_view and report_view['dates'][-1]==payload.get('latest_data_date'):
         signal_close=report_view['close'][-1]
-    summary.extend([('訊號日調整後收盤價',value(signal_close)+(' 元' if _report_float(signal_close) is not None else '')),
-        (base+'上漲機率',value(pred.get('prob_up'),percent=True)),
-        (base+'預估報酬',value(pred.get('expected_return'),percent=True,signed=True))])
+    summary.append(('訊號日調整後收盤價',value(signal_close)+(' 元' if _report_float(signal_close) is not None else '')))
+    if estimated and not preopen_used:
+        summary.extend([('上漲機率',value(pred.get('prob_up'),percent=True)),
+            ('預估報酬',value(pred.get('expected_return'),percent=True,signed=True))])
     if not estimated:
         reasons=str(payload.get('no_estimate_reason') or '').split(',')
         summary.append(('原因','；'.join(dict.fromkeys(_REASON_ZH.get(reason,'資料或模型條件未滿足，詳見隨附資料檔') for reason in reasons))))
+        # README 規定無法估計的報告列出原因與該股最後價格日；「資料時間與限制」章不再重複。
+        summary.append(('本股最後價格日',_day(payload.get('stock_last_price_date'))))
     table(summary)
     if preopen_used:
         text('開盤前版必要揭露','body')
         table([(str(name),str(detail)) for name,detail in preopen_h1.get('disclosure_rows') or []])
-    text('本報告沿用現行模型；歷史時點資料、公司行動調整與歷史普通股資格尚未完整驗證，模型效果及交易效益未驗證。','small')
+    # 開盤前版的必要揭露已有交易提醒；其他情境由這一句說明效果與交易效益未驗證。
+    text('本報告沿用現行模型；歷史時點資料、公司行動調整與歷史普通股資格尚未完整驗證'+('。' if preopen_used else '，模型效果及交易效益未驗證。'),'small')
     # 摘要（含可交易名次）固定在第一頁，股價技術從第二頁開始。
     story.append(PageBreak())
-    section('二','股價技術')
+    section('股價技術')
     if report_view and report_view.get('dates'):
         story.append(_report_price_chart(report_view,regular))
         text(f"資料範圍：{_day(report_view['dates'][0])}～{_day(report_view['dates'][-1])}，共 {len(report_view['dates'])} 個交易日。價格為已讀取的調整後收盤價，成交量為原始成交股數。",'small')
@@ -559,65 +584,62 @@ def _pdf(path,payload,report_view=None):
             ('近5／20／60日報酬','／'.join(value(report_view['returns'][period],percent=True,signed=True) for period in (5,20,60))),
             ('近20日每日報酬波動',value(report_view['volatility_20'],percent=True)),
             ('最近一日成交量',value(report_view['volume'][-1],digits=0)+' 股')])
-        text('均線、歷史報酬及波動僅描述已發生的價格變化，不是新增模型訊號、未來價格區間或買賣建議。','small')
-    else:
-        table([(name,unavailable) for name in ('最近一日漲跌','5／20／60日均線','近5／20／60日報酬','近20日每日報酬波動','最近一日成交量')])
-        text('本次沒有可呈現的有效價格序列，技術圖無法繪製；各指標保留並標示無法計算。')
-    section('三','基本面估值')
-    table([('公司／市場',f"{stock_name or '未提供'}／{_market_zh(stock.get('market'))}"),
-        ('產業',stock.get('source_industry') or '未提供'),
-        ('財務與估值','已讀取的當期資料與歷史比較見下表；未提供項目仍保留缺值。'
-            if (payload.get('report_comparison') or {}).get('metrics') else
-            '本次資料未提供財報、每股盈餘、本益比、股價淨值比或合理價估計。')])
-    text('公司名稱及產業屬股票識別資料，不能替代基本面分析；未提供的估值不以模型報酬或其他股票資料推算。','small')
-    comparison=payload.get('report_comparison') or {}
-    comparison_rows=report_comparison_rows(payload)
-    if comparison_rows:
-        text('歷史比較與中文解讀','subtitle')
-        for row in comparison_rows:
-            table([(key,row[key]) for key in ('項目','資料期間','本期值','比較','解讀','資料日期')])
-    for note in comparison.get('notes') or []:text(str(note),'small')
-    section('四','籌碼市場新聞')
-    table([('市場價格與量能','歷史價格與成交量見第二章；不等同法人籌碼。' if report_view else '本次未提供可呈現的價格與量能序列。'),
-        ('法人與籌碼','已讀取的法人、融資券或集保比較見第三章歷史比較表；資料日期與缺值逐項保留。'
-            if any(item.get('source_route') in {'finmind_institutional','finmind_margin','tdcc_share_distribution_raw'}
-                   for item in comparison.get('metrics') or []) else '本次未提供法人買賣超、持股或其他籌碼資料。'),
-        ('新聞與事件','本次未提供經來源確認的新聞及事件資料，不產生推測性新聞解讀。')])
-    section('五','比較樣本與模型表現')
-    table([('比較樣本方向判斷率',value(metrics.get('direction_accuracy'),percent=True)),
-        ('方向判斷樣本數（排除持平）',value(metrics.get('nonflat_direction_count'),digits=0)),
-        ('比較樣本總筆數',value(metrics.get('observed_count'),digits=0)),
-        ('報酬率平均絕對誤差',value(metrics.get('mae'),digits=6)),
-        ('模型訓練股票數',value((payload.get('training_scope') or {}).get('stock_count'),digits=0)),
-        ('本次推論股票數',value((payload.get('coverage') or {}).get('eligible'),digits=0))])
+        text('均線、歷史報酬及波動僅描述已發生的價格變化，不是新增模型訊號或買賣建議。','small')
+    else:text('本次沒有可呈現的有效價格序列，技術圖與指標無法計算。')
+    if fundamentals:
+        section('基本面估值')
+        table([('產業',industry or '未提供'),('財務與估值','已讀取的當期資料與歷史比較見下表；未提供項目仍保留缺值。')])
+        text('產業屬股票識別資料，不能替代基本面分析；未提供的估值不以模型報酬或其他股票資料推算。','small')
+        comparison_rows=report_comparison_rows(payload)
+        if comparison_rows:
+            text('歷史比較與中文解讀','subtitle')
+            for row in comparison_rows:
+                table([(key,row[key]) for key in ('項目','資料期間','本期值','比較','解讀','資料日期')])
+        for note in comparison.get('notes') or []:text(str(note),'small')
+    section('比較樣本與模型表現')
     if metrics:
-        text('平均絕對誤差以報酬率小數表示，不是價格誤差、百分點或預測區間。上述為比較樣本整體結果，不能稱為本股歷史準確率，也不能當成已驗證的樣本外績效。')
+        table([('比較樣本方向判斷率',value(metrics.get('direction_accuracy'),percent=True)),
+            ('比較樣本筆數（全部／排除持平）',value(metrics.get('observed_count'),digits=0)+'／'+value(metrics.get('nonflat_direction_count'),digits=0)),
+            ('報酬率平均絕對誤差',value(metrics.get('mae'),digits=6))])
+        text('平均絕對誤差以報酬率小數表示，不是價格誤差或百分點。上述為比較樣本整體結果，不能稱為本股歷史準確率。')
         if _report_float(metrics.get('direction_accuracy')) is not None and float(metrics['direction_accuracy'])<0.6:
             text('比較樣本方向判斷率低於60%；不可據此宣稱可靠預測。','small')
-    else:text('本次沒有可用的模型比較資料；欄位保留並標示無法計算。')
-    section('六','對應期限預測與說明')
-    text(f'本報告目標：{scope_note}。'+('這是下一個交易日的估計，不是盤中價格預測。' if h==1 else '約三個月的交易日期限，不是固定日曆天數。'))
-    if preopen_used:
-        text('H1 主要數值取自開盤前版快照（見第一章）；下表的到期日、方法與校準欄位描述 C0 基準備援。','small')
-    target=payload.get('target_session_date') or pred.get('target_session_date')
-    table([('到期交易日',_day(target) if target else '尚未驗證，不推算日曆日期'),
-        ('方向方法',_REPORT_METHOD_ZH.get(pred.get('selected_direction_kind'),'未提供')),
-        ('報酬方法',_REPORT_METHOD_ZH.get(pred.get('selected_return_kind'),'未提供')),
-        ('機率校準',_REPORT_CALIBRATION_ZH.get(pred.get('calibration_status'),'未提供')),
-        ('前瞻校正',_REPORT_CALIBRATION_ZH.get(pred.get('forward_calibration_status'),'未提供'))])
+    else:text('本次沒有可用的模型比較資料。')
+    section('對應期限預測與說明')
+    # 開盤前版為主時，預測目標已在副標與必要揭露。
+    if not preopen_used:
+        text(f'本報告目標：{scope_note}。'+('這是下一個交易日的估計，不是盤中價格預測。' if h==1 else '約三個月的交易日期限，不是固定日曆天數。'))
     if estimated:
+        target=payload.get('target_session_date') or pred.get('target_session_date')
+        # 開盤前版為主且目標日相同時，到期日已在第一章「訊號日至目標日」；方法與校準以 C0 備援前綴標明。
+        merged=preopen_used and bool(target) and _day(target)==_day(preopen_h1.get('target_date'))
+        if preopen_used and not merged:
+            text('H1 主要數值取自開盤前版快照（見第一章）；下表的到期日、方法與校準欄位描述 C0 基準備援。','small')
+        label=base if merged else ''
+        rows=[] if merged else [('到期交易日',_day(target) if target else '尚未驗證，不推算日曆日期')]
+        rows.extend([(label+'方向方法',_REPORT_METHOD_ZH.get(pred.get('selected_direction_kind'),'未提供')),
+            (label+'報酬方法',_REPORT_METHOD_ZH.get(pred.get('selected_return_kind'),'未提供')),
+            (label+'機率校準',_REPORT_CALIBRATION_ZH.get(pred.get('calibration_status'),'未提供'))])
+        # 預設的「尚無前瞻資料校正」每份報告都相同，只在其他狀態時列出。
+        if pred.get('forward_calibration_status')!='uncalibrated_no_forward_overlay':
+            rows.append((label+'前瞻校正',_REPORT_CALIBRATION_ZH.get(pred.get('forward_calibration_status'),'未提供')))
+        table(rows)
         if pred.get('selected_direction_kind')=='fit_up_rate_baseline':
             text('上漲機率採訓練樣本整體比率基準；同期限可能對多檔股票相同，不能作為個股相對排名。')
         if pred.get('selected_return_kind')=='zero_return_baseline':
             text('預估報酬0%是模型選用的零報酬基準，不代表未來股價不會變動。')
         text('目前模型未提供80%價格區間或上中下三種情境；本報告不自行製造區間、排名或情境機率。')
-    else:text('本次方向機率與報酬估計保留為無法計算；其他已取得的資訊照常呈現，原因見第一章。')
-    section('七','資料時間與限制')
+    else:text(f"{base or '本次'}方向機率與報酬估計無法計算，原因見第一章。")
+    section('資料時間與限制')
     for line in _data_time_lines(payload):text(line,'small')
     statuses=payload.get('source_statuses') or {}
-    if statuses:table([(_REPORT_ROUTE_ZH.get(route,'補充資料來源'),_REPORT_STATUS_ZH.get(str(status).upper(),'未提供或尚未確認')) for route,status in statuses.items()])
-    else:text('本次未提供各資料來源的完成狀態。','small')
-    text('資料來源為部分資料時仍保留其限制。完整模型識別、資料快照、程式差異及原始狀態紀錄保留於隨附資料檔；本報告不據此宣稱已驗證獲利能力。','small')
+    # 只列未完成的來源；全部完成時不列表。
+    pending=[(_REPORT_ROUTE_ZH.get(route,'補充資料來源'),_REPORT_STATUS_ZH.get(str(status).upper(),'未提供或尚未確認')) for route,status in statuses.items()]
+    pending=[row for row in pending if row[1]!='完成']
+    if pending:table(pending)
+    elif not statuses:text('本次未提供各資料來源的完成狀態。','small')
+    if not fundamentals:
+        for note in comparison.get('notes') or []:text(str(note),'small')
     def footer(canvas,document):
         canvas.saveState();canvas.setFont(regular,8);canvas.setFillColor(colors.HexColor('#64748B'))
         canvas.drawString(44,24,f"{stock['stock_id']}｜資料日 {_day(payload.get('latest_data_date'))}｜H{h}")

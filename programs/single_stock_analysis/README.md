@@ -31,10 +31,10 @@
 
 ## H1 開盤前版（2026-10-18 起）
 
-- H1 報告優先顯示「開盤前版」（`stock_daily_preopen`，HGB，含前一晚美股）快照中本股那一列：校準後上漲機率 `p_up`、預估收盤報酬 `exp_ret`、全市場名次與可交易母體名次、前一晚美股是否收漲、`describe(meta)` 與必要揭露；t 日籌碼未更新或中央標示不完整時另有一段說明 `chips_note_zh`（例如「t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）」，只說明、不阻擋；20261018 使用者裁示）。H63 維持原本來源。
+- H1 報告優先顯示「開盤前版」（`stock_daily_preopen`，HGB，含前一晚美股）快照中本股那一列：校準後上漲機率 `p_up`、預估收盤報酬 `exp_ret`、全市場名次與可交易母體名次、前一晚美股是否收漲、`describe(meta)` 中其他列沒有的註記（模型名稱改在副標或主要表名顯示一次；訊號日→目標日、美股狀態與模型雜湊不重複列出）與必要揭露；t 日籌碼未更新或中央標示不完整時另有一段說明 `chips_note_zh`（例如「t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）」，只說明、不阻擋；20261018 使用者裁示）。H63 維持原本來源。
 - 只透過唯讀 API `D:\stock\programs\shared\stock_daily_preopen_reader.py` 讀取（預設根目錄 `D:\TWStockData\program_data\stock_daily_preopen`，測試可用 `STOCK_DAILY_PREOPEN_ROOT` 改寫）。實作在 `src\single_stock_preopen.py`。
 - 新鮮度：快照 `signal_date` 必須等於本次單股分析本股所屬市場的資料日。快照缺檔、過期、雜湊不符、讀取失敗、沒有本股或市場別不同時，回退 C0 基準，報告醒目標示「開盤前版不可用（原因代碼），本次 H1 改用 C0 基準」。
-- 來源開關：`--h1-source auto|preopen|c0`，未指定時讀環境變數 `DSTOCK_SINGLE_H1_SOURCE`，預設 `auto`。`preopen` 不可用即停止（rc=2，不寫任何報告）；`c0` 為舊行為（不讀快照、不加入 `preopen_h1` 區塊，報告與改版前相同）。候選研究模式（`--candidate-model`）不接受此參數。
+- 來源開關：`--h1-source auto|preopen|c0`，未指定時讀環境變數 `DSTOCK_SINGLE_H1_SOURCE`，預設 `auto`。`preopen` 不可用即停止（rc=2，不寫任何報告）；`c0` 為舊行為（不讀快照、不加入 `preopen_h1` 區塊，報告不含開盤前版區塊）。候選研究模式（`--candidate-model`）不接受此參數。
 - 兩條路徑：C0 路徑（`--c0-model` 或沒有單股啟用指標時）在 `tw_single_stock_c0.py` 內加入 `preopen_h1` 區塊後才封存（`estimate_binding_sha256`）；選定模型路徑由單股層 `single_stock_preopen.selected_h1_overlay` 包住 shared 的 `generate_selected_reports`，只在 `stock_candidate_report.write_candidate_report` 產製正式 H1 PDF 前加入同一區塊並重算 `runtime_payload_sha256`。原本的 C0／選定模型機器欄位（`prediction`、`prob_up`、`expected_return`）不變，仍由原驗證程式重現；開盤前版只以 `run_id`、`snapshot_sha256`、`model_sha256` 留下身分，不在重現範圍內。
 - 必要揭露依快照 manifest（`latest.json`）的 `recipe.name` 選擇（`single_stock_preopen.DISCLOSURES`／`disclosure_for(meta)`；只換揭露文字，其他行為不變）。區塊的 `meta.recipe` 保留快照原值（舊快照沒有此鍵）。
   - `h1pre_final_nogc_xs`（v1；manifest 沒有 `recipe` 欄位的舊快照也視為 v1，內容與改版前逐字相同；資料出處 `D:\TWStockData\program_data\stock_daily_c0\candidates\calibration_20261018\report\校正報告_20261018.md`）：預測下一交易日收盤相對訊號日收盤的方向；保留期（2026-01～10）方向準確率 59.0%（一律猜跌 55.9%）、AUC 0.608；只在前一晚美股收漲日選出的可交易 Top10 命中 63.5%，全部日子 55.6%；隔日開盤買進 Top10 平均約 -0.04%／日，命中率不代表交易獲利。
@@ -44,7 +44,7 @@
 ## 版本標籤與資料時間（不阻擋）
 
 - 版本或綁定差異（模型、policy、adoption、head 在 pin 之後更新等）只記在 JSON 的 `version_labels`；PDF 顯示標籤數量與代碼，不停止分析。
-- 每份報告都有 `data_time`：分析資料日（各市場）、價格最新日、本股最後價格日、發布者宣告的發布時間（未驗證）、讀取時間、報告產生時間、模型訓練資料日與啟用時間。資料非最新，或已驗證日曆之後的平日無法確認是否為交易日時，PDF 會明確標示。
+- 每份報告都有 `data_time`：分析資料日（各市場）、價格最新日、本股最後價格日、發布者宣告的發布時間（未驗證）、讀取時間、報告產生時間、模型訓練資料日與啟用時間。PDF 只列與分析資料日不同的各市場資料日與價格日期，以及模型訓練資料日；發布、讀取、報告產生與模型啟用時間只留在 JSON（Telegram caption 仍顯示發布與讀取時間）。資料非最新，或已驗證日曆之後的平日無法確認是否為交易日時，PDF 會明確標示。
 - 逐市場資料日：本股以自己市場的資料日（`asof_by_market`）建面板與估計。本股市場落後其他市場時，記 `stock_market_asof_lags_latest_market` 標籤並照常估計，不排除；其他市場非最新不會讓本股被標成非最新。
 - 分析資料日不晚於模型訓練資料日時標示「樣本內」（`in_sample_lookahead`），此估計不計入 forward 統計。
 - 無法估計（例如本股價格停在分析資料日之前、最近 253 個交易日價格不完整、日曆未驗證、模型未訓練此期限）時，照樣輸出 PDF／JSON（`report_class=c0_no_estimate_data_time_only`），列出原因與該股最後價格日，不含任何估計值。

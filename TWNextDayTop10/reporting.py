@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import uuid
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -40,6 +41,20 @@ PREOPEN_META_REQUIRED = ("run_id", "model_sha256", "snapshot_sha256")
 # 開盤前版「開盤買進」效果片語由 model_disclosure.trading_effect 提供（preopen_source 依快照配方選取）；
 # 舊 payload／context 沒有此欄位時沿用配方 v1 原文。
 PREOPEN_TRADING_EFFECT_V1 = "開盤買進 Top10 保留期平均為負"
+# 開盤前版排序說明（preopen_source.PREOPEN_RANKING_NOTE）的命中率子句；報告只在必要揭露與「使用限制」寫出。
+PREOPEN_HIT_RATE_NOTE = "命中率指收盤報價方向，不代表交易獲利"
+# 同一排序說明的排序規則子句；HTML 的 Top10 標題已寫（依收漲機率→預估報酬），本次摘要不重複。
+PREOPEN_RANKING_RULE = "可交易母體依收漲機率→預估報酬排序取前十"
+# 資料時間表（HTML；excel_report.mjs 的 displayTime 同樣篩選）：流程時間戳與缺漏欄位（見資料來源與限制）不列；
+# 價格最新日、模型訓練資料日只在和分析資料日不同時列（模型訓練資料日未提供時也不列）；發布時間未宣告、沒有版本標籤時不列。
+TIME_ROWS_HIDDEN = ("價格收集時間（最新）", "本次讀取時間", "模型啟用時間", "缺漏欄位")
+TIME_ROWS_IF_NOT_ANALYSIS_DAY = ("價格最新日", "模型訓練資料日")
+TIME_ROWS_IF_PROVIDED = ("模型訓練資料日",)
+TIME_PUBLISHED_LABEL = "head 發布時間（producer 宣告，未驗證）"
+# 未確認類的佔位值；發布時間是這類值時視同未宣告。
+UNKNOWN_VALUES = {"unknown", "none", "unverified", "not_yet_verified"}
+# data_reader 寫入 meta.warnings 的固定 C0 限制句；內容已在資料來源與限制表（歷史成員、PIT、公司行動、使用限制）。
+C0_LIMITATION_WARNING = "C0 僅調整後收盤方向與報酬；歷史身分、PIT、公司行動與交易效益未驗。"
 MODEL_SOURCES = ("c0", "preopen")
 MODEL_SOURCE_FIELDS = ("model_source", "requested_model_source", "model_source_origin", "preopen_status",
                        "preopen_meta", "preopen_gate", "model_source_note", "model_disclosure")
@@ -100,6 +115,30 @@ DISPLAY_TEXT = {
     "model_pointer_changed_since_activation": "啟用後模型指標已變更",
     "consumer_source_changed_since_activation": "分析程式來源已變更",
     "activation_model_differs": "模型啟用標示不同",
+    # 共用 C0 契約與本程式的版本標籤（同 single_stock_analysis 的 _REPORT_LABEL_ZH；各市場資料日只陳述差異，
+    # 不寫分析方式：開盤前版以快照訊號日為準，C0 才逐市場分析）。
+    "market_asof_differs": "各市場資料日不同", "market_asof_differs_per_market_inference": "各市場資料日不同",
+    "inference_code_differs_from_training": "分析程式與模型訓練時使用的程式不同",
+    "mutable_ref_changed_since_adoption": "部分來源參照已更新",
+    "contract_adoption_unverified": "目前契約採納狀態尚未驗證", "adoption_unverified": "採納紀錄尚未驗證",
+    "contract_adoption_receipt_missing": "契約採納紀錄不存在", "policy_version_mismatch": "資料規格版本不同",
+    "price_lags_scope": "價格資料日早於更新範圍截止日",
+    "price_actual_max_date_unknown": "價格實際最新日期未知，以更新範圍日期分析",
+    "price_series_vintage_stale": "部分股票價格資料版本較舊",
+    "current_classification_observed_after_data_asof": "普通股分類觀測日較分析資料日晚",
+    "stock_market_asof_lags_latest_market": "股票依所屬市場的資料日分析",
+    "pinned_head_unavailable_used_current": "原指定快照已不可讀，改採目前已發布資料",
+    "data_updated_since_caller_scope": "資料於指定範圍後重新發布，改用目前發布資料",
+    "optional_route_unavailable": "部分補充資料來源未提供", "readiness_unavailable": "資料就緒狀態無法取得",
+    "requested_asof_differs": "實際分析資料日與要求日期不同",
+    "stock_info_publication_not_complete": "股票基本資料發布尚未完成",
+    "explicit_model_differs_from_pointer": "指定模型與現役模型指標不同",
+    "current_daily_policy_schema_differs": "現行每日資料規格格式不同",
+    "current_C0_model_route_optional_in_policy": "現行規格把模型所需資料來源列為選用",
+    "C0_runtime_binding_missing": "現役模型執行識別未提供",
+    "C0_current_policy_drift_during_job": "執行期間現行資料規格已變更",
+    "in_sample_lookahead_not_recorded": "部分股票屬歷史資料試算，未寫入前瞻紀錄",
+    "skipped_data_lagged": "資料落後的股票未寫入前瞻紀錄", "forward_ledger_skipped": "本次未寫入前瞻紀錄",
     "current_policy_binding": "現行資料規格識別",
     "original_model_feature_contract": "模型原始特徵規格",
     "contract_adoption_ref": "規格採用紀錄",
@@ -161,22 +200,33 @@ def _display_time(payload):
     """A detached view keeps machine data_time_display and version codes intact."""
     source = payload.get("data_time_display") or data_time_display(None, payload.get("generated_at"), [], ["data_time"])
     display = dict(source)
+    analysis = dict(source["rows"]).get("分析資料日")
+    # 本次摘要已逐市場列出分析日（C0 各市場以自己的資料日分析）時，表內不再重複同一段各市場資料日。
+    summary_markets = market_days_text((payload.get("report_context") or {}).get("base_session_by_market"))
     rows = []
     for label, value in source["rows"]:
+        if (label in TIME_ROWS_HIDDEN or label in TIME_ROWS_IF_NOT_ANALYSIS_DAY and value == analysis
+                or label in TIME_ROWS_IF_PROVIDED and value in (None, "", "未提供")):
+            continue
+        if label == "各市場資料日" and summary_markets and value == summary_markets:
+            continue
         if label == "版本標籤":
             codes = sorted({str(item.get("code")) for item in payload.get("version_labels") or [] if isinstance(item, dict)})
-            value = str(len(codes)) + " 個" + ("：" + "、".join(_human(code, "版本標示有差異") for code in codes) if codes else "")
-        elif label == "缺漏欄位":
-            fields = payload.get("report_fields_missing") or []
-            value = "、".join(_human(field, "其他必要欄位") for field in fields) if fields else "無"
-        elif isinstance(value, str) and value.lower() in {"unknown", "none", "unverified", "not_yet_verified"}:
+            if not codes:
+                continue
+            # 已知代碼寫中文（同義合併）；沒有中文的代碼只寫項數，原始代碼保留於原始報告資料。
+            known = list(dict.fromkeys(DISPLAY_TEXT[code] for code in codes if code in DISPLAY_TEXT))
+            unknown = sum(code not in DISPLAY_TEXT for code in codes)
+            other = ("其他" if known else "") + "版本標示有差異（" + str(unknown) + " 項）"
+            label, value = "版本提醒", "、".join(known + ([other] if unknown else []))
+        elif label == TIME_PUBLISHED_LABEL:
+            if value in (None, "", "未提供") or str(value).lower() in UNKNOWN_VALUES:
+                continue
+            label = "資料發布時間（提供者宣告，未驗證）"
+        elif isinstance(value, str) and value.lower() in UNKNOWN_VALUES:
             value = _human(value)
-        label = str(label).replace("head 發布時間（producer 宣告，未驗證）", "資料發布時間（提供者宣告，未驗證）")
         rows.append([label, value])
     display["rows"] = rows
-    summary = str(source["summary"]).replace("head 發布", "資料發布").replace("producer 宣告", "提供者宣告")
-    display["summary"] = re.sub(r"\b(?:unknown|none|unverified|not_yet_verified)\b",
-                                lambda match: _human(match.group()), summary, flags=re.IGNORECASE)
     return display
 
 
@@ -199,19 +249,19 @@ def _preopen_trading_effect(container):
 
 
 def _limitation_rows(payload):
+    """H1 模型來源只寫在模型來源區；沒有未提供欄位時不列該列。"""
     context, meta = payload["report_context"], payload["meta"]
     missing = payload.get("report_fields_missing") or []
     return [
-        ["H1 模型來源", _model_source_text(payload)],
         ["來源狀態", _human(meta.get("raw_status"))],
         ["下一交易日日曆", _human(context.get("future_calendar_status"))],
         ["歷史股票成員", _human(meta.get("historical_membership_status", "unknown"))],
         ["資料公開可用時間（PIT）", _human(meta.get("pit_status", "unknown"))],
         ["公司行動資料", _human(meta.get("corporate_actions_status", "unknown"))],
-        ["未提供欄位", "、".join(_human(field, "其他必要欄位") for field in missing) if missing else "無"],
+        *([["未提供欄位", "、".join(_human(field, "其他必要欄位") for field in missing)]] if missing else []),
         ["前瞻校準", _forward_calibration(context)],
         ["使用限制", "僅供研究；正式資格、排序效果與交易效益尚未確認。資料部分完成或未確認時，不表示限制已解除。"
-                    + ("命中率指收盤報價方向，不代表交易獲利；隔日" + _preopen_trading_effect(payload) + "。"
+                    + (PREOPEN_HIT_RATE_NOTE + "；隔日" + _preopen_trading_effect(payload) + "。"
                        if payload.get("model_source") == "preopen" else "")],
     ]
 
@@ -343,6 +393,20 @@ def _columns(payload):
     return COLUMNS + (PREOPEN_COLUMNS if payload.get("model_source") == "preopen" else []) + DATA_COLUMNS
 
 
+def _top10_columns(payload):
+    """Top10 表欄位與表上方共同說明（excel_report.mjs 同規則）。
+
+    可交易／可交易名次只留在全部股票表（Top10 前段必為可交易、名次即展示序號）；全部同值的模型來源欄省略（來源見標題）；
+    開盤前版的資料日／本股目標日／資料提醒各檔全部相同時改為表上方一行，C0 各市場日期可能不同，一律保留欄位。
+    """
+    rows = payload["top10"]
+    uniform = [item for item in DATA_COLUMNS if rows and len({_display(row, item[0]) for row in rows}) == 1
+               and (item[0] == "model_source_text" or payload.get("model_source") == "preopen")]
+    parts = [("" if key == "data_reminder" else label + " ") + _display(rows[0], key)
+             for key, label in uniform if key != "model_source_text"]
+    return [item for item in COLUMNS + DATA_COLUMNS if item not in uniform], ("各檔共同：" + "；".join(parts) + "。" if parts else "")
+
+
 def _row_data_display(row, context):
     """One display projection shared by JSON, HTML, CSV and the Excel builder."""
     source = row.get("model_source") or context.get("model_source", "c0")
@@ -367,8 +431,7 @@ def _row_data_display(row, context):
         reminder.append("資料落後" + count + "，依既有資料分析")
     if row.get("in_sample_lookahead") is True:
         reminder.append("歷史資料試算／模型訓練晚於資料日")
-    if supplement:
-        reminder.append("開盤前快照未收錄；C0補充分析")
+    # 快照未收錄、改用 C0 補充分析已由模型來源欄（C0補充分析）表示，資料提醒不再重複。
     target = row.get("target_session_date")
     target_text = _day(target) if target else "未驗證"
     if target and analysis and iso_day(target) <= iso_day(analysis):
@@ -687,38 +750,91 @@ def _data_time_summary(payload):
             "version_label_count": len(payload.get("version_labels") or [])}
 
 
-def _data_time_html(payload):
-    display = _display_time(payload)
-    badge = '<span class="stale">' + html.escape(display["badge"]) + "</span> " if display.get("badge") else ""
+def _data_time_html(display):
+    # 數值只在表內寫一次；表上只放「非最新資料」徽章。
+    badge = '<p><span class="stale">' + html.escape(display["badge"]) + "</span></p>" if display.get("badge") else ""
     body = "".join("<tr><th>" + html.escape(str(label)) + "</th><td>" + html.escape(str(value)) + "</td></tr>"
                    for label, value in display["rows"])
-    return ("<section><p>" + badge + html.escape(display["summary"]) + "</p>"
-            '<table class="datatime"><tbody>' + body + "</tbody></table></section>")
+    return "<section><h2>資料時間</h2>" + badge + '<table class="datatime"><tbody>' + body + "</tbody></table></section>"
+
+
+def _shown_warnings(payload, display):
+    """資料提醒：只列報告其他位置沒有的上游警告（excel_report.mjs 的來源提醒同規則）。
+
+    資料過舊、落後市場、早於要求日與日曆未驗證已在資料時間表的徽章與資料新鮮度列，版本標籤已在版本提醒列，
+    固定的 C0 限制句已在資料來源與限制表；這些重複的句子不列，其餘上游警告照列。
+    """
+    warnings = payload["meta"].get("warnings") or []
+    freshness = str(dict(display["rows"]).get("資料新鮮度") or "")
+    codes = {str(item.get("code")) for item in payload.get("version_labels") or [] if isinstance(item, dict)}
+    shown = []
+    for value in warnings if isinstance(warnings, list) else [warnings]:
+        text = str(value)
+        if (text == C0_LIMITATION_WARNING or text.startswith("非最新資料：") and display.get("badge")
+                or text.startswith("落後市場 ") and "落後市場：" in freshness
+                or text.startswith("資料日早於要求日：") and "早於要求日" in freshness
+                or text.startswith("日曆已驗證至 ") and display.get("freshness_status") == "calendar_unverified_after"
+                or text.startswith("版本標籤：") and text[len("版本標籤："):].split("（", 1)[0].strip() in codes):
+            continue
+        shown.append(value)
+    return shown
+
+
+def _describe_text(value, payload):
+    """開盤前版說明（共用 reader 的 describe）的顯示版；原文保留於原始報告資料。
+
+    去掉結尾「｜模型 <雜湊前 12 碼>」內部識別碼與 Top10 上方閘門已寫的美股漲跌段；訊號日→目標日與本次摘要的
+    分析日、已驗證下一交易日相同時也不重複（沿用較舊快照等其他說明照列）。
+    """
+    text = re.sub(r"｜模型 [^｜]*$", "", _text(value))
+    if (payload.get("preopen_gate") or {}).get("label"):
+        text = re.sub(r"｜美股(?:收漲（建議日）|未收漲（非建議日）|漲跌未知)(?=｜|$)", "", text, count=1)
+    context = payload.get("report_context") or {}
+    dates = re.search(r"｜訊號日 (\d{8}) → 目標日 (\d{8})(?=｜|$)", text)
+    if dates and (dates[1], dates[2]) == (_day(context.get("base_session")), _day(context.get("target_session"))):
+        text = text.replace(dates[0], "", 1)
+    return text
+
+
+def _fallback_detail(status):
+    """回退的原因詳情（快照實際日期等，原因代碼只在紅字寫一次）；目標日不符改寫成中文日期句。"""
+    detail = status.get("detail")
+    if not detail:
+        return ""
+    match = re.fullmatch(r"snapshot target_date (\S*) != C0 verified next session (\S+)", str(detail))
+    return "快照目標日 " + _day(match[1]) + "／已驗證下一交易日 " + _day(match[2]) if match else str(detail)
+
+
+def _model_kinds(context):
+    """方向模型／報酬模型的顯示子句；未提供的子句不列。"""
+    kinds = (("方向模型", _human(context.get("selected_direction_kind"), "其他方向模型（識別見既有資料）")),
+             ("報酬模型", _human(context.get("selected_return_kind"), "其他報酬模型（識別見既有資料）")))
+    return [label + "：" + text for label, text in kinds if text != "未提供"]
 
 
 def _model_source_html(payload):
-    """模型來源區塊：開盤前版（說明、美股閘門、識別、必要揭露）、回退 C0（醒目原因）或強制 C0。"""
+    """模型來源區塊：開盤前版（說明、模型種類、必要揭露）、回退 C0（醒目原因與原因詳情）或強制 C0。
+
+    美股閘門只在 Top10 上方顯示；run_id 與雜湊保留於原始報告資料。
+    """
     source = payload.get("model_source")
     status = payload.get("preopen_status") if isinstance(payload.get("preopen_status"), dict) else {}
     note = html.escape(_model_source_text(payload))
     if source == "preopen":
         info = payload.get("preopen_meta") or {}
-        gate = payload.get("preopen_gate") or {}
         disclosure = payload.get("model_disclosure") or {}
-        css = {"recommended_day": "gate gate-up", "not_recommended_day": "gate gate-down"}.get(gate.get("code"), "gate gate-unknown")
-        identity = ("開盤前版識別：run_id " + _text(info.get("run_id")) + "；模型 SHA-256 " + _text(info.get("model_sha256")) +
-                    "；快照 SHA-256 " + _text(info.get("snapshot_sha256")))
+        # 開頭已寫「開盤前版」，模型種類不再重複這個字首。
+        kinds = "；".join(kind.replace("：開盤前版", "：", 1) for kind in _model_kinds(payload.get("report_context") or {}))
         lines = "".join("<li>" + html.escape(str(line)) + "</li>" for line in disclosure.get("lines") or [])
-        return ('<section class="model preopen"><p><strong>H1 模型來源：開盤前版</strong>（C0 補充分析另列；當期 C0 前瞻紀錄照常執行，舊資料試算不計前瞻紀錄）</p>'
-                "<p>" + html.escape(_text(info.get("describe"))) + "</p>"
-                '<p class="' + css + '">' + html.escape(_text(gate.get("label"))) + "</p>"
-                '<p class="ident">' + html.escape(identity) + "</p>"
+        return ('<section class="model preopen"><p><strong>H1 模型來源：開盤前版</strong>' +
+                ("；" + html.escape(kinds) if kinds else "") + "</p>"
+                "<p>" + html.escape(_describe_text(info.get("describe"), payload)) + "</p>"
                 '<div class="disclosure"><h2>' + html.escape(_text(disclosure.get("title"))) + "</h2><ul>" + lines + "</ul>"
                 '<p class="ident">' + html.escape(_text(disclosure.get("source"))) + "</p></div></section>")
     if status.get("status") == "unavailable":
-        detail = status.get("detail")
+        detail = _fallback_detail(status)
         return ('<section class="model"><p class="fallback">' + note + "</p>" +
-                ('<p class="ident">原因詳情：' + html.escape(str(detail)) + "</p>" if detail else "") + "</section>")
+                ('<p class="ident">原因詳情：' + html.escape(detail) + "</p>" if detail else "") + "</section>")
     return '<section class="model"><p>' + note + "</p></section>"
 
 
@@ -754,34 +870,46 @@ def _comparison_display_text(value):
 
 
 def _comparison_html(payload):
-    sections = []
+    """前十檔歷史比較：比較基準日與各檔相同的說明只在節首寫一次；比較不可得的股票只列代碼（全部不可得時只留一行）。"""
+    blocks = [(row, row["report_comparison"]) for row in payload["top10"] if isinstance(row.get("report_comparison"), dict)]
+    if not blocks:
+        return ""
+    available = [(row, block) for row, block in blocks if block.get("status") != "unavailable"]
+    if not available:
+        return "<section><h2>前十檔個股歷史比較與中文解讀</h2><p>本次歷史比較不可得；原預測結果保留。</p></section>"
+    unavailable = [str(row["stock_id"]) for row, block in blocks if block.get("status") == "unavailable"]
     columns = ("項目", "資料期間", "本期值", "比較", "解讀", "資料日期")
-    for row in payload["top10"]:
-        block = row.get("report_comparison")
-        if not isinstance(block, dict):
-            continue
+    header = "".join("<th>" + html.escape(key) + "</th>" for key in columns)
+    common_day = Counter(_day(block.get("signal_date")) for _, block in available).most_common(1)[0][0]
+    notes = [tuple(dict.fromkeys(_comparison_display_text(note) for note in block.get("notes", []))) for _, block in available]
+    # 各檔說明完全相同時移到節首寫一次；有任何一檔不同時保留在各檔。
+    shared = len(set(notes)) == 1
+
+    def note_list(items):
+        return "<ul>" + "".join("<li>" + html.escape(note) + "</li>" for note in items) + "</ul>" if items else ""
+    sections = []
+    for (row, block), visible_notes in zip(available, notes):
         title = str(row["display_order"]) + ". " + str(row["stock_id"]) + " " + _text(row.get("name"))
+        day = _day(block.get("signal_date"))
         lines = "".join("<li>" + html.escape(_comparison_display_text(line)) + "</li>" for line in row.get("report_comparison_summary", []))
-        header = "".join("<th>" + html.escape(key) + "</th>" for key in columns)
         body = "".join("<tr>" + "".join("<td>" + html.escape(_comparison_display_text(item.get(key))) + "</td>" for key in columns) + "</tr>"
                        for item in row.get("report_comparison_rows", []))
-        visible_notes = dict.fromkeys(_comparison_display_text(note) for note in block.get("notes", []))
-        notes = "".join("<li>" + html.escape(note) + "</li>" for note in visible_notes)
-        sections.append("<section><h3>" + html.escape(title) + "</h3><p>比較基準日：" +
-                        html.escape(_day(block.get("signal_date"))) + "</p><ul>" + lines + "</ul>"
-                        "<details><summary>歷史比較詳表</summary><table><thead><tr>" + header + "</tr></thead><tbody>" + body +
-                        "</tbody></table><ul>" + notes + "</ul></details></section>")
-    if not sections:
-        return ""
+        sections.append("<section><h3>" + html.escape(title) + "</h3>" +
+                        ("<p>比較基準日：" + html.escape(day) + "（與其他股票不同）</p>" if day != common_day else "") +
+                        "<ul>" + lines + "</ul><details><summary>歷史比較詳表</summary><table><thead><tr>" + header +
+                        "</tr></thead><tbody>" + body + "</tbody></table>" + ("" if shared else note_list(visible_notes)) +
+                        "</details></section>")
     return ("<section><h2>前十檔個股歷史比較與中文解讀</h2>"
-            "<p>依本次分析日比較近期營收同比／月比及其他可算指標；各項資料期間與資料日期見詳表。</p>" +
+            "<p>依本次分析日比較近期營收同比／月比及其他可算指標；各項資料期間與資料日期見詳表。</p>"
+            "<p>比較基準日：" + html.escape(common_day) + "</p>" + (note_list(notes[0]) if shared else "") +
+            ("<p>歷史比較不可得（原預測結果保留）：" + html.escape("、".join(unavailable)) + "</p>" if unavailable else "") +
             "".join(sections) + "</section>")
 
 
 def _write_html(path, payload):
-    columns = _columns(payload)
+    top_columns, top_common = _top10_columns(payload)
 
-    def table(rows):
+    def table(rows, columns=_columns(payload)):
         head = "".join("<th>" + html.escape(label) + "</th>" for _, label in columns)
         body = "".join("<tr>" + "".join("<td>" + html.escape(_display(row, key)) + "</td>" for key, _ in columns) + "</tr>" for row in rows)
         return "<table><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>"
@@ -797,6 +925,17 @@ def _write_html(path, payload):
         target_text += "（開盤前版快照宣告目標日 " + _day(declared) + "，未經本程式日曆驗證）"
     predicted = {(str(row.get("market")), str(row.get("stock_id"))) for row in payload["predictions"]}
     excluded = [row for row in payload["coverage"] if (str(row.get("market")), str(row.get("stock_id"))) not in predicted]
+    ranking = _human(context.get("ranking_note"))
+    if preopen:
+        # 命中率子句只在必要揭露與「使用限制」寫出；排序規則已在 Top10 標題。
+        ranking = ranking.replace("；" + PREOPEN_HIT_RATE_NOTE, "")
+        ranking = "未提供" if ranking == PREOPEN_RANKING_RULE else ranking
+    # 校準狀態一律保留；未提供的子句不列。開盤前版的模型種類固定，已併入模型來源區。
+    status = "；".join(text for text in (_human(context.get("calibration_status")), ranking) if text != "未提供")
+    kinds = [] if preopen else _model_kinds(context)
+    # 開盤前版時 C0 為備援（全部股票表另列 C0 補充分析）；C0 排序狀態只在本次摘要寫一次。
+    c0_ranking = _human(context.get("c0_ranking_note"), "C0 排序狀態（原始紀錄保留）") if preopen else "未提供"
+    display = _display_time(payload)
     parts = ['<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>台股下一交易日收盤研究報告</title>',
         "<style>body{font-family:'Microsoft JhengHei','Noto Sans TC',sans-serif;margin:24px;color:#17202a;line-height:1.6}main{max-width:1280px;margin:auto}table{border-collapse:collapse;width:100%;margin:12px 0}td,th{border:1px solid #bbb;padding:8px;text-align:right;overflow-wrap:anywhere}th{background:#edf2f7}td:nth-child(-n+4){text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}details{margin:16px 0}"
         ".datatime td,.datatime th{text-align:left}.datatime{width:auto;margin:8px 0}.stale{color:#fff;background:#c00;padding:2px 8px;border-radius:4px;font-weight:bold}"
@@ -809,49 +948,50 @@ def _write_html(path, payload):
             if preopen else "<p>現役模型 C0；H1 指下一個市場交易日的收盤，不是開盤預測。</p>",
         # 排序（Top10）放最前、全部股票分析次之，模型來源、資料時間與摘要移到後面。
         "<h2>開盤前版可交易 Top10（依收漲機率→預估報酬）</h2>" if preopen else "<h2>研究展示（最多十檔）</h2>",
-        '<p class="' + gate_css + '">' + html.escape(_text(gate.get("label"))) + "</p>" if preopen else "",
-        table(payload["top10"]), _comparison_html(payload),
+        '<p class="' + gate_css + '">' + html.escape(_text(gate.get("label"))) + "</p>" if preopen else "<p>展示序號不表示交易優勢。</p>",
+        "<p>" + html.escape(top_common) + "</p>" if top_common else "",
+        table(payload["top10"], top_columns), _comparison_html(payload),
         "<details><summary>" + ("全部股票（開盤前版依原排序；C0補充分析另列於後）" if preopen else "全部已分析股票") + "</summary>",
         table(payload["predictions"]), "</details>",
         _model_source_html(payload),
-        _data_time_html(payload),
+        _data_time_html(display),
         "<h2>本次摘要</h2><p>分析日：" +
             html.escape(_session_text(context, "base_session", payload["meta"].get("asof"))) +
             "；下一交易日：" + html.escape(target_text) + "。</p>",
         "<p>已分析 " + str(len(payload["predictions"])) + " 檔；未分析／排除 " + str(len(excluded)) + " 檔。</p>",
-        "<p>" + html.escape(_human(context.get("calibration_status"))) + "；" + html.escape(_human(context.get("ranking_note"))) + "。</p>",
-        "<p>方向模型：" + html.escape(_human(context.get("selected_direction_kind"), "其他方向模型（識別見既有資料）")) +
-            "；報酬模型：" + html.escape(_human(context.get("selected_return_kind"), "其他報酬模型（識別見既有資料）")) + "。</p>",
-        ("<p>C0 備援：" + html.escape(_human(context.get("c0_ranking_note"), "C0 排序狀態（原始紀錄保留）")) +
-            "；C0 數值保留於原始報告資料（c0_probability／c0_expected_return）。</p>" if preopen else ""),
-        "<p>正式資格未確認；命中率指收盤報價方向，不代表交易獲利（隔日" + html.escape(_preopen_trading_effect(payload)) + "）。"
-            "報酬以調整後收盤為基礎，百分比僅為小數換算。</p>" if preopen else
-        "<p>正式資格未確認；效果未定；交易效益未驗。展示序號不表示交易優勢；報酬以調整後收盤為基礎，百分比僅為小數換算。</p>"]
+        "<p>" + html.escape(status) + "。</p>" if status else "",
+        "<p>" + html.escape("；".join(kinds)) + "。</p>" if kinds else "",
+        "<p>C0 備援排序狀態：" + html.escape(c0_ranking) + "。</p>" if c0_ranking != "未提供" else "",
+        # 正式資格、交易效益與命中率的說明只在「使用限制」與必要揭露寫一次。
+        "<p>報酬以調整後收盤為基礎，百分比僅為小數換算。</p>"]
     if excluded:
         body = "".join("<tr>" + "".join("<td>" + html.escape(value) + "</td>" for value in (
             _text(row.get("stock_id")), _text(row.get("name")), _display(row, "market"),
             _human(row.get("reason") or row.get("exclusion_reason") or row.get("status"), "其他排除原因（原始紀錄保留）"))) + "</tr>" for row in excluded)
         parts.append("<details><summary>未分析／排除原因</summary><table><thead><tr><th>股票代碼</th><th>股票名稱</th><th>市場</th><th>原因</th></tr></thead><tbody>" + body + "</tbody></table></details>")
-    warnings = payload["meta"].get("warnings") or []
-    if not isinstance(warnings, list):
-        warnings = [warnings]
+    warnings = _shown_warnings(payload, display)
     if warnings:
         parts.append("<h2>資料提醒</h2><ul>" + "".join("<li>" + html.escape(_human(value, "資料提醒（原始紀錄保留）")) + "</li>" for value in warnings) + "</ul>")
     parts.append("<h2>資料來源與限制</h2><table class=\"datatime\"><tbody>" + "".join(
         "<tr><th>" + html.escape(label) + "</th><td>" + html.escape(value) + "</td></tr>"
         for label, value in _limitation_rows(payload)) + "</tbody></table>")
-    parts.append('<p>完整數值、來源及模型識別保留於同資料夾的 <a href="report.json">原始報告資料</a>，此處不重複展開技術內容。</p>')
+    parts.append('<p><a href="report.json">原始報告資料（完整數值、來源及模型識別）</a></p>')
     parts.append("</main></body></html>")
     with Path(path).open("x", encoding="utf-8", newline="") as handle:
         handle.write("\n".join(parts))
 
 
 def _write_csv(path, payload):
+    """每檔一列（前十檔以欄位標示：開盤前版叫「Top10」，C0 沿用 HTML／Excel 的「研究展示」，不另寫研究展示列）；
+    模型來源與必要揭露、報告脈絡各一列原始 JSON，其餘原始資料（來源、模型、覆蓋、資料時間）見同資料夾的 report.json。"""
     columns = _columns(payload)
     labels = {key: label + ("（小數）" if key in {"probability", "expected_return"} else "") for key, label in columns}
-    headers = ["資料類型", *labels.values(), "原始脈絡資料"]
+    # C0（含無個股排序訊號）的前十列只是研究展示，欄名不用 Top10，避免暗示排序優勢。
+    top_label = "Top10" if payload.get("model_source") == "preopen" else "研究展示"
+    headers = ["資料類型", *labels.values(), top_label, "原始脈絡資料"]
     preopen_info = payload.get("preopen_meta") or {}
-    section_labels = {"data_time": "資料時間", "version_labels": "版本標示", "coverage": "股票覆蓋與排除", "meta": "來源資料", "model": "模型識別", "report_context": "報告脈絡", "forward_state": "共同前瞻狀態"}
+    # 依實際展示的 top10 列標示：開盤前版可交易股不足十檔時，展示序號 ≤ 10 不等於 Top10。
+    top10 = {(str(row.get("market")), str(row.get("stock_id"))) for row in payload["top10"]}
     row_context = json.dumps({
         "model": payload["report_context"].get("model_version"),
         "model_source": payload.get("model_source"),
@@ -863,24 +1003,20 @@ def _write_csv(path, payload):
     with Path(path).open("x", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=headers)
         writer.writeheader()
-        for kind in ("top10", "predictions"):
-            for row in payload[kind]:
-                item = {labels[key]: row.get(key) if row.get(key) is not None else "未提供" for key, _ in columns}
-                item[labels["market"]] = _display(row, "market")
-                if "tradable" in labels:
-                    item[labels["tradable"]] = _display(row, "tradable")
-                    item[labels["rank_tradable"]] = _display(row, "rank_tradable")
-                for key, value in item.items():
-                    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
-                        item[key] = "'" + value
-                writer.writerow({"資料類型": "研究展示" if kind == "top10" else "全部已分析股票", **item, "原始脈絡資料": row_context})
+        for row in payload["predictions"]:
+            item = {labels[key]: row.get(key) if row.get(key) is not None else "未提供" for key, _ in columns}
+            item[labels["market"]] = _display(row, "market")
+            if "tradable" in labels:
+                item[labels["tradable"]] = _display(row, "tradable")
+                item[labels["rank_tradable"]] = _display(row, "rank_tradable")
+            for key, value in item.items():
+                if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+                    item[key] = "'" + value
+            writer.writerow({"資料類型": "全部已分析股票", **item,
+                             top_label: "是" if (str(row.get("market")), str(row.get("stock_id"))) in top10 else "否"})
         writer.writerow({"資料類型": "模型來源與必要揭露", "原始脈絡資料": json.dumps(
             {key: payload.get(key) for key in MODEL_SOURCE_FIELDS}, ensure_ascii=False)})
-        for key in ("data_time", "version_labels", "coverage", "meta", "model", "report_context", "forward_state"):
-            records = payload[key] if isinstance(payload[key], list) else [payload[key]]
-            for value in records:
-                label = section_labels[key]
-                writer.writerow({"資料類型": label, "原始脈絡資料": json.dumps(value, ensure_ascii=False)})
+        writer.writerow({"資料類型": "報告脈絡", "原始脈絡資料": row_context})
 
 
 def report(project, predictions, coverage, meta, model, now, *,

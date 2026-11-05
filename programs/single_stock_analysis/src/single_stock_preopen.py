@@ -1,7 +1,7 @@
 """單股 H1「開盤前版」疊加層：只透過 stock_daily_preopen_reader 唯讀取用快照，不寫任何共用狀態。
 
-H1 報告優先顯示開盤前版快照中本股那一列（p_up、exp_ret、全市場／可交易名次、前一晚美股、
-describe(meta) 與必要揭露）。快照不可用、過期（signal_date 不等於本次單股分析的資料日）、
+H1 報告優先顯示開盤前版快照中本股那一列（模型名稱、p_up、exp_ret、全市場／可交易名次、前一晚美股、
+describe(meta) 中其他列沒有的註記與必要揭露）。快照不可用、過期（signal_date 不等於本次單股分析的資料日）、
 讀取失敗或沒有本股時，回退 C0 基準並在報告醒目標示原因代碼。H63 不受影響。
 
 原本的 C0／選定模型機器欄位（prediction、prob_up、expected_return）一律照舊，仍由原驗證程式重現；
@@ -12,14 +12,17 @@ snapshot_sha256 與 model_sha256 留下可稽核的身分。
 來源開關（優先序：命令列 --h1-source ＞ 環境變數 DSTOCK_SINGLE_H1_SOURCE ＞ 預設 auto）：
 - auto：快照可用且新鮮就用開盤前版，否則回退 C0 基準並標示原因；
 - preopen：必須使用開盤前版，不可用即停止（PreopenRequiredError，rc=2）；
-- c0：強制舊行為：不讀取開盤前版、不加入 preopen_h1 區塊，報告內容與改版前相同
-  （也供尚未重啟、記憶體仍是舊版 stock_candidate_report 的常駐程式驗證使用）。
+- c0：強制舊行為：不讀取開盤前版、不加入 preopen_h1 區塊。
+
+報告格式更新後，不論哪種來源模式，都要先重啟常駐 Telegram 服務，新報告才能通過驗證：服務以記憶體中已載入的
+stock_candidate_report 重建選定模型報告章節來比對，c0 不能代替重啟。
 """
 from __future__ import annotations
 
 import contextlib
 import math
 import os
+import re
 from pathlib import Path
 
 import date_format as cd  # 面向使用者的日期一律 YYYYMMDD；JSON 機器欄位維持 ISO
@@ -372,6 +375,47 @@ def display_lines(block):
     return [line + f"。原因：{reason_zh}" if reason_zh else line]
 
 
+_GATE_TEXTS = ("美股收漲（建議日）", "美股未收漲（非建議日）", "美股漲跌未知")
+
+
+def model_name_text(block):
+    """報告副標／主要表名用的模型名稱（例如「HGB，含前一晚美股」）：取 model_label 括號內文字，沒有括號時用整段。
+
+    describe_notes 略過的模型名稱只在這裡顯示一次。
+    """
+    label = str(block.get("model_label") or MODEL_LABEL_FALLBACK)
+    match = re.fullmatch(r".*（(.+)）", label)
+    return match.group(1) if match else label
+
+
+def us_overnight_text(block):
+    """報告「前一晚美股」一格：漲跌（建議日）；收盤已納入（ok）是常態不另寫，休市、缺漏等狀態照列。"""
+    gate = str(block.get("gate_us_up_zh") or "前一晚美股漲跌未知")
+    if block.get("us_overnight_status") == "ok":
+        return gate
+    return gate + "；" + str(block.get("us_overnight_status_zh") or "美股狀態未知")
+
+
+def describe_notes(block):
+    """describe(meta) 中表格其他列沒有的註記（籌碼、日曆、帳冊、沿用較舊快照、美股資料最新日期等）；沒有時為空字串。
+
+    模型名稱（副標／主要表名，見 model_name_text）、訊號日與目標日、美股狀態與漲跌已各有一處，
+    模型雜湊對讀者沒有判讀價值，只在顯示時略過；區塊封存的 describe 原文不變。
+    """
+    status = str(block.get("us_overnight_status_zh") or "")
+    notes = []
+    for part in str(block.get("describe") or "").split("｜"):
+        part = part.strip()
+        if (part in (block.get("model_label"), MODEL_LABEL_FALLBACK) or part in _GATE_TEXTS
+                or re.fullmatch(r"訊號日 \S+ → 目標日 \S+|模型\s*[0-9A-Fa-f]*", part)):
+            continue
+        if status and part.startswith(status):  # 美股狀態已在「前一晚美股」列；只留其後的補充（例如最新日期）
+            part = part[len(status):].lstrip("；").strip()
+        if part:
+            notes.append(part)
+    return "｜".join(notes)
+
+
 def attach_selected_h1(payload, *, source=None, root=None):
     """選定模型正式 H1 payload：加入開盤前版區塊並重算 runtime_payload_sha256（同一共用摘要演算法）。
 
@@ -396,7 +440,7 @@ def attach_selected_h1(payload, *, source=None, root=None):
 def selected_h1_overlay(source=None, *, root=None):
     """在單股層包住 shared 的 generate_selected_reports：只對正式 H1 報告加入開盤前版區塊。
 
-    source=c0（強制舊行為）時不安裝任何掛勾，選定模型報告與改版前完全相同。
+    source=c0（強制舊行為）時不安裝任何掛勾，選定模型報告不含開盤前版區塊。
     """
     import stock_candidate_report as report
 
