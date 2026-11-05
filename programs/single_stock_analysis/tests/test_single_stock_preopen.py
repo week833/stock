@@ -76,6 +76,24 @@ def test_source_switch_precedence_and_validation(monkeypatch):
     assert str(caught.value) == "H1 來源設定無效：bogus（僅接受 auto、preopen、c0）：h1_source_invalid:bogus"
 
 
+def test_c0_source_docs_require_restart_instead_of_promising_the_old_report():
+    """c0 只是不加開盤前版區塊，不是改版前的報告，也不能代替重啟常駐 Telegram 服務。
+
+    文件曾寫 c0「報告與改版前相同」、可供尚未重啟的常駐程式驗證；報告改版後選定模型報告（H1 與 H63）的章節都變了，
+    照做會讓報告全數驗證失敗、不交付。實際行為見 test_selected_forced_c0_leaves_formal_payload_unchanged。
+    """
+    readme = (Path(preopen.__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    switch = next(line for line in readme.splitlines() if line.startswith("- 來源開關："))
+    docs = {"single_stock_preopen": preopen.__doc__, "selected_h1_overlay": preopen.selected_h1_overlay.__doc__,
+            "_preopen_fields": single._preopen_fields.__doc__, "README 來源開關": switch}
+    for name, text in docs.items():
+        for stale in ("改版前", "尚未重啟", "same as before"):
+            assert stale not in text, (name, stale)
+    assert "報告不含開盤前版區塊" in switch
+    for needle in ("不論哪種來源模式", "重啟常駐 Telegram 服務", "c0 不能代替重啟"):
+        assert needle in preopen.__doc__, needle
+
+
 # ---------------------------------------------------------------- block contents and fallbacks
 
 
@@ -379,7 +397,7 @@ def test_c0_source_switch_from_environment_and_cli(current_case, snapshot_root, 
     write_fixture(snapshot_root, signal_date="2026-10-08")
     monkeypatch.setenv(preopen.SOURCE_ENV, "c0")
     old_behaviour = single.generate_estimate("H1", "6488", output_dir=current_case["output"])
-    assert "preopen_h1" not in old_behaviour and "h1_display_source" not in old_behaviour  # 與改版前相同
+    assert "preopen_h1" not in old_behaviour and "h1_display_source" not in old_behaviour  # c0：不加區塊與顯示來源
     assert single.main("H1", ["--stock", "6488", "--output-dir", str(current_case["output"]), "--h1-source", "auto"]) == 0
     latest = max(current_case["output"].glob("*.json"), key=lambda path: path.stat().st_mtime_ns)
     assert json.loads(latest.read_text(encoding="utf-8"))["preopen_h1"]["status"] == "used"
@@ -675,14 +693,37 @@ def test_selected_h1_and_both_reject_invalid_h1_source_environment(
     assert "h1_source_invalid:bogus" in capsys.readouterr().err
 
 
-def test_selected_forced_c0_leaves_formal_payload_unchanged(formal_payload, snapshot_root, tmp_path, monkeypatch):
+@pytest.mark.parametrize("horizon", [1, 63])  # --both-horizons 時 H63 也在同一個 c0 overlay 內產生
+def test_selected_forced_c0_leaves_formal_payload_unchanged(formal_payload, snapshot_root, tmp_path, monkeypatch,
+                                                           horizon):
+    """c0 只是不加開盤前版區塊：報告仍是目前模板，驗證照樣以記憶體中的 stock_candidate_report 重建章節比對。
+
+    所以報告格式更新後，c0 不能代替重啟常駐 Telegram 服務：記憶體中的模板只要有一句不同，c0 報告也驗證失敗。
+    """
     _stub_rendering(monkeypatch)
-    write_fixture(snapshot_root, signal_date="2026-10-16")
-    item = _sign(copy.deepcopy(formal_payload))
+    write_fixture(snapshot_root, signal_date="2026-10-16")  # 新鮮快照：auto 會加區塊，c0 不可以
+    item = _sign(dict(copy.deepcopy(formal_payload), horizon_sessions=horizon))
     original = copy.deepcopy(item)
     with preopen.selected_h1_overlay("c0"):
-        report.write_candidate_report(item, tmp_path / "reports")
+        result = report.write_candidate_report(item, tmp_path / "reports")
     assert item == original
+    sidecar = json.loads(Path(result["json_path"]).read_text(encoding="utf-8"))
+    assert "preopen_h1" not in sidecar["payload"]
+    assert sidecar["sections"] == report.build_report_sections(original)
+    assert "開盤前版" not in "\n".join(report._visible_strings(sidecar["sections"]))
+    pdf = Path(result["pdf_path"])
+    assert report.validate_candidate_report(original, pdf)["valid"] is True
+    current = report.build_report_sections
+
+    def resident(payload):  # 尚未重啟的常駐服務：記憶體中的模板與產生報告時有一句不同
+        sections = current(payload)
+        sections[0] = {**sections[0], "paragraphs": [*(sections[0].get("paragraphs") or []), "舊版模板的說明句。"]}
+        return sections
+
+    monkeypatch.setattr(report, "build_report_sections", resident)
+    stale = report.validate_candidate_report(original, pdf)
+    assert stale["valid"] is False
+    assert [error["code"] for error in stale["errors"]] == ["legacy_render_requires_revalidation"]
 
 
 def test_chips_note_follows_reader_text_and_meta_keeps_freshness(snapshot_root):

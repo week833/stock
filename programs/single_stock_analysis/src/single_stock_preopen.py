@@ -12,8 +12,10 @@ snapshot_sha256 與 model_sha256 留下可稽核的身分。
 來源開關（優先序：命令列 --h1-source ＞ 環境變數 DSTOCK_SINGLE_H1_SOURCE ＞ 預設 auto）：
 - auto：快照可用且新鮮就用開盤前版，否則回退 C0 基準並標示原因；
 - preopen：必須使用開盤前版，不可用即停止（PreopenRequiredError，rc=2）；
-- c0：強制舊行為：不讀取開盤前版、不加入 preopen_h1 區塊，報告內容與改版前相同
-  （也供尚未重啟、記憶體仍是舊版 stock_candidate_report 的常駐程式驗證使用）。
+- c0：強制舊行為：不讀取開盤前版、不加入 preopen_h1 區塊。
+
+報告格式更新後，不論哪種來源模式，都要先重啟常駐 Telegram 服務，新報告才能通過驗證：服務以記憶體中已載入的
+stock_candidate_report 重建選定模型報告章節來比對，c0 不能代替重啟。
 """
 from __future__ import annotations
 
@@ -438,7 +440,7 @@ def attach_selected_h1(payload, *, source=None, root=None):
 def selected_h1_overlay(source=None, *, root=None):
     """在單股層包住 shared 的 generate_selected_reports：只對正式 H1 報告加入開盤前版區塊。
 
-    source=c0（強制舊行為）時不安裝任何掛勾，選定模型報告與改版前完全相同。
+    source=c0（強制舊行為）時不安裝任何掛勾，選定模型報告不含開盤前版區塊。
     """
     import stock_candidate_report as report
 

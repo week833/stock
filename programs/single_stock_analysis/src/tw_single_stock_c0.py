@@ -458,7 +458,7 @@ def _preopen_block(payload):
 def _preopen_fields(stock,stock_asof,h1_source,target=None):
     """H1 only: the pre-open block (fresh snapshot row or a labelled C0 fallback); C0 machine fields stay unchanged.
 
-    h1_source=c0 is the old behaviour: no block at all, so the report is the same as before this overlay.
+    h1_source=c0 is the old behaviour: no block at all, so the report has no pre-open section.
     """
     if preopen.resolve_source(h1_source)=='c0':return {}
     block=preopen.build_h1_block(stock,stock_asof,source=h1_source,base_label=preopen.C0_BASE_LABEL,
