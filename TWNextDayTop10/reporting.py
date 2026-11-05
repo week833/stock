@@ -807,6 +807,12 @@ def _write_html(path, payload):
         "<h1>台股下一交易日收盤方向與報酬研究</h1>",
         "<p>H1 顯示模型：開盤前版（C0 保留為備援）；H1 指下一個市場交易日的收盤相對訊號日收盤的方向，不是開盤預測。</p>"
             if preopen else "<p>現役模型 C0；H1 指下一個市場交易日的收盤，不是開盤預測。</p>",
+        # 排序（Top10）放最前、全部股票分析次之，模型來源、資料時間與摘要移到後面。
+        "<h2>開盤前版可交易 Top10（依收漲機率→預估報酬）</h2>" if preopen else "<h2>研究展示（最多十檔）</h2>",
+        '<p class="' + gate_css + '">' + html.escape(_text(gate.get("label"))) + "</p>" if preopen else "",
+        table(payload["top10"]), _comparison_html(payload),
+        "<details><summary>" + ("全部股票（開盤前版依原排序；C0補充分析另列於後）" if preopen else "全部已分析股票") + "</summary>",
+        table(payload["predictions"]), "</details>",
         _model_source_html(payload),
         _data_time_html(payload),
         "<h2>本次摘要</h2><p>分析日：" +
@@ -820,12 +826,7 @@ def _write_html(path, payload):
             "；C0 數值保留於原始報告資料（c0_probability／c0_expected_return）。</p>" if preopen else ""),
         "<p>正式資格未確認；命中率指收盤報價方向，不代表交易獲利（隔日" + html.escape(_preopen_trading_effect(payload)) + "）。"
             "報酬以調整後收盤為基礎，百分比僅為小數換算。</p>" if preopen else
-        "<p>正式資格未確認；效果未定；交易效益未驗。展示序號不表示交易優勢；報酬以調整後收盤為基礎，百分比僅為小數換算。</p>",
-        "<h2>開盤前版可交易 Top10（依收漲機率→預估報酬）</h2>" if preopen else "<h2>研究展示（最多十檔）</h2>",
-        '<p class="' + gate_css + '">' + html.escape(_text(gate.get("label"))) + "</p>" if preopen else "",
-        table(payload["top10"]), _comparison_html(payload),
-        "<details><summary>" + ("全部股票（開盤前版依原排序；C0補充分析另列於後）" if preopen else "全部已分析股票") + "</summary>",
-        table(payload["predictions"]), "</details>"]
+        "<p>正式資格未確認；效果未定；交易效益未驗。展示序號不表示交易優勢；報酬以調整後收盤為基礎，百分比僅為小數換算。</p>"]
     if excluded:
         body = "".join("<tr>" + "".join("<td>" + html.escape(value) + "</td>" for value in (
             _text(row.get("stock_id")), _text(row.get("name")), _display(row, "market"),
