@@ -138,6 +138,10 @@ C0_NO_ESTIMATE_REPORT_CLASS = "c0_no_estimate_data_time_only"
 C0_PINNED_HEAD_UNAVAILABLE = "pinned_head_unavailable_used_current"
 # Sealed H1 block written by single_stock_analysis\src\single_stock_preopen.py (開盤前版 H1 或回退原因).
 PREOPEN_H1_SCHEMA = "single-stock-preopen-h1-v1"
+# Sealed H63 block written by single_stock_analysis\src\single_stock_h63_xs.py (U7 三個月相對強弱或不顯示原因；ADR-0009).
+H63_XS_SCHEMA = "single-stock-h63-xs-v1"
+H63_XS_STRENGTHS = {"relatively_strong": "相對偏強", "neutral": "中性", "relatively_weak": "相對偏弱",
+                    "out_of_scope": "不在適用範圍"}
 # 開盤前版 H1 的必要揭露依快照 manifest 的 recipe.name 選擇（讀區塊 meta 摘要，其次 disclosure.recipe）；
 # 舊快照沒有 recipe 欄位＝v1。v1 與改版前完全相同：數字取自封存區塊的 disclosure（與單股 PDF 同源）。
 # v2 數字出自 PREOPEN_V2_SOURCE 第 6 節；未知配方只顯示中性說明與配方名稱，不顯示任何保留期數字。
@@ -194,7 +198,7 @@ RUNTIME_REVISION = f"telegram_stock_command_bot@{SOURCE_SHA256[:16]}"
 
 HELP_TEXT = """Telegram 個股收盤估計指令
 
-直接輸入代碼或名稱：H63 收盤估計
+直接輸入代碼或名稱：H63 三個月相對強弱（跑贏同期多數股票的機率）
 2330
 台積電
 /h63 台積電
@@ -215,12 +219,12 @@ H1 收盤估計：
 /status 查詢佇列
 /help 顯示說明
 
-H1 與 H63 的目標均為訊號收盤至同市場第 H 個官方交易日收盤。
+H1 為訊號收盤至下一個官方交易日收盤；H63 為第 63 個交易日收盤報酬是否高於同日合格上市櫃股票的中位數（相對強弱，不是上漲機率）。
 H1 優先顯示開盤前版（含前一晚美股）；不可用時改用 C0 基準並註明原因。
 名稱符合多檔時，Bot 會列出代碼供重新輸入。
 歷史PIT、公司行動與交易效果未驗證。"""
 
-READY_TEXT = "Telegram 個股服務已啟用。輸入代碼或名稱產生H63收盤估計；/h1、明日、/open、/tomorrow產生H1收盤估計；/all產生兩份收盤報告。歷史PIT與效果未驗證。"
+READY_TEXT = "Telegram 個股服務已啟用。輸入代碼或名稱產生H63三個月相對強弱；/h1、明日、/open、/tomorrow產生H1收盤估計；/all產生兩份收盤報告。歷史PIT與效果未驗證。"
 
 class CommandBotError(RuntimeError):
     pass
@@ -1415,6 +1419,53 @@ def _caption_percent(value: Any, signed: bool = False, digits: int = 1) -> str:
     return "未提供" if number is None else f"{100 * number:{'+' if signed else ''}.{digits}f}%"
 
 
+def _h63_xs_block(payload: dict[str, Any], horizon: int, stock_code: str) -> dict[str, Any] | None:
+    """The report's sealed H63 U7 block (None for H1 or reports without one); malformed blocks never deliver."""
+    if horizon != 63 or "h63_xs" not in payload:
+        return None
+    block = payload.get("h63_xs")
+    if (
+        not isinstance(block, dict) or block.get("schema") != H63_XS_SCHEMA
+        or block.get("status") not in {"used", "fallback", "disabled"} or str(block.get("stock_id")) != stock_code
+    ):
+        raise AnalysisProcessError("H63 三個月相對強弱欄位格式或身分無效，拒絕傳送")
+    if block["status"] == "used":
+        probability = safe_number(block.get("p"))
+        band = block.get("band") if isinstance(block.get("band"), dict) else None
+        if (probability is None or not 0 <= probability <= 1 or band is None
+                or block.get("relative_strength") not in H63_XS_STRENGTHS
+                or not isinstance(block.get("caption_disclosure"), str) or not block["caption_disclosure"].strip()):
+            raise AnalysisProcessError("H63 三個月相對強弱數值無效，拒絕傳送")
+        if band.get("status") in {"ok", "ok_no_cqr"}:
+            low, high = safe_number(band.get("q10")), safe_number(band.get("q90"))
+            if low is None or high is None or not low <= 0 <= high:
+                raise AnalysisProcessError("H63 三個月報酬區間無效，拒絕傳送")
+    elif (not isinstance(block.get("notice"), str) or not block["notice"].strip()
+          or any(key in block for key in ("p", "band", "factors", "rank_eligible"))):
+        raise AnalysisProcessError("H63 三個月相對強弱回退說明無效，拒絕傳送")
+    return block
+
+
+def _h63_xs_caption_lines(block: dict[str, Any]) -> list[str]:
+    """U7 primary lines: probability of beating most stocks, the 80% band, up to two notes and the disclosure."""
+    strength = H63_XS_STRENGTHS.get(str(block.get("relative_strength")), "未知")
+    lines = [f"跑贏同期多數股票的機率：{_caption_percent(block.get('p'))}（{strength}）"]
+    band = block.get("band") if isinstance(block.get("band"), dict) else {}
+    if band.get("status") in {"ok", "ok_no_cqr"}:
+        lines.append(f"三個月報酬80%區間：{_caption_percent(band.get('q10'), signed=True)}～"
+                     f"{_caption_percent(band.get('q90'), signed=True)}（不是預測報酬）")
+    notes = [str(note).strip() for note in block.get("notes_zh") or [] if isinstance(note, str) and note.strip()]
+    lines.extend(notes[:2])
+    lines.append(str(block["caption_disclosure"]).strip())
+    return lines
+
+
+def _h63_xs_notice(block: dict[str, Any]) -> str:
+    notice = str(block.get("notice") or "").strip()
+    reason = block.get("reason")
+    return f"{notice}（{reason}）。" if isinstance(reason, str) and reason and reason not in notice else notice + "。"
+
+
 def _preopen_caption_lines(block: dict[str, Any]) -> list[str]:
     """H1 primary lines from the pre-open row, followed by the required disclosure."""
     probability, expected = safe_number(block.get("p_up")), safe_number(block.get("exp_ret"))
@@ -1434,6 +1485,10 @@ def _preopen_caption_lines(block: dict[str, Any]) -> list[str]:
     chips_note = block.get("chips_note_zh")  # t 日籌碼未更新／不完整時才有：寫最新到幾號或成功/應有數量，不阻擋
     if isinstance(chips_note, str) and chips_note.strip():
         lines.append(chips_note.strip())
+    for field in ("snapshot_note_zh", "target_note_zh", "calendar_note_zh", "ledger_note_zh"):
+        note = block.get(field)
+        if isinstance(note, str) and note.strip() and note.strip() not in lines:
+            lines.append(note.strip())
     if block.get("fixture") is True:
         lines.append("【測試用假快照，不可作為正式資訊】")
     lines.append(_preopen_disclosure_line(block))
@@ -1546,8 +1601,10 @@ def report_caption(
         caution += "；" + ("C0 基準" if used else "") + "比較方向率低於60%，不能視為可靠預測"
     lines = [
         f"{stock.code} {stock.name}｜" + ("H1 收盤估計（開盤前版）" if used else f"C0 H{h} 收盤估計"),
-        # 資料時間緊接在訊號日之後（同一天時併成一行），caption 長度截斷不到。
-        *_signal_data_time_lines(payload, job_context, "訊號收盤日", payload["latest_data_date"],
+        # 資料時間緊接在訊號日之後（同一天時併成一行），caption 長度截斷不到；
+        # 沿用較舊開盤前版快照時訊號日是快照自己的訊號日，與資料日不同就保留兩行。
+        *_signal_data_time_lines(payload, job_context, "訊號收盤日",
+                                 preopen.get("signal_date") if used else payload["latest_data_date"],
                                  f"到期日：{cd.display_day(target, empty='尚未驗證日期')}"),
         # 開盤前版為主時，預測目標已在必要揭露。
         *([] if used else [f"目標：訊號收盤至同市場第{h}交易日收盤"]),
@@ -1599,6 +1656,9 @@ def selected_report_caption(
     ):
         raise AnalysisProcessError("正式單股 caption 身分或資格不符")
     h = MODE_HORIZONS[mode]
+    h63 = _h63_xs_block(payload, h, stock.code)
+    if h63 is not None:
+        return _h63_xs_caption(stock, payload, h63, job_context)
     prediction = payload.get("prediction") or {}
     probability = safe_number(prediction.get("prob_up"))
     expected_return = safe_number(prediction.get("expected_return"))
@@ -1627,6 +1687,27 @@ def selected_report_caption(
         lines.append("簡單基準可能產生相同結果；不具個股排序差異。")
     if h == 63:
         lines.append("長期限樣本重疊，訊號數不等於獨立樣本數。")
+    body_budget = TELEGRAM_CAPTION_BUDGET - len(REPORT_CAPTION_DISCLAIMER) - 1
+    return "\n".join(lines)[:body_budget] + "\n" + REPORT_CAPTION_DISCLAIMER
+
+
+def _h63_xs_caption(
+    stock: StockMatch, payload: dict[str, Any], block: dict[str, Any], job_context: dict[str, Any] | None,
+) -> str:
+    """H63 report with the sealed U7 block: relative strength instead of the retired expanded_linear estimate."""
+    lines = [f"{stock.code} {stock.name}｜H63 三個月相對強弱"]
+    if block["status"] == "used":
+        lines += [
+            f"資料日：{cd.display_day(payload.get('asof'), empty='未知')}；訊號日：{cd.display_day(block.get('signal_date'), empty='未知')}；"
+            "目標：之後第63個交易日收盤（約三個月，日期未驗證）",
+            *report_data_time_lines(payload, job_context),
+            *_h63_xs_caption_lines(block),
+        ]
+    else:
+        lines += [_h63_xs_notice(block), f"資料日：{cd.display_day(payload.get('asof'), empty='未知')}",
+                  *report_data_time_lines(payload, job_context)]
+    lines += [*_comparison_caption_lines(payload), "歷史時點完整性與交易效益未驗證。", *_report_caution_lines(payload),
+              "長期限樣本重疊，訊號數不等於獨立樣本數。"]
     body_budget = TELEGRAM_CAPTION_BUDGET - len(REPORT_CAPTION_DISCLAIMER) - 1
     return "\n".join(lines)[:body_budget] + "\n" + REPORT_CAPTION_DISCLAIMER
 
@@ -2556,7 +2637,7 @@ class TelegramStockCommandBot:
         self.verify()
         self.client.set_my_commands(
             [
-                {"command": "stock", "description": "H63 收盤估計，例如 /stock 2330"},
+                {"command": "stock", "description": "H63 三個月相對強弱，例如 /stock 2330"},
                 {"command": "h63", "description": "第63市場交易日收盤估計，例如 /h63 2330"},
                 {"command": "h1", "description": "下一市場交易日收盤估計，例如 /h1 2330"},
                 {"command": "open", "description": "H1 收盤估計相容指令，例如 /open 2330"},

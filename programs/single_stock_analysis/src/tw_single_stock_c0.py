@@ -13,7 +13,7 @@ import json
 import math
 import os
 import sys
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +25,7 @@ import stock_daily_contract as contract
 import stock_daily_selected_deployment as selected
 import date_format as cd
 import single_stock_preopen as preopen
+import single_stock_h63_xs as h63xs
 from report_comparison_bridge import attach_report_comparison, report_comparison_rows, comparison_preview_html
 
 REPORT_SCHEMA=contract.C0_REPORT_SCHEMA
@@ -929,11 +930,16 @@ def main(horizon,argv=None):
     parser.add_argument('--h1-source',choices=preopen.SOURCES,
         help='H1 顯示來源：auto（預設；開盤前版快照新鮮就用，否則回退 C0 基準並標示原因）、'
              'preopen（必須用開盤前版，不可用即停止）、c0（強制舊行為）；未指定時讀環境變數 '+preopen.SOURCE_ENV)
+    parser.add_argument('--h63-source',choices=h63xs.SOURCES,
+        help='H63 顯示來源（ADR-0009）：auto（預設；U7 三個月相對強弱快照可用就顯示，否則只顯示原因）、'
+             'xs（必須用 U7，不可用即停止）、off（暫停顯示）、legacy（舊行為）；未指定時依序讀環境變數 '
+             +h63xs.SOURCE_ENV+' 與資料根 config\\display.json')
     args=parser.parse_args(argv)
     if args.candidate_model is not None:
         if args.c0_model is not None or args.forward_db is not None or args.resolve_only or args.resolve_stock is not None or args.output_json is not None:
             parser.error('候選模式不可混用正式模型、前瞻帳本或舊C0解析模式')
         if args.h1_source is not None:parser.error('候選研究模式不使用 --h1-source（開盤前版只套用於正式 H1 報告）')
+        if args.h63_source is not None:parser.error('候選研究模式不使用 --h63-source（U7 只套用於正式 H63 報告）')
         if not args.stock or not args.stock.strip():parser.error('候選模式必須指定 --stock')
         try:
             import stock_daily_candidate_runtime as candidate
@@ -975,6 +981,8 @@ def main(horizon,argv=None):
         # Only runs containing H1 validate its CLI/environment display source (invalid value: rc=2).
         horizons=(1,63) if args.both_horizons else (horizon,)
         h1_source=preopen.resolve_source(args.h1_source) if 1 in horizons else None
+        # Only runs containing H63 resolve the U7 display source (ADR-0009; invalid value: rc=2).
+        h63_source=h63xs.resolve_source(args.h63_source) if 63 in horizons else None
         if args.c0_model is None:
             binding=selected.analysis_binding()
             if binding is not None:
@@ -984,12 +992,16 @@ def main(horizon,argv=None):
                     parser.error('--forward-db 只可搭配明確的 --c0-model QA，正式單股不寫共用前瞻帳本')
                 _emit_phase(query,'data_check')
                 # Single-stock wrapper: the shared generator is unchanged; only the formal H1 payload gains the
-                # sealed pre-open block (stock_candidate_report.write_candidate_report, before rendering).
-                with (preopen.selected_h1_overlay(h1_source) if 1 in horizons else nullcontext()):
+                # sealed pre-open block and the formal H63 payload the sealed U7 block
+                # (stock_candidate_report.write_candidate_report, before rendering).
+                with ExitStack() as overlays:
+                    overlays.enter_context(preopen.selected_h1_overlay(h1_source) if 1 in horizons else nullcontext())
+                    overlays.enter_context(h63xs.selected_h63_overlay(h63_source) if 63 in horizons else nullcontext())
                     selected.generate_selected_reports(query,output_dir=args.output_dir,cache_dir=args.cache_dir,
                         horizons=horizons,
                         pinned_head_sha256=args.pinned_head_sha256,activation_binding=binding)
                 return 0
+        if h63_source=='xs':parser.error('--h63-source xs 只適用於選定模型正式路徑（C0 路徑不顯示 U7）')
         generate_estimate(horizon,query,output_dir=args.output_dir,cache_dir=args.cache_dir,max_matches=args.max_matches,model_path=args.c0_model,forward_db=args.forward_db,both_horizons=args.both_horizons,
             pinned_head_sha256=args.pinned_head_sha256,h1_source=h1_source)
         return 0

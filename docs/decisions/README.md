@@ -14,6 +14,7 @@
 | [ADR-0006](ADR-0006-single-stock-cross-stock-calibration.md) | 個股分析跨股票原模型校正 | `accepted` | 2026-09-27 |
 | [ADR-0007](ADR-0007-single-stock-global-market-pre-open-availability.md) | 個股分析海外市場資料可得時間與次日開盤決策時點 | `accepted` | 2026-09-30 |
 | [ADR-0008](ADR-0008-stock-daily-preopen-parallel-model.md) | 開盤前版 H1 模型與 C0 並行，取代三個消費端的 H1 顯示 | `accepted` | 2026-10-18 |
+| [ADR-0009](ADR-0009-h63-u7-cross-sectional-parallel-model.md) | H63 改用 U7 全市場排名模型系列，與選定模型並行並取代單股 H63 顯示 | `accepted` | 2026-11-02 |
 
 ## 何時建立 ADR
 

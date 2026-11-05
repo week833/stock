@@ -2,7 +2,7 @@
 
 只透過共用唯讀 API ``stock_daily_preopen_reader`` 讀取快照（以 Top10 私有模組實例載入，
 不改共用模組）。新鮮度以本次 C0 輸入的台股最新交易日（as-of）為 expected_signal_date；
-快照可用且新鮮時 H1 顯示開盤前版，否則依 model source 回退 C0 或失敗。
+快照可用時 H1 顯示開盤前版；較舊快照保留原日期並註記，真正不可用才依 model source 回退 C0 或失敗。
 必要揭露、閘門與「開盤買進」文字依快照 manifest 的 recipe.name 從揭露表選取（沒有 recipe 欄位視為配方 v1）。
 """
 from __future__ import annotations
@@ -98,6 +98,7 @@ REASON_TEXT = {
     "preopen_no_latest": "找不到開盤前版 latest.json（可能尚未產出）",
     "preopen_schema_mismatch": "開盤前版 latest.json 格式版本不符",
     "preopen_stale": "開盤前版快照的訊號日不是本次台股最新交易日",
+    "preopen_future_signal": "開盤前版快照的訊號日晚於本次分析資料日",
     "preopen_snapshot_missing": "開盤前版快照檔不存在",
     "preopen_snapshot_sha_mismatch": "開盤前版快照檔雜湊與 latest.json 不符",
     "preopen_snapshot_columns": "開盤前版快照缺少必要欄位",
@@ -272,6 +273,7 @@ class PreopenChoice:
     engine: str | None = None
     snapshot: object = field(default=None, repr=False, compare=False)
     describe_text: str | None = None
+    target_note_zh: str | None = None
 
     @property
     def active(self):
@@ -285,7 +287,7 @@ class PreopenChoice:
         return {"requested_model_source": self.requested, "model_source_origin": self.origin,
                 "model_source": self.model_source, "status": self.status, "reason": self.reason,
                 "reason_text": reason_text(self.reason) if self.reason else None, "detail": self.detail,
-                "expected_signal_date": self.expected_signal_date, "root": self.root,
+                "expected_signal_date": self.expected_signal_date, "target_note_zh": self.target_note_zh, "root": self.root,
                 "root_override": os.environ.get(PREOPEN_ROOT_ENV) or None, "parquet_engine": self.engine,
                 "snapshot_read_format": self.snapshot.frame.attrs.get("snapshot_read_format")
                 if self.snapshot is not None else None}
@@ -296,9 +298,11 @@ class PreopenChoice:
         meta, frame = self.snapshot.meta, self.snapshot.frame
         keep = ("run_id", "model_sha256", "snapshot_sha256", "model_id", "signal_date", "target_date",
                 "target_date_source", "snapshot", "snapshot_schema", "schema", "rows", "created_at",
-                "us_overnight", "gate_us_up", "central_head_sha256", "fixture", "recipe")
+                "us_overnight", "gate_us_up", "central_head_sha256", "fixture", "recipe",
+                "calendar_note_zh", "ledger_note_zh", "snapshot_note_zh", "snapshot_freshness")
         result = {key: meta.get(key) for key in keep if key in meta}
-        result.update(describe=self.describe_text, root=self.root, parquet_engine=self.engine,
+        result.update(describe=self.describe_text, target_note_zh=self.target_note_zh,
+                      analysis_asof=self.expected_signal_date, root=self.root, parquet_engine=self.engine,
                       snapshot_read_format=frame.attrs.get("snapshot_read_format"),
                       tradable_rows=int(frame["tradable"].sum()), frame_rows=int(len(frame)),
                       model_label=_reader_label())
@@ -395,18 +399,19 @@ def validate_snapshot(reader, snapshot):
 
 
 def confirm_target(choice, c0_target):
-    """已驗證的 C0 下一交易日存在時，快照目標日必須一致；否則依開關回退或失敗。"""
+    """保留可用快照的原目標日；與本報告日曆不同時註記，不改寫舊預測。"""
     if not choice.active or c0_target is None:
         return choice
     expected = iso_day(c0_target)
     actual = str(choice.snapshot.meta.get("target_date") or "")[:10]
+    description = str(choice.describe_text or "")
+    if choice.target_note_zh:
+        description = description.removesuffix("；" + choice.target_note_zh)
     if actual == expected:
-        return choice
-    detail = "snapshot target_date " + actual + " != C0 verified next session " + expected
-    if choice.requested == "preopen":
-        raise PreopenRequiredError("preopen_target_mismatch", detail)
-    return replace(choice, model_source="c0", status="unavailable", reason="preopen_target_mismatch",
-                   detail=detail, snapshot=None, describe_text=None)
+        return replace(choice, target_note_zh=None, describe_text=description) if choice.target_note_zh else choice
+    note = ("日期提醒：沿用開盤前版原目標日 " + actual.replace("-", "") +
+            "；本報告日曆目標日 " + expected.replace("-", "") + "，預測日期與數值維持原值。")
+    return replace(choice, target_note_zh=note, describe_text=description + "；" + note)
 
 
 # ---------------------------------------------------------------- report rows

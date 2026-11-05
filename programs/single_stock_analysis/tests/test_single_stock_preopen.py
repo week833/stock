@@ -243,9 +243,9 @@ def test_stale_fallback_keeps_the_observed_recipe(snapshot_root):
     write_fixture(snapshot_root, signal_date="2026-10-15")
     _set_recipe(snapshot_root, V2_RECIPE)
     block = preopen.build_h1_block(STOCK_6488, "2026-10-16")
-    assert block["status"] == "fallback" and block["reason"] == "preopen_stale"
-    assert block["observed_meta"]["recipe"] == V2_RECIPE
-    assert "disclosure" not in block and "disclosure_rows" not in block  # 回退不帶揭露（與改版前相同）
+    assert block["status"] == "used" and block["reason"] is None
+    assert block["meta"]["recipe"] == V2_RECIPE and block["disclosure"]["recipe"] == preopen.RECIPE_V2
+    assert block["signal_date"] == "2026-10-15" and "沿用較舊快照" in block["snapshot_note_zh"]
 
 
 def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
@@ -266,7 +266,7 @@ def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
 
 @pytest.mark.parametrize("case,reason", [
     ("missing_root", "preopen_no_latest"),
-    ("stale", "preopen_stale"),
+    ("future", "preopen_future_signal"),
     ("not_in_snapshot", "preopen_stock_not_in_snapshot"),
     ("market_mismatch", "preopen_market_mismatch"),
     ("sha_mismatch", "preopen_snapshot_sha_mismatch"),
@@ -276,7 +276,7 @@ def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
 def test_unavailable_snapshot_falls_back_to_c0_with_reason(snapshot_root, case, reason):
     stock, asof = dict(STOCK_6488), "2026-10-16"
     if case != "missing_root":
-        write_fixture(snapshot_root, signal_date="2026-10-15" if case == "stale" else "2026-10-16")
+        write_fixture(snapshot_root, signal_date="2026-10-17" if case == "future" else "2026-10-16")
     if case == "not_in_snapshot":
         stock = {"stock_id": "1234", "market": "TWSE"}
     elif case == "market_mismatch":
@@ -294,8 +294,8 @@ def test_unavailable_snapshot_falls_back_to_c0_with_reason(snapshot_root, case, 
     assert block["reason_zh"]
     # 主控台一行：原因代碼之後一定有中文說明
     assert preopen.display_lines(block) == [f"H1 來源：{block['notice']}。原因：{block['reason_zh']}"]
-    if case == "stale":
-        assert block["observed_meta"]["signal_date"] == "2026-10-15"
+    if case == "future":
+        assert "preopen_future_signal" in block["notice"]
     assert _native_json(block) == block
 
 
@@ -363,10 +363,10 @@ def test_c0_h1_stale_snapshot_falls_back_with_notice(current_case, snapshot_root
     write_fixture(snapshot_root, signal_date="2026-10-07", target_date="2026-10-08")
     h1 = single.generate_estimate("H1", "6488", output_dir=current_case["output"])
     block = h1["preopen_h1"]
-    assert h1["h1_display_source"] == "c0" and block["reason"] == "preopen_stale"
-    assert block["notice"] == "開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準"
-    assert block["observed_meta"]["signal_date"] == "2026-10-07"
-    assert _sealed(h1["output_json"])["preopen_h1"]["reason"] == "preopen_stale"
+    assert h1["h1_display_source"] == "preopen" and block["reason"] is None
+    assert block["signal_date"] == "2026-10-07" and block["target_date"] == "2026-10-08"
+    assert "沿用較舊快照" in block["snapshot_note_zh"]
+    assert _sealed(h1["output_json"])["preopen_h1"]["snapshot_note_zh"] == block["snapshot_note_zh"]
 
 
 @pytest.mark.parametrize("recipe", [V2_RECIPE, UNKNOWN_RECIPE], ids=["v2", "unknown"])
@@ -454,7 +454,7 @@ def test_candidate_research_rejects_h1_source():
 @pytest.mark.parametrize("status", ["used", "fallback"])
 def test_c0_pdf_renders_the_preopen_summary_or_notice(snapshot_root, tmp_path, status):
     pytest.importorskip("reportlab")
-    write_fixture(snapshot_root, signal_date="2026-10-16" if status == "used" else "2026-10-15")
+    write_fixture(snapshot_root, signal_date="2026-10-16" if status == "used" else "2026-10-17")
     block = preopen.build_h1_block(STOCK_6488, "2026-10-16")
     payload = {"stock": dict(STOCK_6488), "horizon_sessions": 1, "estimate_status": "estimated",
                "latest_data_date": "2026-10-16", "prediction": {"prob_up": 0.5, "expected_return": 0.0},
@@ -556,7 +556,7 @@ def test_selected_h1_report_discloses_the_snapshot_recipe(formal_payload, snapsh
 
 def test_selected_fallback_notice_and_h63_untouched(formal_payload, snapshot_root, tmp_path, monkeypatch):
     _stub_rendering(monkeypatch)
-    write_fixture(snapshot_root, signal_date="2026-10-15")
+    write_fixture(snapshot_root, signal_date="2026-10-17")
     h1 = _sign(copy.deepcopy(formal_payload))
     h63 = _sign(dict(copy.deepcopy(formal_payload), horizon_sessions=63))
     original_h63 = copy.deepcopy(h63)
@@ -564,9 +564,9 @@ def test_selected_fallback_notice_and_h63_untouched(formal_payload, snapshot_roo
         report.write_candidate_report(h1, tmp_path / "reports")
         report.write_candidate_report(h63, tmp_path / "reports")
     assert h63 == original_h63
-    assert h1["preopen_h1"]["reason"] == "preopen_stale"
+    assert h1["preopen_h1"]["reason"] == "preopen_future_signal"
     summary = report.build_report_sections(h1)[0]
-    assert summary["paragraphs"][0].startswith("【注意】開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準，單股已啟用選定模型。原因：")
+    assert summary["paragraphs"][0].startswith("【注意】開盤前版不可用（preopen_future_signal），本次 H1 改用 C0 基準，單股已啟用選定模型。原因：")
     assert summary["tables"][0]["title"] == "本股預測（C0 基準，單股已啟用選定模型）"  # 不再有巢狀括號
 
 

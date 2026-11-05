@@ -160,12 +160,12 @@ def test_c0_cautions_are_one_line_and_simple_baseline_only_when_c0_is_primary(sn
 
 
 def test_c0_h1_caption_fallback_notice_is_right_under_the_title(snapshot_root):
-    block = _block(snapshot_root, signal="2026-10-15")
+    block = _block(snapshot_root, signal="2026-10-17")
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="c0"))
     lines = caption.splitlines()
     assert lines[0] == "2330 台積電｜C0 H1 收盤估計"
     # 原因代碼後補中文說明（代碼：中文）
-    assert lines[1] == "開盤前版不可用（preopen_stale：開盤前版快照的訊號日與本次分析資料日不同），本次 H1 改用 C0 基準"
+    assert lines[1] == "開盤前版不可用（preopen_future_signal：開盤前版快照的訊號日晚於本次分析資料日），本次 H1 改用 C0 基準"
     assert "上漲機率：50.00%；預估報酬：+0.00%" in caption
     assert "開盤前版：" not in caption and "揭露：" not in caption
 
@@ -178,11 +178,11 @@ def test_selected_h1_caption_used_and_fallback(snapshot_root):
     assert "C0 基準備援（選定模型）：上漲機率 61.23%；預估報酬 +1.23%" in caption
     _assert_disclosure(caption)
     assert len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
-    stale = _block(snapshot_root, signal="2026-10-15", label=preopen.SELECTED_BASE_LABEL)
+    stale = _block(snapshot_root, signal="2026-10-17", label=preopen.SELECTED_BASE_LABEL)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _selected_payload(preopen_h1=stale))
     lines = caption.splitlines()
     assert lines[0] == "2330 台積電｜第1交易日收盤估計"
-    assert lines[1] == "開盤前版不可用（preopen_stale：開盤前版快照的訊號日與本次分析資料日不同），本次 H1 改用 C0 基準，單股已啟用選定模型"
+    assert lines[1] == "開盤前版不可用（preopen_future_signal：開盤前版快照的訊號日晚於本次分析資料日），本次 H1 改用 C0 基準，單股已啟用選定模型"
     assert "上漲機率：61.23%；預估報酬：+1.23%" in caption
 
 
@@ -244,11 +244,18 @@ def test_h63_and_reports_without_block_keep_previous_captions(snapshot_root):
 def test_h1_caption_shows_chip_freshness_note_only_when_present(snapshot_root):
     """籌碼未更新或不完整時 caption 多一行（最新到幾號／成功/應有數量）；新鮮時沒有這一行；舊區塊照常傳送。"""
     write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", stale_routes=["finmind_margin"])
+    pointer = snapshot_root / "predictions" / "latest.json"
+    meta = json.loads(pointer.read_text(encoding="utf-8"))
+    meta.update(calendar_gate={"status": "closures_file_invalid"}, ledger={"status": "error"})
+    pointer.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     block = preopen.build_h1_block({"stock_id": "2330", "market": "TWSE"}, "2026-10-16", base_label=preopen.C0_BASE_LABEL)
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="preopen"))
     lines = caption.splitlines()
     us_line = lines.index("前一晚美股收漲（建議日）")  # 美股收盤已納入（ok）時只寫漲跌
     assert lines[us_line + 1] == "t 日籌碼未更新：融資券最新到 20261015（以舊值推論，準確度可能下降）"
+    for field in ("calendar_note_zh", "ledger_note_zh"):
+        assert block[field] and block[field] == block["meta"][field]
+        assert caption.count(block[field]) == 1
     assert "C0 基準（備援）" in caption and "命中率不代表交易獲利" in caption
     assert caption.endswith(bot.REPORT_CAPTION_DISCLAIMER) and len(caption) <= bot.TELEGRAM_CAPTION_BUDGET
     write_fixture(snapshot_root, signal_date="2026-10-16", target_date="2026-10-19", partial_routes=["finmind_institutional"])
@@ -402,7 +409,7 @@ def test_end_to_end_manifest_recipe_through_single_stock_block(snapshot_root, re
 
 
 def test_fallback_blocks_never_show_a_disclosure_whatever_the_recipe(snapshot_root):
-    block = _block(snapshot_root, signal="2026-10-15")
+    block = _block(snapshot_root, signal="2026-10-17")
     block["observed_meta"] = {**block.get("observed_meta", {}), "recipe": V2_RECIPE}
     caption = bot.report_caption(bot.MODE_H1, STOCK, _c0_payload(preopen_h1=block, h1_display_source="c0"))
     assert "揭露：" not in caption and "配方" not in caption

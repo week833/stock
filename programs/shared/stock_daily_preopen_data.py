@@ -6,6 +6,12 @@
 * Prices: the 5-year price objects of the preserved head HISTORIC_HEAD are stitched with the
   current head (same rule as the validated research builder build_data.py, incl. the fix that
   keeps delisted stocks), because the current head only retains ~18 months of prices.
+* Stitch repair: a daily return the stitch got wrong (it differs from the official unadjusted close
+  return, corrected on ex-dates by finmind_dividend_result, while the own return of the historic or the
+  current object over the same two dates agrees with that raw return) is set to the confirmed own
+  return by rescaling the stock's earlier rows; later rows keep their level. The factors must be finite and
+  positive and keep every finite positive price finite and positive, else the repair is skipped. Summary in
+  LAST_STITCH_REPAIR_REPORT / provenance["stitch_repair"]; a missing route only skips the repair.
 * Parsed objects are cached as parquet under <root>\\cache\\objects keyed by object sha.
 * US session helpers decide whether last night's US close is present ('ok'), there was no US
   session ('holiday'), or the central data is missing it ('missing').
@@ -20,6 +26,7 @@ import json
 import os
 import re
 import tempfile
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -32,6 +39,10 @@ HISTORIC_HEAD = cache_lifecycle.PREOPEN_HISTORIC_HEAD
 PRICE_COLS = ["date", "stock_id", "open", "high", "low", "close", "Trading_Volume", "Trading_money"]
 OFFICIAL_COLS = ["date", "stock_id", "market", "open", "high", "low", "close", "volume", "amount", "transactions", "name"]
 US_GATE_INSTRUMENTS = ("us_sp500", "us_semiconductor", "us_nasdaq")
+DIVIDEND_ROUTE = "finmind_dividend_result"
+DIVIDEND_COLS = ["date", "stock_id", "before_price", "after_price"]
+STITCH_REPAIR_TOL = float(np.log1p(0.01))  # |log return gap| > 1% against the confirmed raw return is a stitch error
+STITCH_REPAIR_DETAIL = 50  # repaired returns listed in the report (the full list is hashed)
 
 # NYSE full-day closures (source: NYSE holiday calendar as published for 2025-2027; Jan 9 2025 was the
 # national day of mourning). Used only to tell a US holiday from missing central data.
@@ -220,7 +231,105 @@ def _route(routes, route_id, head):
     return routes[route_id]
 
 
+LAST_STITCH_REPAIR_REPORT = None
+
+
+def _ex_log_factors(div):
+    """Sum of log(after_price / before_price) per (stock_id, ex-date) of finmind_dividend_result."""
+    d = div.copy()
+    d["stock_id"] = d["stock_id"].astype(str)
+    d = d[_ordinary(d["stock_id"])].copy()
+    d["date"] = pd.to_datetime(d["date"].astype(str), format="%Y%m%d", errors="coerce")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        d["lf"] = np.log(pd.to_numeric(d["after_price"], errors="coerce") / pd.to_numeric(d["before_price"], errors="coerce"))
+    d = d[d["date"].notna() & np.isfinite(d["lf"])]
+    return d.groupby(["stock_id", "date"])["lf"].sum()
+
+
+def repair_stitch_returns(panel, old, new, ex_lf, tol=STITCH_REPAIR_TOL):
+    """Set the false daily returns of the stitched ``panel`` (sorted by stock_id, date) to the confirmed own return.
+
+    Returns are taken on the feature grid (previous row within 5 forward-filled sessions, as the feature builder
+    does). A return is false when it differs by more than ``tol`` (log) from the official raw return, corrected on
+    ex-dates by ``ex_lf``, while the own return of ``old`` (historic object) or ``new`` (current object) over the same
+    two dates agrees with that raw return. Every earlier row of the stock is rescaled (open/high/low/close together)
+    so the return equals the confirmed own return; later rows, hence the latest level, are untouched."""
+    report = {"status": "applied", "tolerance_log": tol, "returns_checked": 0, "repaired": 0}
+    if panel.empty:
+        return panel, report
+    dates = pd.DatetimeIndex(np.sort(panel["date"].unique()))
+    stocks = np.sort(panel["stock_id"].unique())
+    rows, cols = pd.Series(np.arange(len(dates)), index=dates), pd.Series(np.arange(len(stocks)), index=stocks)
+    shape = (len(dates), len(stocks))
+
+    def grid(df, value):
+        out = np.full(shape, np.nan)
+        df = df[df["date"].isin(dates) & df["stock_id"].isin(stocks)]
+        out[rows.reindex(df["date"]).to_numpy(), cols.reindex(df["stock_id"]).to_numpy()] = df[value].to_numpy("float64")
+        return out
+
+    pr, pc = rows.reindex(panel["date"]).to_numpy(), cols.reindex(panel["stock_id"]).to_numpy()
+    P, R = grid(panel, "adj_close"), grid(panel, "raw_close")
+    O, N = grid(old[old["close"] > 0], "close"), grid(new[new["close"] > 0], "close")
+    LF = np.zeros(shape)
+    ex = ex_lf[ex_lf.index.get_level_values("stock_id").isin(stocks)]
+    if len(ex):
+        w = ex.rename("lf").reset_index().pivot_table(index="date", columns="stock_id", values="lf", aggfunc="sum")
+        LF = w.reindex(index=w.index.union(dates), columns=stocks).fillna(0.0).cumsum().reindex(dates).to_numpy("float64")
+    prev = np.where(np.isfinite(P), np.arange(shape[0], dtype="float64")[:, None], np.nan)
+    prev = pd.DataFrame(prev).ffill(limit=5).shift(1).to_numpy()
+    ii, jj = np.nonzero(np.isfinite(P) & np.isfinite(prev))
+    pi = prev[ii, jj].astype(np.int64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        l_st = np.log(P[ii, jj] / P[pi, jj])
+        l_old = np.log(O[ii, jj] / O[pi, jj])
+        l_cur = np.log(N[ii, jj] / N[pi, jj])
+        l_raw = np.log(R[ii, jj] / R[pi, jj]) - (LF[ii, jj] - LF[pi, jj])
+    ok_old = np.isfinite(l_old) & (np.abs(l_old - l_raw) <= tol)
+    ok_cur = np.isfinite(l_cur) & (np.abs(l_cur - l_raw) <= tol)
+    bad = (np.abs(l_st - l_raw) > tol) & (ok_old | ok_cur)
+    l_ref = np.where(ok_old, l_old, l_cur)
+    C = np.zeros(shape)
+    np.add.at(C, (ii[bad], jj[bad]), (l_st - l_ref)[bad])
+    M = np.zeros(shape)
+    M[:-1] = C[::-1].cumsum(axis=0)[::-1][1:]  # log factor of a row = sum over the corrected returns after it
+    out = panel.copy()
+    mult = np.exp(M[pr, pc])
+    if not (np.isfinite(mult).all() and (mult > 0).all()):
+        raise PreopenDataError("stitch repair factors are not all finite and positive")
+    for c in ("adj_open", "adj_high", "adj_low", "adj_close"):
+        base = out[c].to_numpy("float64")
+        scaled = base * mult
+        with np.errstate(invalid="ignore"):
+            kept = np.array_equal(np.isfinite(base) & (base > 0), np.isfinite(scaled) & (scaled > 0))
+        if not kept:
+            raise PreopenDataError(f"stitch repair changed which {c} values are finite and positive")
+        out[c] = scaled
+    residual = int(((np.abs(l_st + M[ii, jj] - M[pi, jj] - l_raw) > tol) & (ok_old | ok_cur)).sum())
+    k = np.flatnonzero(bad)
+    now, before = np.isfinite(N[ii[k], jj[k]]), np.isfinite(N[pi[k], jj[k]])  # panel row from the current object?
+    cat = np.where(now != before, "seam", np.where(now, "current_internal", "historic_internal"))
+    detail = [{"stock_id": str(stocks[jj[x]]), "date": dates[ii[x]].strftime("%Y%m%d"),
+               "prev_date": dates[pi[x]].strftime("%Y%m%d"), "category": str(c),
+               "confirmed_by": "historic" if ok_old[x] else "current",
+               "stitched_return": round(float(np.expm1(l_st[x])), 6), "repaired_return": round(float(np.expm1(l_ref[x])), 6)}
+              for x, c in zip(k, cat)]
+    moved = mult != 1.0
+    report.update({
+        "returns_checked": int(len(ii)), "repaired": int(len(k)),
+        "repaired_stocks": int(len({d["stock_id"] for d in detail})),
+        "by_category": {str(a): int(b) for a, b in zip(*np.unique(cat, return_counts=True))},
+        "by_month": {str(a): int(b) for a, b in zip(*np.unique([d["date"][:6] for d in detail], return_counts=True))},
+        "rescaled_rows": int(moved.sum()),
+        "last_rescaled_date": panel.loc[moved, "date"].max().strftime("%Y%m%d") if moved.any() else None,
+        "residual_false": residual, "finite_positive_checked": True, "detail": detail[:STITCH_REPAIR_DETAIL],
+        "detail_sha256": hashlib.sha256(json.dumps(detail, sort_keys=True).encode()).hexdigest(),
+    })
+    return out, report
+
+
 def build_prices(cur_routes, hist_routes, cache_dir, cur_sha, hist_sha):
+    global LAST_STITCH_REPAIR_REPORT
     old = load_object(_route(hist_routes, "finmind_price_adj", hist_sha), PRICE_COLS, cache_dir)
     new = load_object(_route(cur_routes, "finmind_price_adj", cur_sha), PRICE_COLS, cache_dir)
     old, new = old.copy(), new.copy()
@@ -266,7 +375,21 @@ def build_prices(cur_routes, hist_routes, cache_dir, cur_sha, hist_sha):
     off = off.rename(columns={"open": "raw_open", "high": "raw_high", "low": "raw_low", "close": "raw_close"})
     panel = adj.merge(off, on=["stock_id", "date"], how="inner")
     panel = panel[(panel["adj_close"] > 0) & (panel["raw_close"] > 0)]
-    return panel.sort_values(["stock_id", "date"]).reset_index(drop=True)
+    panel = panel.sort_values(["stock_id", "date"]).reset_index(drop=True)
+    # Stitch repair never blocks: without the dividend route (or on any error) the panel stays as stitched.
+    entry = cur_routes.get(DIVIDEND_ROUTE)
+    try:
+        if entry is None:
+            raise PreopenDataError(f"route {DIVIDEND_ROUTE} missing in head {cur_sha[:12]}")
+        ex_lf = _ex_log_factors(load_object(entry, DIVIDEND_COLS, cache_dir))
+        panel, report = repair_stitch_returns(panel, old, new, ex_lf)
+        report["dividend_object_sha256"] = entry["sha256"]
+    except Exception as exc:  # the repair is a data-quality add-on, never a gate
+        report = {"status": "skipped", "reason": f"{type(exc).__name__}: {exc}"}
+    if report.get("status") != "applied" or report.get("residual_false"):
+        warnings.warn(f"price stitch repair: {json.dumps({k: report.get(k) for k in ('status', 'reason', 'residual_false')})}")
+    LAST_STITCH_REPAIR_REPORT = report
+    return panel
 
 
 def build_chips(routes, cache_dir, sha):
@@ -333,6 +456,8 @@ def load_inputs(cache_dir, head_sha=None, historic_sha=HISTORIC_HEAD, central=CE
     rv, info, g = build_misc(cur_routes, cache_dir, cur_sha)
     used = ["finmind_price_adj", "official_market_daily", "finmind_institutional", "finmind_margin", "finmind_day_trading",
             "finmind_per", "finmind_shareholding", "finmind_month_revenue", "finmind_stock_info", "global_market_history"]
+    if DIVIDEND_ROUTE in cur_routes:  # read only by the stitch repair; without it the repair is skipped, not failed
+        used.append(DIVIDEND_ROUTE)
     provenance = {
         "central_head_sha256": cur_sha, "central_published_at": cur_manifest.get("published_at"),
         "central_run_id": cur_manifest.get("run_id"), "historic_head_sha256": hist_sha,
@@ -340,6 +465,7 @@ def load_inputs(cache_dir, head_sha=None, historic_sha=HISTORIC_HEAD, central=CE
                         "actual_max_date": cur_routes[r].get("actual_max_date"),
                         "coverage": _coverage_counts(cur_routes[r])} for r in used},
         "historic_objects": {r: hist_routes[r]["sha256"] for r in ("finmind_price_adj", "official_market_daily")},
+        "stitch_repair": LAST_STITCH_REPAIR_REPORT,
     }
     return {"px": px, "ch": ch, "rv": rv, "info": info, "g": g, "provenance": provenance}
 

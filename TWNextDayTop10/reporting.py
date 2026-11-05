@@ -923,6 +923,8 @@ def _write_html(path, payload):
     if not target and declared:
         # 已驗證日曆尚未涵蓋時不猜日期；只標示開盤前版快照自己宣告的目標日。
         target_text += "（開盤前版快照宣告目標日 " + _day(declared) + "，未經本程式日曆驗證）"
+    elif declared and _day(declared) != _day(target):
+        target_text += "（本報告日曆；H1 沿用開盤前版原目標日 " + _day(declared) + "）"
     predicted = {(str(row.get("market")), str(row.get("stock_id"))) for row in payload["predictions"]}
     excluded = [row for row in payload["coverage"] if (str(row.get("market")), str(row.get("stock_id"))) not in predicted]
     ranking = _human(context.get("ranking_note"))
