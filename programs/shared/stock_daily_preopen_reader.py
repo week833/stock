@@ -173,6 +173,10 @@ def calendar_gate_text(gate, meta=None):
     n = n if isinstance(n, int) and not isinstance(n, bool) and n >= 1 else None
     gap = gate.get("gap_days") if isinstance(gate.get("gap_days"), (list, tuple)) else []
     unexplained = "、".join(_ymd(d.get("date")) for d in gap if isinstance(d, dict) and d.get("status") == "unverified")
+    # 交易所公告的開市日、中央尚無資料（2026-11-13 起產製端的 gap 狀態 announced_session）：可能是中央落後或當天臨時休市。
+    # 不寫「不在已驗證日曆中」——中央日曆列有這一天，依它寫「下一交易日」的報告會互相矛盾。舊快照沒有這個狀態，文字不變。
+    announced = "、".join(_ymd(d.get("date")) for d in gap
+                         if isinstance(d, dict) and d.get("status") == "announced_session")
     void = any(code in CALENDAR_GATE_TARGET_WHY_ZH or code == "signal_not_session" for code in codes)  # 該列結算必不計分
     parts = []
     for code in codes:
@@ -192,7 +196,10 @@ def calendar_gate_text(gate, meta=None):
                          "訊號日與目標日尚未完成日曆核對，是否計分以結算時已驗證日曆為準")
         elif code == "signal_gap_unverified":
             span = f"（可能跨 {n} 個交易日）" if n and n >= 2 else ""
-            parts.append(f"{CALENDAR_GAP_PREFIX_ZH}（{unexplained or '部分平日'} 不在已驗證日曆中、也非已知休市日）："
+            why = [f"{announced} 為交易所公告的交易日、中央尚無資料"] if announced else []
+            if unexplained or not announced:
+                why.append(f"{unexplained or '部分平日'} 不在已驗證日曆中、也非已知休市日")
+            parts.append(f"{CALENDAR_GAP_PREFIX_ZH}（{'；'.join(why)}）："
                          f"本快照以 {signal} 訊號日重發，目標日 {target}{span}；"
                          "是否計分以結算時已驗證日曆為準")
         elif code == "signal_not_session":

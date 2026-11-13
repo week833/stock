@@ -867,3 +867,326 @@ def test_predict_target_not_after_signal_still_rejected(tmp_path, monkeypatch):
     assert exc.value.code == "target 2026-10-16 must be after signal 2026-10-16"
     assert not (root / "predictions").exists()
     assert not (root / "state").exists()
+
+
+def _v2_calendar_with_future(asof, future, closed=()):
+    """中央 v2 日曆（2026-11-11 起的形狀）：sessions = historical_sessions（已驗證，253 個）+ future_sessions
+    （交易所公告、尚未發生）。``future`` 為清單（兩個市場相同）或 {市場: 清單}（正式檔上市 63 個、上櫃 34 個，長度不同）；
+    ``closed`` 的日子不列入 historical（例如 verified_asof 當天颱風休市）。以 stock_daily_calendar 的驗證器檢查，與正式
+    sidecar 同一套規則。"""
+    import stock_daily_calendar as calmod
+
+    def axis_ref(days):
+        raw = calmod.axis_bytes(days)
+        digest = hashlib.sha256(raw).hexdigest()
+        return {"ref": "_calendar/axes/" + digest + ".json", "sha256": digest, "size": len(raw)}
+
+    history, day = [], dt.date.fromisoformat(asof)
+    while len(history) < 253:
+        if day.weekday() < 5 and not producer.is_fixed_holiday(day) and day.isoformat() not in closed:
+            history.append(day.isoformat())
+        day -= dt.timedelta(days=1)
+    history.reverse()
+    by_market = future if isinstance(future, dict) else {market: future for market in calmod.MARKETS}
+    content = {"ref": "_calendar/receipts/" + "f" * 64 + ".json", "sha256": "f" * 64, "size": 1}
+    urls = {"TWSE": "https://www.twse.com.tw/holidaySchedule", "TPEx": "https://www.tpex.org.tw/holiday"}
+    markets, digests = {}, {}
+    for market in calmod.MARKETS:
+        fut = list(by_market.get(market, ()))
+        markets[market] = {"calendar_verified": True, "future_axis_verified": bool(fut),
+                           "historical_sessions": history, "future_sessions": fut, "sessions": history + fut,
+                           "axis_ref": axis_ref(history + fut), "historical_axis_ref": axis_ref(history),
+                           "future_axis_ref": axis_ref(fut) if fut else None,
+                           "axis_sha256": axis_ref(history + fut)["sha256"]}
+        digests[market] = calmod._digest(history)
+    body = {"schema": calmod.SCHEMA, "schema_version": 2, "verified_asof": asof, "scope_id": "b" * 64,
+            "retention_scope_binding": {"scope_id": "b" * 64, "capture_scope_id": "c" * 64, "asof": asof,
+                                        "market_session_sha256": digests},
+            "historical_axis_verified": True,
+            "future_targets_verified": all(len(markets[m]["future_sessions"]) == 63 for m in calmod.MARKETS),
+            "markets": markets, "source_receipt_ref": dict(content),
+            "sources": [{"market": market, "source_url": urls[market],
+                         "native_unit": {"kind": "calendar_year", "market": market, "year": 2026},
+                         "observed_at": "2026-11-12T15:00:00+00:00", "raw_ref": dict(content),
+                         "http_receipt_ref": dict(content)} for market in calmod.MARKETS],
+            "retired_historical_observations": [],
+            "derivation": {"parent_proof_sha256": "a" * 64, "retained_values_unchanged": True,
+                           "market_session_sha256": digests}}
+    body["proof_sha256"] = calmod._digest(body)
+    return calmod.validate_verified_market_calendar_v2(body)
+
+
+def test_calendar_future_sessions_are_not_verified_sessions(tmp_path, monkeypatch):
+    """2026-11-12 起每日誤報「中央價格落後」（stale_signal）的回歸：中央 v2 日曆的 sessions 含尚未發生的未來
+    session，載入後「已驗證日曆最後交易日」不得變成未來日期，未來 session 也不得當成已驗證交易日。"""
+    seq = iter(range(1000))
+
+    def load(asof, future, closed=()):
+        path = tmp_path / f"calendar_{next(seq)}_{asof}.json"
+        path.write_text(json.dumps(_v2_calendar_with_future(asof, future, closed)), encoding="utf-8")
+        return producer.load_verified_calendar(path=path)
+
+    # 與正式檔一樣，兩個市場公告的未來開市日長度不同（聯集的最後一天落在上市較遠的日期）
+    cal = load("2026-11-12", {"TWSE": ["2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18"],
+                              "TPEx": ["2026-11-13", "2026-11-16"]})
+    assert cal["last_session"] == cal["verified_asof"] == cal["all_sessions"][-1] == "2026-11-12"
+    assert all(days[-1] == "2026-11-12" for days in cal["sessions"].values())
+    # 未來開市日只用來推交易所公告的休市日，範圍到兩個市場都有公告的最後一天
+    assert cal["exchange_closures"] == [] and cal["exchange_closures_through"] == "2026-11-16"
+    assert cal["future_targets_verified"] is False and cal["proof_future_targets_verified"] is False
+    # 訊號日 = 中央價格最新日 = 已驗證最後交易日：正常狀態，不得標 stale_signal
+    gate = producer.calendar_gate(dt.date(2026, 11, 12), dt.date(2026, 11, 12), dt.date(2026, 11, 13), cal)
+    assert gate["status"] == producer.GATE_OK and gate["reasons"] == []
+    assert gate["last_verified_session"] == "2026-11-12" and gate["signal_is_last_verified_session"] is True
+    assert gate["target_calendar_status"] == "unverified_future"
+    assert gate["calendar_source"]["exchange_closures_through"] == "2026-11-16"
+    assert gate["calendar_source"]["future_targets_verified"] is False
+    assert gate["calendar_source"]["proof_future_targets_verified"] is False
+    # 未來 session 不能拿來證明目標日是交易日；結算也要等日曆涵蓋後再算
+    assert producer.sessions_between(cal, "2026-11-12", "2026-11-13") == (None, "unverified_future")
+    assert producer.sessions_between(cal, "2026-11-12", "2026-11-17", "TWSE") == (None, "unverified_future")
+    # 交易所公告為開市日、但尚未發生：不是休市日，也還不是已驗證交易日（任一市場公告即算，聯集）
+    assert producer.closure_kind(dt.date(2026, 11, 13), cal) == "announced_session"
+    assert producer.closure_kind(dt.date(2026, 11, 18), cal) == "announced_session"
+    assert producer.closure_kind(dt.date(2026, 11, 19), cal) == "unverified"  # 兩個市場都沒公告到
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2026, 11, 12, 23, 15, tzinfo=dt.timezone.utc))
+    assert producer.resolve_target(dt.date(2026, 11, 12), calendar=cal) == (dt.date(2026, 11, 13), "runtime_today_taipei")
+    # 中央價格真的落後（訊號日早於已驗證最後交易日）仍要標 stale_signal
+    late = producer.calendar_gate(dt.date(2026, 11, 11), dt.date(2026, 11, 11), dt.date(2026, 11, 13), cal)
+    assert "stale_signal" in late["reasons"]
+    # 價格與日曆同一個 head、一起落後（訊號日 = verified_asof = 11-11，今天 11-13）：中間的 11-12 是交易所公告的開市日、
+    # 中央卻沒有資料 → 中央可能落後（也可能是颱風等臨時休市，當晚分不出來）：signal_gap_unverified、可能跨 2 個交易日。
+    # 讀取端寫「11-12 為交易所公告的交易日、中央尚無資料」，與 Top10／MIX 依中央日曆寫的「下一交易日 11-12」一致
+    lag_cal = load("2026-11-11", ["2026-11-12", "2026-11-13", "2026-11-16"])
+    lag = producer.calendar_gate(dt.date(2026, 11, 11), dt.date(2026, 11, 11), dt.date(2026, 11, 13), lag_cal)
+    assert lag["reasons"] == ["signal_gap_unverified"] and lag["sessions_ahead_expected"] == 2
+    assert lag["gap_days"] == [{"date": "2026-11-12", "status": "announced_session"}]
+    assert reader.calendar_gate_text(lag) == (
+        "中央價格可能落後（20261112 為交易所公告的交易日、中央尚無資料）：本快照以 20261111 訊號日重發，"
+        "目標日 20261113（可能跨 2 個交易日）；是否計分以結算時已驗證日曆為準")
+    assert "--closed-day" in lag["note_zh"] and "announced_closures.json" in lag["note_zh"]  # note_zh 提示可宣告休市
+    unknown = producer.calendar_gate(dt.date(2026, 11, 11), None, dt.date(2026, 11, 13), lag_cal)  # 中央最新日未知也要標缺口
+    assert unknown["reasons"] == ["signal_gap_unverified", "central_max_date_unknown"]
+    assert unknown["sessions_ahead_expected"] == 2
+    # 多個公告開市日的缺口（中央落後 2 個交易日）
+    lag2 = producer.calendar_gate(dt.date(2026, 11, 11), dt.date(2026, 11, 11), dt.date(2026, 11, 16), lag_cal)
+    assert lag2["reasons"] == ["signal_gap_unverified"] and lag2["sessions_ahead_expected"] == 3
+    assert "20261112、20261113 是交易所公告的交易日" in lag2["note_zh"]
+    assert reader.calendar_gate_text(lag2) == (
+        "中央價格可能落後（20261112、20261113 為交易所公告的交易日、中央尚無資料）：本快照以 20261111 訊號日重發，"
+        "目標日 20261116（可能跨 3 個交易日）；是否計分以結算時已驗證日曆為準")
+    # 沒有交易所公告（2026-11-11 以前的形狀）：守門與讀取端文字和修改前逐字相同
+    bare = load("2026-11-11", [])
+    old_lag = producer.calendar_gate(dt.date(2026, 11, 11), dt.date(2026, 11, 11), dt.date(2026, 11, 13), bare)
+    assert old_lag["reasons"] == ["signal_gap_unverified"] and old_lag["sessions_ahead_expected"] == 2
+    assert old_lag["gap_days"] == [{"date": "2026-11-12", "status": "unverified"}]
+    assert reader.calendar_gate_text(old_lag) == (
+        "中央價格可能落後（20261112 不在已驗證日曆中、也非已知休市日）：本快照以 20261111 訊號日重發，"
+        "目標日 20261113（可能跨 2 個交易日）；是否計分以結算時已驗證日曆為準")
+    # 週五收盤後到週一開盤前（中間只有週末）：同樣正常
+    monday = producer.calendar_gate(dt.date(2026, 11, 13), dt.date(2026, 11, 13), dt.date(2026, 11, 16),
+                                    load("2026-11-13", ["2026-11-16", "2026-11-17"]))
+    assert monday["status"] == producer.GATE_OK and monday["reasons"] == []
+    # 同一個 head 的日曆先於價格（2026-11-13 的實況：日曆 11-13、價格 11-12）：中央價格落後；calendar_vintage 照實寫
+    head_cal = producer.calendar_from_sessions({m: days + ["2026-11-13"] for m, days in cal["sessions"].items()},
+                                               source="head_sidecar",
+                                               announced_sessions={"TWSE": ["2026-11-16", "2026-11-17"],
+                                                                   "TPEx": ["2026-11-16", "2026-11-17"]})
+    ahead = producer.calendar_gate(dt.date(2026, 11, 12), dt.date(2026, 11, 12), dt.date(2026, 11, 16), head_cal)
+    assert ahead["reasons"] == ["stale_signal"] and ahead["sessions_ahead_expected"] == 2
+    assert ahead["calendar_vintage"]["note_zh"] == "日曆與價格出自同一個 head，但日曆最後交易日 20261113 與價格最新日 20261112 不同"
+    synced = producer.calendar_gate(dt.date(2026, 11, 13), dt.date(2026, 11, 13), dt.date(2026, 11, 16), head_cal)
+    assert synced["reasons"] == [] and synced["calendar_vintage"]["note_zh"].startswith(
+        "日曆與價格出自同一個 head，日曆最後交易日與價格最新日都是 20261113；")
+    unknown_px = producer.calendar_gate(dt.date(2026, 11, 13), None, dt.date(2026, 11, 16), head_cal)
+    assert unknown_px["reasons"] == ["central_max_date_unknown"]
+    assert unknown_px["calendar_vintage"]["note_zh"] == "日曆與價格出自同一個 head，價格最新日未知，無法與日曆最後交易日 20261113 比對"
+    # 已確定中央價格落後（11-13 已驗證有交易、價格只到 11-12）又跨過公告開市日 11-16：只寫一段「中央價格落後」，
+    # 不另加「可能落後」那段（否則兩段重複、互相矛盾）；公告開市日記在 note_zh
+    tuesday = producer.calendar_gate(dt.date(2026, 11, 12), dt.date(2026, 11, 12), dt.date(2026, 11, 17), head_cal)
+    assert tuesday["reasons"] == ["stale_signal"] and tuesday["sessions_ahead_expected"] == 3
+    assert [g["status"] for g in tuesday["gap_days"]] == ["verified_session", "announced_session"]
+    assert "20261116 是交易所公告的交易日" in tuesday["note_zh"]
+    assert reader.calendar_gate_text(tuesday) == (
+        "中央價格落後：本快照以 20261112 訊號日重發，目標日 20261117（跨 3 個交易日），結算時不計入實盤統計")
+    # 颱風臨時休市（11-19 週四；年表公告為開市日）：中央要等下一個交易日的資料才證得休市，所以 11-20 07:15 時日曆仍停在
+    # 11-18、11-19 仍列在公告開市日。只能寫「可能落後」，不得斷言「結算時不計入實盤統計」；宣告休市後為 ok
+    storm = load("2026-11-18", ["2026-11-19", "2026-11-20", "2026-11-23"])
+    storm_gate = producer.calendar_gate(dt.date(2026, 11, 18), dt.date(2026, 11, 18), dt.date(2026, 11, 20), storm)
+    assert storm_gate["reasons"] == ["signal_gap_unverified"]
+    assert storm_gate["gap_days"] == [{"date": "2026-11-19", "status": "announced_session"}]
+    assert "不計入實盤統計" not in reader.calendar_gate_text(storm_gate)
+    declared = producer.calendar_gate(dt.date(2026, 11, 18), dt.date(2026, 11, 18), dt.date(2026, 11, 20), storm,
+                                      closures=frozenset({"2026-11-19"}))
+    assert declared["reasons"] == [] and declared["gap_days"] == [{"date": "2026-11-19", "status": "declared_closure"}]
+    # 之後中央取得 11-20 的資料、證得 11-19 休市：11-18 → 11-20 只跨 1 個交易日，結算照常計分
+    proven = load("2026-11-20", ["2026-11-23", "2026-11-24"], closed=("2026-11-19",))
+    assert producer.sessions_between(proven, "2026-11-18", "2026-11-20") == (1, "verified")
+    # verified_asof 晚於最後交易日（例如 302c92684616：asof 10-26、最後交易日 10-22；這裡是 11-20 颱風、中央已證得），
+    # 上櫃沒有公告：11-20 是已驗證的非交易日，隔週一開盤前不得誤報落後
+    typhoon = load("2026-11-20", {"TWSE": ["2026-11-23", "2026-11-24"], "TPEx": []}, closed=("2026-11-20",))
+    assert typhoon["last_session"] == "2026-11-19" and typhoon["verified_asof"] == "2026-11-20"
+    assert typhoon["exchange_closures"] == [] and typhoon["exchange_closures_through"] is None
+    assert typhoon["verified_closures_after_last"] == ["2026-11-20"]
+    assert producer.closure_kind(dt.date(2026, 11, 20), typhoon) == "verified_closure"
+    after_typhoon = producer.calendar_gate(dt.date(2026, 11, 19), dt.date(2026, 11, 19), dt.date(2026, 11, 23), typhoon)
+    assert after_typhoon["reasons"] == [] and after_typhoon["gap_days"] == [{"date": "2026-11-20", "status": "verified_closure"}]
+    head_typhoon = producer.calendar_gate(dt.date(2026, 11, 19), dt.date(2026, 11, 19), dt.date(2026, 11, 23),
+                                          dict(typhoon, source="head_sidecar"))
+    assert head_typhoon["calendar_vintage"]["note_zh"] == (
+        "日曆與價格出自同一個 head，日曆最後交易日與價格最新日都是 20261119（verified_asof 20261120，之間為已驗證的非交易日）；"
+        "『訊號日 = 日曆最後 session』不能證明中央沒有落後")
+    # 訊號日落在已驗證的非交易日（價格資料與日曆不一致）：signal_not_session，不是「日曆落後」
+    odd = producer.calendar_gate(dt.date(2026, 11, 20), dt.date(2026, 11, 20), dt.date(2026, 11, 23), typhoon)
+    assert odd["reasons"] == ["signal_not_session"] and odd["calendar_status"] == "ok"
+    # 目標日落在最後交易日與 verified_asof 之間：已驗證的非交易日（void），不再另說「晚於已驗證日曆範圍」；
+    # 當晚手動執行時目標日跳過它
+    assert producer.sessions_between(typhoon, "2026-11-19", "2026-11-20") == (None, producer.STATUS_VOID_TARGET)
+    on_closed = producer.calendar_gate(dt.date(2026, 11, 19), dt.date(2026, 11, 19), dt.date(2026, 11, 20), typhoon)
+    assert on_closed["reasons"] == ["target_verified_closure"] and "晚於已驗證日曆範圍" not in on_closed["note_zh"]
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2026, 11, 20, 14, 0, tzinfo=dt.timezone.utc))
+    assert producer.resolve_target(dt.date(2026, 11, 19), calendar=typhoon) == (dt.date(2026, 11, 23), "next_weekday_assumed")
+    # 兩個市場都公告滿 63 個未來 session 時 proof 的 future_targets_verified 為 True；物件的交易日軸仍不含未來 session
+    sixty_three, day = [], dt.date(2026, 11, 13)
+    while len(sixty_three) < 63:
+        if day.weekday() < 5 and not producer.is_fixed_holiday(day):
+            sixty_three.append(day.isoformat())
+        day += dt.timedelta(days=1)
+    full = load("2026-11-12", sixty_three)
+    assert full["proof_future_targets_verified"] is True and full["future_targets_verified"] is False
+    full_gate = producer.calendar_gate(dt.date(2026, 11, 12), dt.date(2026, 11, 12), dt.date(2026, 11, 13), full)
+    assert full_gate["calendar_source"]["proof_future_targets_verified"] is True
+    assert full_gate["calendar_source"]["future_targets_verified"] is False
+
+
+def test_exchange_announced_closures_skip_target_and_explain_gap(tmp_path, monkeypatch):
+    """交易所公告的休市日（2027 春節 02-02～02-10 這類規則推不出的平日休市）：目標日要跳過，缺口不得誤報「中央價格
+    很可能落後」；公告為開市日卻沒有資料的平日仍要標；只推上市、上櫃公告都涵蓋的範圍。"""
+    lny = ["2027-02-02", "2027-02-03", "2027-02-04", "2027-02-05", "2027-02-08", "2027-02-09", "2027-02-10"]
+    after = ["2027-02-11", "2027-02-12", "2027-02-15"]
+    path = tmp_path / "calendar_lny.json"
+    path.write_text(json.dumps(_v2_calendar_with_future("2027-02-01", after)), encoding="utf-8")
+    cal = producer.load_verified_calendar(path=path)
+    assert cal["exchange_closures"] == lny and cal["exchange_closures_through"] == "2027-02-15"
+    assert [producer.closure_kind(dt.date.fromisoformat(d), cal) for d in lny] == ["exchange_closure"] * 7
+    assert producer.closure_kind(dt.date(2027, 2, 11), cal) == "announced_session"  # 公告開市、尚未發生
+    # 訊號日當晚（中央 23:00 更新後手動執行，今日 = 訊號日）：下一個假設交易日同樣跳過春節
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2027, 2, 1, 15, 30, tzinfo=dt.timezone.utc))
+    assert producer.resolve_target(dt.date(2027, 2, 1), calendar=cal) == (dt.date(2027, 2, 11), "next_weekday_assumed")
+    # 春節第一天 07:15（訊號日 02-01）：目標日跳到春節後第一個公告開市日，守門正常
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2027, 2, 1, 23, 15, tzinfo=dt.timezone.utc))
+    assert producer.resolve_target(dt.date(2027, 2, 1), calendar=cal) == (dt.date(2027, 2, 11), "next_weekday_assumed")
+    # 操作者另外宣告的休市日（例如颱風）與交易所公告休市日要一起跳過
+    declared = frozenset({"2027-02-11"})
+    assert producer.resolve_target(dt.date(2027, 2, 1), calendar=cal, closures=declared) == (
+        dt.date(2027, 2, 12), "next_weekday_assumed")
+    both = producer.calendar_gate(dt.date(2027, 2, 1), dt.date(2027, 2, 1), dt.date(2027, 2, 12), cal, closures=declared)
+    assert both["reasons"] == [] and both["gap_days"][-1] == {"date": "2027-02-11", "status": "declared_closure"}
+    gate = producer.calendar_gate(dt.date(2027, 2, 1), dt.date(2027, 2, 1), dt.date(2027, 2, 11), cal)
+    assert gate["status"] == producer.GATE_OK and gate["reasons"] == []
+    assert gate["gap_days"] == [{"date": d, "status": "exchange_closure"} for d in lny]
+    assert gate["sessions_ahead_expected"] == 1
+    # 春節期間每天早上（中央沒有新資料）都一樣
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2027, 2, 9, 23, 15, tzinfo=dt.timezone.utc))
+    assert producer.resolve_target(dt.date(2027, 2, 1), calendar=cal) == (dt.date(2027, 2, 11), "next_weekday_assumed")
+    # 明確指定休市日為目標：沿用「已宣告休市日」碼
+    holiday = producer.calendar_gate(dt.date(2027, 2, 1), dt.date(2027, 2, 1), dt.date(2027, 2, 2), cal)
+    assert holiday["reasons"] == ["target_declared_closure"] and holiday["target_closure_kind"] == "exchange_closure"
+    # 春節後中央漏更新：公告開市的 02-11 沒有資料 → 中央可能落後（休市日不算進跨幾個交易日）
+    lag = producer.calendar_gate(dt.date(2027, 2, 1), dt.date(2027, 2, 1), dt.date(2027, 2, 12), cal)
+    assert lag["reasons"] == ["signal_gap_unverified"] and lag["sessions_ahead_expected"] == 2
+    assert [g["date"] for g in lag["gap_days"] if g["status"] == "announced_session"] == ["2027-02-11"]
+    assert "20270211 為交易所公告的交易日、中央尚無資料" in reader.calendar_gate_text(lag)
+    # 上櫃沒有公告（推不出春節休市）又跨過春節漏更新：公告開市日與無法解釋的平日並存，兩種說明都要寫、合成一段
+    path_m = tmp_path / "calendar_lny_no_tpex.json"
+    path_m.write_text(json.dumps(_v2_calendar_with_future("2027-02-01", {"TWSE": after, "TPEx": []})), encoding="utf-8")
+    mixed = producer.calendar_gate(dt.date(2027, 2, 1), dt.date(2027, 2, 1), dt.date(2027, 2, 12),
+                                   producer.load_verified_calendar(path=path_m))
+    assert mixed["reasons"] == ["signal_gap_unverified"] and mixed["sessions_ahead_expected"] == 9
+    assert mixed["gap_days"] == [{"date": d, "status": "unverified"} for d in lny] + [
+        {"date": "2027-02-11", "status": "announced_session"}]
+    assert "20270211 是交易所公告的交易日" in mixed["note_zh"]
+    assert "之間的平日 " + "、".join(d.replace("-", "") for d in lny) + " 不在已驗證日曆內" in mixed["note_zh"]
+    assert reader.calendar_gate_text(mixed) == (
+        "中央價格可能落後（20270211 為交易所公告的交易日、中央尚無資料；"
+        "20270202、20270203、20270204、20270205、20270208、20270209、20270210 不在已驗證日曆中、也非已知休市日）："
+        "本快照以 20270201 訊號日重發，目標日 20270212（可能跨 9 個交易日）；是否計分以結算時已驗證日曆為準")
+    # 任一市場沒有公告、或公告範圍較短：只推兩個市場都涵蓋的範圍
+    assert producer._exchange_closures("2027-02-01", {"TWSE": after, "TPEx": []}) == (frozenset(), None)
+    assert producer._exchange_closures("2026-12-30", {"TWSE": ["2026-12-31", "2027-01-04", "2027-02-11"],
+                                                      "TPEx": ["2026-12-31", "2027-01-04"]}) == (
+        frozenset({"2027-01-01"}), "2027-01-04")
+    # 任一市場公告開市就不是休市日（聯集）
+    assert producer._exchange_closures("2026-11-12", {"TWSE": ["2026-11-13", "2026-11-16"], "TPEx": ["2026-11-16"]}) == (
+        frozenset(), "2026-11-16")
+
+
+def test_settle_keeps_future_targets_pending(tmp_path):
+    """結算只用已發生的交易日：目標日在公告的未來開市日內但尚未發生 → pending，predict 預填的 sessions_ahead=1 清空；
+    目標日已在已驗證日曆內 → 照常 settled_h1。"""
+    path = tmp_path / "calendar.json"
+    path.write_text(json.dumps(_v2_calendar_with_future("2026-11-12", {"TWSE": ["2026-11-13", "2026-11-16"],
+                                                                       "TPEx": ["2026-11-13"]})), encoding="utf-8")
+    cal = producer.load_verified_calendar(path=path)
+    con = producer.ledger(tmp_path / "root")
+    rows = [("2026-11-11", "2026-11-12", "2330", "TWSE", None, None),
+            ("2026-11-12", "2026-11-13", "2330", "TWSE", 1, producer.STATUS_PENDING),
+            ("2026-11-12", "2026-11-13", "6488", "TPEx", 1, producer.STATUS_PENDING)]
+    for signal, target, stock, market, ahead, status in rows:
+        con.execute("INSERT INTO predictions (signal_date, target_date, stock_id, market, model_sha256, run_id, recorded_at, "
+                    "prospective, sessions_ahead, settlement_status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (signal, target, stock, market, "m" * 64, "run_" + signal, signal + "T23:17:00+00:00", 1, ahead, status))
+    con.commit()
+    counts = producer.settle_rows(con, cal, [("test_prices", {("2330", "2026-11-11"): 100.0, ("2330", "2026-11-12"): 101.0})])
+    got = con.execute("SELECT signal_date, stock_id, sessions_ahead, settlement_status, observed_return FROM predictions "
+                      "ORDER BY signal_date, stock_id").fetchall()
+    con.close()
+    assert got[0][:4] == ("2026-11-11", "2330", 1, producer.STATUS_SETTLED_H1) and abs(got[0][4] - 0.01) < 1e-12
+    assert got[1:] == [("2026-11-12", "2330", None, producer.STATUS_PENDING, None),
+                       ("2026-11-12", "6488", None, producer.STATUS_PENDING, None)]
+    assert counts["unverified_future"] == 2 and counts[producer.STATUS_SETTLED_H1] == 1
+
+
+def test_fixed_holiday_rules_and_precedence_over_exchange_closures(tmp_path):
+    """固定假日規則：補假遇到假日再順延（2027-04-06）、次年元旦逢週六的 12/31 補假（2021-12-31、2027-12-31）；
+    與上市 2027 年表核對。交易所公告休市日與固定假日重疊時（12-25、01-01）仍標固定假日。"""
+    weekdays = lambda year: [d.isoformat() for d in sorted(producer.fixed_closures(year)) if d.weekday() < 5]
+    assert weekdays(2027) == ["2027-01-01", "2027-03-01", "2027-04-05", "2027-04-06", "2027-04-30", "2027-09-28",
+                              "2027-10-11", "2027-10-25", "2027-12-24", "2027-12-31"]
+    assert weekdays(2026) == ["2026-01-01", "2026-02-27", "2026-04-03", "2026-04-06", "2026-05-01", "2026-09-28",
+                              "2026-10-09", "2026-10-26", "2026-12-25"]
+    assert producer.is_fixed_holiday(dt.date(2021, 12, 31)) and not producer.is_fixed_holiday(dt.date(2028, 1, 3))
+    assert all(d.year == 2027 for d in producer.fixed_closures(2027))
+    path = tmp_path / "calendar_1224.json"
+    path.write_text(json.dumps(_v2_calendar_with_future(
+        "2026-12-24", ["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-04"])), encoding="utf-8")
+    cal = producer.load_verified_calendar(path=path)
+    assert cal["exchange_closures"] == ["2026-12-25", "2027-01-01"]
+    assert [producer.closure_kind(d, cal) for d in (dt.date(2026, 12, 25), dt.date(2027, 1, 1))] == ["fixed_holiday"] * 2
+    gate = producer.calendar_gate(dt.date(2026, 12, 24), dt.date(2026, 12, 24), dt.date(2026, 12, 25), cal)
+    assert gate["reasons"] == ["target_fixed_closure"] and gate["target_closure_kind"] == "fixed_holiday"
+
+
+def test_predict_scheduled_path_skips_exchange_closure(tmp_path, monkeypatch):
+    """正式排程路徑（predict 不帶 --target-date）：cmd_predict 要把日曆交給 resolve_target，今日是交易所公告的休市日時
+    目標日跳到下一個公告開市日，manifest 的守門為 ok。"""
+    sessions = [d.strftime("%Y-%m-%d") for d in pd.bdate_range("2026-09-01", "2026-10-16")]
+    announced = {"TWSE": ["2026-10-20", "2026-10-21"], "TPEx": ["2026-10-20", "2026-10-21"]}  # 假設 10-19 公告休市
+    monkeypatch.setattr(producer, "load_verified_calendar",
+                        lambda path=None, routes=None, central=None: producer.calendar_from_sessions(
+                            {"TWSE": sessions, "TPEx": sessions}, path="fake", sha256="f" * 64, source="test",
+                            announced_sessions=announced))
+    root = _fake_predict(monkeypatch, tmp_path / "scheduled")
+    monkeypatch.setattr(producer, "now_utc", lambda: dt.datetime(2026, 10, 18, 23, 15, tzinfo=dt.timezone.utc))
+    producer.main(["predict", "--no-latest", "--root", str(root)])
+    m = _only_manifest(root)
+    assert (m["signal_date"], m["target_date"], m["target_date_source"]) == ("2026-10-16", "2026-10-20", "next_weekday_assumed")
+    assert m["calendar_gate"]["status"] == "ok" and m["calendar_gate"]["reasons"] == []
+    assert m["calendar_gate"]["gap_days"] == [{"date": "2026-10-19", "status": "exchange_closure"}]
+    # 中央最新日未知時，cmd_predict 讀出面板訊號日後會再推一次目標日：那次也要用日曆
+    root2 = _fake_predict(monkeypatch, tmp_path / "unknown_max")
+    monkeypatch.setattr(producer.pdata, "read_head", lambda sha=None, central=None: ("a" * 64, {"finmind_price_adj": {}}, {}))
+    producer.main(["predict", "--no-latest", "--root", str(root2)])
+    m2 = _only_manifest(root2)
+    assert (m2["target_date"], m2["target_date_source"]) == ("2026-10-20", "next_weekday_assumed")
+    assert m2["calendar_gate"]["reasons"] == ["central_max_date_unknown"]

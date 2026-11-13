@@ -15,7 +15,8 @@ Commands (run with D:\\stock\\.venv\\Scripts\\python.exe -B):
             state\\forward.sqlite3) is recorded in manifest "ledger" (status error) and the snapshot is still
             published; an unparseable --closed-day value or a missing central actual_max_date is annotated, never fatal.
             --strict-calendar (manual QA only) refuses instead (exit non-zero, predictions\\latest_refusal.json);
-            --closed-day / config\\announced_closures.json declare known closures; --allow-stale-signal is a no-op
+            --closed-day / config\\announced_closures.json declare known closures (exchange-announced closures are
+            derived from the central calendar's future_sessions); --allow-stale-signal is a no-op
   settle    fill observed returns in the forward ledger (keyed per row, sessions_ahead from the verified
             calendar) and refresh state/summary.json + state/forward_daily.csv; --resettle re-evaluates every
             row; --price-cache / --price-source cache read closes straight from the parquet object cache
@@ -62,9 +63,12 @@ CALENDAR_DIR = pdata.CENTRAL / "_calendar" / "verified"
 RESEARCH_DIR = Path(r"D:\TWStockData\program_data\stock_daily_c0\candidates\calibration_20261018")
 RESEARCH_OOS = RESEARCH_DIR / "results" / "holdout" / "h1pre_final_nogc_xs" / "preds.parquet"
 # 台股固定（國曆）休市日（紀念日及節日實施條例）：元旦、和平紀念日、兒童節、民族掃墓節（清明）、勞動節、國慶日；
-# 2025 年起增列教師節 9/28、光復節 10/25、行憲紀念日 12/25。逢週六於前一個上班日（週五）補假、逢週日於次一個上班日
-# （週一）補假；兒童節與清明同日時兒童節於前一日放假（逢週四則於後一日）。規則以已驗證日曆 2021-10～2026-10 核對：
-# 規則判休市而日曆有交易的日子為 0 個。農曆假日（春節、端午、中秋）、彈性放假與颱風休市無法由規則推得，須以
+# 2025 年起增列教師節 9/28、光復節 10/25、行憲紀念日 12/25。逢週六於前一個上班日、逢週日於次一個上班日補假（該日已是
+# 假日則再順延，例如 2027-04-04 兒童節逢週日、04-05 為清明，補假 04-06；次年元旦逢週六則本年 12/31 補假，例如
+# 2021-12-31、2027-12-31）；兒童節與清明同日時兒童節於前一日放假（逢週四則於後一日）。規則以已驗證日曆
+# 2021-10～2026-11 與上市 2027 年表核對：規則判休市而實際或公告開市的日子為 0 個。農曆假日（春節、端午、中秋）、
+# 彈性放假與颱風休市無法由規則推得：交易所已公告的由中央日曆的 future_sessions 推得（exchange_closures，只推上市、
+# 上櫃公告都涵蓋的範圍，見 _exchange_closures）；其餘（颱風等臨時休市、公告範圍之外）須以
 # config\announced_closures.json 或 --closed-day 宣告，否則只能靠已驗證日曆在事後（結算時）判定。
 TW_FIXED_HOLIDAYS = frozenset({(1, 1), (2, 28), (4, 4), (5, 1), (10, 10)})
 TW_FIXED_HOLIDAYS_FROM_2025 = frozenset({(9, 28), (10, 25), (12, 25)})
@@ -261,15 +265,48 @@ class PreopenCalendarError(RuntimeError):
         self.detail = detail
 
 
+def _exchange_closures(verified_through, announced_sessions):
+    """交易所公告的休市日（平日）：已驗證範圍（最後交易日與 verified_asof 較晚者）之後、到「每個市場的公告開市日都涵蓋」
+    的最後一天為止，不在任何市場公告開市日中的平日（與交易日軸相同取聯集：任一市場開市即非休市）。回傳 (frozenset of
+    ISO 日期, 涵蓋到的最後一天 ISO 或 None)。任一市場沒有公告時不推論。中央日曆只含已收錄的年表（新年度目前要人工補入，
+    例如上櫃 2027 年表）；某市場的年表用完後它的 future_sessions 是空的，整個推論停用，公告範圍之外的休市日要以
+    config\\announced_closures.json 或 --closed-day 宣告。"""
+    announced = {str(m): sorted({str(d)[:10] for d in days}) for m, days in dict(announced_sessions or {}).items()}
+    if not verified_through or not announced or any(not days for days in announced.values()):
+        return frozenset(), None
+    through = min(days[-1] for days in announced.values())
+    scheduled = set().union(*announced.values())
+    out, day, end = set(), dt.date.fromisoformat(verified_through) + dt.timedelta(days=1), dt.date.fromisoformat(through)
+    while day <= end:
+        if day.weekday() < 5 and day.isoformat() not in scheduled:
+            out.add(day.isoformat())
+        day += dt.timedelta(days=1)
+    return frozenset(out), through
+
+
 def calendar_from_sessions(sessions_by_market, *, path=None, sha256=None, source="sessions",
-                           verified_asof=None, future_targets_verified=False):
-    """以各市場 session 清單（ISO 日期）組成本模組使用的日曆物件（測試與工具用；正式路徑請用 load_verified_calendar）。"""
+                           verified_asof=None, future_targets_verified=False, announced_sessions=None):
+    """以各市場 session 清單（ISO 日期，已發生的交易日）組成本模組使用的日曆物件（測試與工具用；正式路徑請用
+    load_verified_calendar）。``announced_sessions``（各市場交易所公告、尚未發生的開市日）不進交易日軸，只用來推
+    exchange_closures 與 announced_sessions（已驗證範圍之後的公告開市日聯集，closure_kind 的 announced_session）。"""
     sessions = {str(m): sorted({str(d)[:10] for d in days}) for m, days in dict(sessions_by_market).items()}
     union = sorted(set().union(*sessions.values())) if sessions else []
+    last = union[-1] if union else None
+    asof = verified_asof or last
+    verified_through = max(last, asof) if last and asof else None
+    closures, through = _exchange_closures(verified_through, announced_sessions)
+    announced = sorted({str(d)[:10] for days in dict(announced_sessions or {}).values() for d in days
+                        if verified_through and str(d)[:10] > verified_through})
+    after_last, day = [], (dt.date.fromisoformat(last) + dt.timedelta(days=1)) if last else None
+    while day is not None and day.isoformat() <= verified_through:  # 最後交易日到 verified_asof 之間：已驗證的非交易日
+        if day.weekday() < 5:
+            after_last.append(day.isoformat())
+        day += dt.timedelta(days=1)
     return {"schema": CALENDAR_SCHEMA, "path": None if path is None else str(path), "sha256": sha256, "source": source,
-            "verified_asof": verified_asof or (union[-1] if union else None),
+            "verified_asof": asof,
             "future_targets_verified": bool(future_targets_verified), "sessions": sessions,
-            "all_sessions": union, "last_session": union[-1] if union else None}
+            "all_sessions": union, "last_session": last, "verified_closures_after_last": after_last,
+            "announced_sessions": announced, "exchange_closures": sorted(closures), "exchange_closures_through": through}
 
 
 def _read_calendar_file(path, expected_sha=None):
@@ -287,21 +324,30 @@ def _read_calendar_file(path, expected_sha=None):
 
 
 def _calendar_from_proof(proof, path, sha, source):
-    cal = calendar_from_sessions({m: proof["markets"][m]["sessions"] for m in proof["markets"]}, path=path, sha256=sha,
+    # 交易日軸只取 historical_sessions（已發生、已驗證的交易日）。中央 sessions = historical + future，future 是交易所
+    # 公告的未來開市日（尚未發生）；併入交易日軸會讓「日曆最後 session」變成未來日期，每天誤報 stale_signal「中央價格
+    # 落後」。future 只用來推交易所公告的休市日（exchange_closures），讓目標日與缺口判定認得春節等規則推不出的休市日。
+    markets = proof["markets"]
+    cal = calendar_from_sessions({m: markets[m]["historical_sessions"] for m in markets}, path=path, sha256=sha,
                                  source=source, verified_asof=proof["verified_asof"],
-                                 future_targets_verified=proof.get("future_targets_verified"))
+                                 announced_sessions={m: markets[m]["future_sessions"] for m in markets})
     cal["schema"] = proof["schema"]
+    # proof 的 future_targets_verified 只表示未來軸是否補滿（每個市場 63 個 session）；本物件的交易日軸不含未來 session，
+    # 不能事前驗證目標日，所以物件的 future_targets_verified 維持 False，proof 的原值另記。
+    cal["proof_future_targets_verified"] = proof.get("future_targets_verified")
     return cal
 
 
 def load_verified_calendar(path=None, routes=None, central=None):
-    """已驗證交易日曆（schema twstock-updater.verified-market-calendar.v2，交易日軸 markets.<市場>.sessions）。
+    """已驗證交易日曆（schema twstock-updater.verified-market-calendar.v2）。交易日軸取 markets.<市場>.historical_sessions。
 
     來源優先序：``path``（明確指定）→ 中央 head 的 official_calendar sidecar ``verified_market_calendar``
     （與價格同一個 head，驗 sha256）→ ``<central>\\_calendar\\verified\\<sha256>.json`` 中具有相符內容指紋的其他 v2 proof。
-    內容以 stock_daily_calendar.validate_verified_market_calendar_v2 驗證；只用 sessions，不碰實體 axis 檔。
-    注意：目前的日曆沒有未來 session（future_sessions 為空、future_axis_verified=false），所以只能判定
-    「已過去的日期是不是交易日」，不能事前證明目標日是下一個交易日。
+    內容以 stock_daily_calendar.validate_verified_market_calendar_v2 驗證；只用 historical_sessions／future_sessions
+    清單，不碰實體 axis 檔。
+    注意：中央日曆自 2026-11-11 起在 sessions（= historical + future）併入交易所公告的未來開市日（future_sessions，
+    尚未發生）。交易日軸只取已發生的 historical_sessions，所以只能判定「已過去的日期是不是交易日」，不能事前證明目標日
+    是下一個交易日；future_sessions 只用來推交易所公告的休市日（exchange_closures／exchange_closures_through）。
     """
     central = Path(central or pdata.CENTRAL)
     if path:
@@ -346,8 +392,9 @@ def load_verified_calendar(path=None, routes=None, central=None):
 def sessions_between(calendar, signal_date, target_date, market=None):
     """(sessions_ahead, status)：signal→target 之間的已驗證 session 數（signal 不計、target 計入）。
 
-    status：verified（兩端都是 session）、unverified_future（target 晚於日曆最後一個 session，無法判定）、
-    void_target_not_session、void_signal_not_session、void_target_not_after_signal。
+    status：verified（兩端都是 session）、unverified_future（target 晚於已驗證範圍，無法判定）、
+    void_target_not_session（含 target 落在最後一個 session 與 verified_asof 之間：中央已驗證的非交易日）、
+    void_signal_not_session、void_target_not_after_signal。
     """
     sess = (calendar.get("sessions") or {}).get(str(market)) if market else None
     sess = sess or calendar["all_sessions"]
@@ -357,7 +404,8 @@ def sessions_between(calendar, signal_date, target_date, market=None):
     if tgt <= sig:
         return None, STATUS_VOID_ORDER
     if tgt > sess[-1]:
-        return None, "unverified_future"
+        asof = str(calendar.get("verified_asof") or "")[:10]
+        return (None, STATUS_VOID_TARGET) if tgt <= asof else (None, "unverified_future")
     j = bisect.bisect_left(sess, tgt)
     if j >= len(sess) or sess[j] != tgt:
         return None, STATUS_VOID_TARGET
@@ -372,8 +420,8 @@ def qingming(year):
     return dt.date(year, 4, 4) if year % 4 in (0, 1) else dt.date(year, 4, 5)
 
 
-def fixed_closures(year):
-    """該年由規則可推得的休市日（固定假日 + 清明 + 補假），見 TW_FIXED_HOLIDAYS 的說明。"""
+def _holiday_base(year):
+    """該年的固定假日本身（不含補假）。"""
     base = {dt.date(year, m, d) for m, d in TW_FIXED_HOLIDAYS}
     if year >= 2025:
         base |= {dt.date(year, m, d) for m, d in TW_FIXED_HOLIDAYS_FROM_2025}
@@ -381,13 +429,23 @@ def fixed_closures(year):
     base.add(qm)
     if qm == dt.date(year, 4, 4):  # 兒童節與民族掃墓節同日：兒童節於前一日放假，逢星期四則於後一日
         base.add(dt.date(year, 4, 5) if qm.weekday() == 3 else dt.date(year, 4, 3))
+    return base
+
+
+def fixed_closures(year):
+    """該年由規則可推得的休市日（固定假日 + 清明 + 補假），見 TW_FIXED_HOLIDAYS 的說明。補假找「上班日」：逢週六往前、
+    逢週日往後，遇到週末或已是假日的日子再順延；次年元旦逢週六的補假（本年 12/31）也算在本年。"""
+    base = _holiday_base(year) | {d for d in _holiday_base(year + 1) if (d.month, d.day) == (1, 1)}
     out = set(base)
-    for day in base:
-        if day.weekday() == 5:
-            out.add(day - dt.timedelta(days=1))
-        elif day.weekday() == 6:
-            out.add(day + dt.timedelta(days=1))
-    return frozenset(out)
+    for day in sorted(base):
+        step = {5: -1, 6: 1}.get(day.weekday())
+        if step is None:
+            continue
+        sub = day + dt.timedelta(days=step)
+        while sub.weekday() >= 5 or sub in out:
+            sub += dt.timedelta(days=step)
+        out.add(sub)
+    return frozenset(d for d in out if d.year == year)
 
 
 def is_fixed_holiday(day):
@@ -395,24 +453,32 @@ def is_fixed_holiday(day):
 
 
 def is_known_closure(day, closures=()):
-    """週末、規則可推得的固定假日／補假，或已宣告的休市日（config\\announced_closures.json、--closed-day）。"""
+    """週末、規則可推得的固定假日／補假，或 ``closures`` 中的休市日（config\\announced_closures.json、--closed-day；
+    resolve_target 另併入交易所公告的休市日）。"""
     return day.weekday() >= 5 or is_fixed_holiday(day) or day.isoformat() in closures
 
 
 def closure_kind(day, calendar=None, closures=()):
-    """一個日期的休市判定來源：verified_session／verified_closure（在已驗證日曆範圍內）、weekend、fixed_holiday、
-    declared_closure、或 unverified（日曆範圍之外且規則／宣告都無法解釋）。"""
+    """一個日期的休市判定來源：verified_session／verified_closure（已驗證範圍內，即最後交易日與 verified_asof 較晚者
+    以前；verified_asof 晚於最後交易日時，中間的平日是中央已驗證的非交易日）、weekend、fixed_holiday、declared_closure、
+    exchange_closure（交易所公告的休市日，見 _exchange_closures）、announced_session（已驗證範圍之後、交易所公告的開市日，
+    尚未驗證；落在訊號日與目標日之間時，可能是中央價格落後或當天臨時休市），或 unverified（規則、宣告與交易所公告都無法
+    解釋）。"""
     iso = day.isoformat()
     if day.weekday() >= 5:
         return "weekend"
     if calendar and calendar.get("all_sessions"):
         last = calendar["last_session"]
-        if iso <= last:
+        if iso <= max(last, calendar.get("verified_asof") or last):
             return "verified_session" if iso in set(calendar["all_sessions"]) else "verified_closure"
     if is_fixed_holiday(day):
         return "fixed_holiday"
     if iso in closures:
         return "declared_closure"
+    if calendar and iso in set(calendar.get("exchange_closures") or ()):
+        return "exchange_closure"
+    if calendar and iso in set(calendar.get("announced_sessions") or ()):
+        return "announced_session"
     return "unverified"
 
 
@@ -447,7 +513,8 @@ def parse_closed_days(values):
 
 
 def next_session_guess(day, closures=()):
-    """下一個平日且非固定假日／已宣告休市日（日曆沒有未來 session 時的假設值）。"""
+    """下一個平日且非固定假日／``closures`` 中的休市日（resolve_target 傳入時含交易所公告的休市日）；交易日軸只含已發生
+    的交易日，所以是假設值。"""
     nxt = pdata.next_weekday(day)
     while is_known_closure(nxt, closures):
         nxt = pdata.next_weekday(nxt)
@@ -862,13 +929,16 @@ def cmd_calibrate(args):
 
 
 def resolve_target(signal_date, explicit=None, calendar=None, closures=()):
-    """目標日：明確指定 → 台北今日（晚於訊號日、是已驗證 session，或至少是平日且非固定假日／已宣告休市日）→
-    下一個假設交易日。
+    """目標日：明確指定 → 台北今日（晚於訊號日、是已驗證 session，或至少是平日且非固定假日／已宣告休市日／交易所
+    公告休市日／最後交易日到 verified_asof 之間已驗證的非交易日）→ 下一個假設交易日（同樣跳過這些休市日）。
 
-    已驗證日曆沒有未來 session，所以除了 explicit 與「今日已在日曆內」之外都是假設值（target_date_source 如實記錄）。
+    交易日軸只含已發生的 historical_sessions（交易所公告的未來開市日不當成已驗證交易日），所以除了 explicit 與「今日
+    已在日曆內」之外都是假設值（target_date_source 如實記錄）。
     """
     if explicit:
         return dt.date.fromisoformat(explicit), "explicit"
+    closures = (frozenset(closures or ()) | frozenset((calendar or {}).get("exchange_closures") or ())
+                | frozenset((calendar or {}).get("verified_closures_after_last") or ()))
     today = now_utc().astimezone(TAIPEI).date()
     if today > signal_date:
         if calendar and today.isoformat() in set(calendar.get("all_sessions") or ()):
@@ -959,7 +1029,7 @@ def _ymd(day):
     return str(day)[:10].replace("-", "")
 
 
-GAP_EXPLAINED = ("verified_closure", "weekend", "fixed_holiday", "declared_closure")
+GAP_EXPLAINED = ("verified_closure", "weekend", "fixed_holiday", "declared_closure", "exchange_closure")
 # 守門狀態（manifest calendar_gate.status；全部成立的代碼列在 reasons）。依嚴重度排序：目標日問題（結算必 void）→ 日曆不可用
 # → 日曆落後 → 中央價格落後 → 訊號日非交易日 → 缺口無法解釋 → 中央最新日未知 → 宣告檔無效 → --closed-day 格式錯。使用者 2026-11-01 裁示
 # 「舊資料不會阻擋程式執行及報告發布」：任一不為 ok 只標示 degraded 並照常發布；只有 --strict-calendar（手動 QA）才拒發。
@@ -968,7 +1038,9 @@ GATE_STATUS_ORDER = ("target_weekend", "target_fixed_closure", "target_declared_
                      "target_not_after_signal", "calendar_unavailable", "calendar_stale", "stale_signal", "signal_not_session",
                      "signal_gap_unverified", "central_max_date_unknown", "closures_file_invalid", "closed_day_cli_invalid")
 GATE_TARGET_CODES = {"weekend": "target_weekend", "fixed_holiday": "target_fixed_closure",
-                     "declared_closure": "target_declared_closure", "verified_closure": "target_verified_closure"}
+                     "declared_closure": "target_declared_closure", "verified_closure": "target_verified_closure",
+                     # 交易所公告的休市日沿用「已宣告休市日」（讀取端與各報告已有這個碼的文字）
+                     "exchange_closure": "target_declared_closure"}
 GATE_TARGET_WHY_ZH = {"target_weekend": "週末", "target_fixed_closure": "固定假日／補假", "target_declared_closure": "已宣告休市日",
                       "target_verified_closure": "已驗證日曆內的非交易日", "target_not_after_signal": "不晚於訊號日"}
 GATE_LEGACY_CODES = {  # v2 的 preopen_* 原因碼：strict 模式的拒發紀錄與結束訊息沿用
@@ -986,24 +1058,28 @@ def calendar_gate(signal, px_max, target, calendar, calendar_error=None, closure
 
     ``status``（GATE_STATUS_ORDER 中最嚴重的一項；全部成立者列在 ``reasons``）：
     - target_weekend／target_fixed_closure／target_declared_closure／target_verified_closure／target_not_after_signal：
-      目標日為週末、規則可推得的固定假日／補假、已宣告休市日、已驗證日曆內的非交易日、不晚於訊號日（結算時該列標 void、不計分）。
+      目標日為週末、規則可推得的固定假日／補假、已宣告休市日（含交易所公告的休市日 exchange_closure）、已驗證日曆內的
+      非交易日、不晚於訊號日（結算時該列標 void、不計分）。
     - calendar_unavailable：中央日曆缺檔／雜湊不符／格式錯（``calendar_error_code``）；目標日仍依 resolve_target 的規則假設。
-    - calendar_stale：訊號日晚於已驗證日曆最後 session；只能註記未確認，不能當成已驗證交易日。
+    - calendar_stale：訊號日晚於已驗證範圍（最後 session 與 verified_asof 較晚者）；只能註記未確認，不能當成已驗證交易日。
     - stale_signal：面板訊號日 ≠ 中央價格 actual_max_date，或訊號日 < 日曆最後一個 session（中央價格落後，舊訊號重發；
-      結算時 sessions_ahead≥2 的列標 settled_multi_session、不計分）。注意 predict 預設取與價格同一個 head 的 sidecar 日曆，
-      verified_asof 與價格最新日同步，中央落後時這條通常不會觸發（2026-10-29 07:16 的事故即如此），要靠下一條。
-    - signal_not_session：訊號日在日曆範圍內但不是交易日。
-    - signal_gap_unverified：訊號日與目標日之間有平日既不在已驗證日曆內、也不是固定假日／補假、也未被宣告休市
-      （config\\announced_closures.json、--closed-day）：最可能是中央價格落後；颱風等臨時休市後的第一個交易日早上也會出現，
-      宣告後即為 ok。
+      結算時 sessions_ahead≥2 的列標 settled_multi_session、不計分）。predict 預設取與價格同一個 head 的 sidecar 日曆，
+      verified_asof 通常與價格最新日相同（日曆也可能先於價格，例如 2026-11-13 的 head：日曆 11-13、價格 11-12，這時由
+      第二種比對標出）；中央整個落後時兩種比對都不會觸發（2026-10-29 07:16 的事故即如此），要靠 signal_gap_unverified。
+    - signal_not_session：訊號日在已驗證範圍內但不是交易日（含最後 session 到 verified_asof 之間已驗證的非交易日）。
+    - signal_gap_unverified：訊號日與目標日之間有平日無法解釋：交易所公告的開市日中央卻沒有資料（gap 狀態
+      announced_session），或不在已驗證日曆內、也不是固定假日／補假、也未被宣告休市（config\\announced_closures.json、
+      --closed-day）、也不在交易所公告範圍內（unverified）。最可能是中央價格落後；颱風等臨時休市後的第一個交易日早上也會
+      出現（中央要等下一個交易日的資料才證得休市，當晚分不出來），宣告後即為 ok。已標 stale_signal 時，公告開市日的缺口
+      由中央落後解釋，只記在 note_zh，不另標本項（讀取端不會出現兩段重複、互相矛盾的說明）。
     - central_max_date_unknown（v3.1）：中央 head 缺 finmind_price_adj.actual_max_date 或無法解析（``px_max`` 為 None）：
       訊號日無法與中央最新日核對（不是「中央落後」；與日曆的比對照常）。
     - closures_file_invalid：宣告檔無法使用（已忽略，仍發布）。
     - closed_day_cli_invalid（v3.1）：--closed-day 的值不是 YYYY-MM-DD（已忽略，仍發布；``closed_day_invalid`` 列出原值）。
     任一不為 ok：manifest degraded=true、``reasons`` 併入 degraded_reasons；``refuse`` 只在 ``strict``（--strict-calendar）
-    且不為 ok 時為 True。``sessions_ahead_expected``：已驗證時為實際 session 數，否則 1 + 缺口中已驗證交易日與無法解釋平日的
-    數目（中央落後時這些平日很可能是交易日）。日曆沒有未來 session，目標日晚於日曆最後一個 session 時只能標示 unverified_future
-    （屬 ok），無法事前證明它是下一個交易日。
+    且不為 ok 時為 True。``sessions_ahead_expected``：已驗證時為實際 session 數，否則 1 + 缺口中已驗證交易日、公告開市日與
+    無法解釋平日的數目（中央落後時這些平日很可能是交易日）。交易日軸只含已發生的交易日（公告的未來開市日不算已驗證），
+    目標日晚於日曆最後一個 session 時只能標示 unverified_future（屬 ok），無法事前證明它是下一個交易日。
     """
     note = []
     closures = frozenset(closures or ())
@@ -1033,15 +1109,25 @@ def calendar_gate(signal, px_max, target, calendar, calendar_error=None, closure
     else:
         gate["calendar_status"] = "ok"
         gate["calendar_source"] = {k: calendar.get(k) for k in ("path", "sha256", "verified_asof", "last_session", "source",
-                                                                 "future_targets_verified", "schema")}
+                                                                 "future_targets_verified", "schema", "exchange_closures_through",
+                                                                 "proof_future_targets_verified")}
         same_head = calendar.get("source") == "head_sidecar"
-        gate["calendar_vintage"] = {"source": calendar.get("source"), "verified_asof": calendar.get("verified_asof"),
-                                    "last_session": calendar.get("last_session"), "same_head_as_prices": same_head,
-                                    "sidecar_error": calendar.get("sidecar_error"),
-                                    "note_zh": ("日曆與價格出自同一個 head，verified_asof 與價格最新日同步；『訊號日 = 日曆最後 session』"
-                                                "不能證明中央沒有落後" if same_head else "日曆與價格不是同一個版本")}
+        asof_iso, last = calendar.get("verified_asof"), calendar["last_session"]
+        if not same_head:
+            vintage_note = "日曆與價格不是同一個版本"
+        elif px_max is None:
+            vintage_note = f"日曆與價格出自同一個 head，價格最新日未知，無法與日曆最後交易日 {_ymd(last)} 比對"
+        elif px_max.isoformat() == last:
+            extra = f"（verified_asof {_ymd(asof_iso)}，之間為已驗證的非交易日）" if asof_iso and last and asof_iso > last else ""
+            vintage_note = (f"日曆與價格出自同一個 head，日曆最後交易日與價格最新日都是 {_ymd(last)}{extra}；"
+                            "『訊號日 = 日曆最後 session』不能證明中央沒有落後")
+        else:
+            vintage_note = f"日曆與價格出自同一個 head，但日曆最後交易日 {_ymd(last)} 與價格最新日 {_ymd(px_max)} 不同"
+        gate["calendar_vintage"] = {"source": calendar.get("source"), "verified_asof": asof_iso,
+                                    "last_session": last, "same_head_as_prices": same_head,
+                                    "sidecar_error": calendar.get("sidecar_error"), "note_zh": vintage_note}
         sessions = set(calendar["all_sessions"])
-        last = calendar["last_session"]
+        verified_through = max(last, asof_iso or last) if last else last  # 已驗證範圍：最後交易日與 verified_asof 較晚者
         gate["last_verified_session"] = last
         gate["signal_is_verified_session"] = signal.isoformat() in sessions
         gate["signal_is_last_verified_session"] = signal.isoformat() == last
@@ -1052,11 +1138,12 @@ def calendar_gate(signal, px_max, target, calendar, calendar_error=None, closure
             add("stale_signal")
             who = f"中央價格最新日 {_ymd(px_max)}" if px_max is not None else f"面板訊號日 {_ymd(signal)}"
             note.append(f"{who} 早於已驗證日曆最後交易日 {_ymd(last)}（中央價格落後，舊訊號重發）")
-        if last and signal.isoformat() > last:
+        if verified_through and signal.isoformat() > verified_through:
             add("calendar_stale")
             gate["calendar_status"] = "stale"
             note.append(f"訊號日 {_ymd(signal)} 晚於已驗證日曆最後交易日 {_ymd(last)}（日曆落後於價格，無法驗證訊號日）")
-        elif calendar["all_sessions"] and calendar["all_sessions"][0] <= signal.isoformat() <= last and not gate["signal_is_verified_session"]:
+        elif (calendar["all_sessions"] and calendar["all_sessions"][0] <= signal.isoformat() <= verified_through
+              and not gate["signal_is_verified_session"]):
             add("signal_not_session")
             note.append(f"訊號日 {_ymd(signal)} 不是已驗證交易日")
         n, status = sessions_between(calendar, signal, target)
@@ -1076,8 +1163,10 @@ def calendar_gate(signal, px_max, target, calendar, calendar_error=None, closure
     if px_max is None:  # v3.1：中央最新日未知只註記，不當成「中央落後」（1900-01-01 代入會誤標 stale_signal）
         add("central_max_date_unknown")
         note.append("中央價格最新日未知（head 中繼資料缺 finmind_price_adj.actual_max_date 或無法解析），訊號日以面板最後日為準、未與中央核對")
-    # 訊號日與目標日之間的平日：每一天都要能解釋（已驗證休市、固定假日／補假、已宣告休市），否則視為中央落後
-    gap, unexplained, assumed_sessions = [], [], 0
+    # 訊號日與目標日之間的平日：每一天都要能解釋（已驗證休市、固定假日／補假、已宣告休市、交易所公告休市），否則視為
+    # 中央可能落後。交易所公告的開市日（announced_session）中央卻沒有資料：可能是中央落後，也可能是颱風等臨時休市——
+    # 中央要等下一個交易日的資料才證得休市，當晚分不出來，所以同樣只標 signal_gap_unverified（不下「中央落後」定論）
+    gap, unexplained, announced_gap, assumed_sessions = [], [], [], 0
     day = signal + dt.timedelta(days=1)
     while day < target:
         if day.weekday() < 5:
@@ -1085,11 +1174,19 @@ def calendar_gate(signal, px_max, target, calendar, calendar_error=None, closure
             gap.append({"date": day.isoformat(), "status": kind})
             if kind == "unverified":
                 unexplained.append(day)
-            if kind in ("unverified", "verified_session"):
+            elif kind == "announced_session":
+                announced_gap.append(day)
+            if kind in ("unverified", "verified_session", "announced_session"):
                 assumed_sessions += 1
         day += dt.timedelta(days=1)
     gate["gap_days"] = gap
     gate["sessions_ahead_expected"] = n if (calendar is not None and status == "verified") else 1 + assumed_sessions
+    if announced_gap:
+        if "stale_signal" not in reasons:  # 已確定中央價格落後時，這些日子由落後解釋，不另加一段（讀取端不重複、不矛盾）
+            add("signal_gap_unverified")
+        note.append("訊號日與目標日之間的 " + "、".join(_ymd(d) for d in announced_gap)
+                    + " 是交易所公告的交易日，中央尚無資料：中央價格可能落後，或當天臨時休市（颱風等；請以 --closed-day 或 "
+                      "config\\announced_closures.json 宣告）")
     if unexplained:
         add("signal_gap_unverified")
         note.append("訊號日與目標日之間的平日 " + "、".join(_ymd(d) for d in unexplained)
@@ -1758,7 +1855,8 @@ def main(argv=None):
                          "latest.json 不更新")
     ap.add_argument("--closed-day", nargs="+", default=None, metavar="YYYY-MM-DD",
                     help="predict: 宣告已知的臨時休市日（颱風假等），使訊號日與目標日之間的該平日不被視為中央落後（gate 變 ok）；"
-                         "長期已公告的休市日請放在 <root>\\config\\announced_closures.json。格式 YYYY-MM-DD；無法解析的值會被忽略、"
+                         "上市、上櫃都已公告且中央已收錄範圍內的休市日會自動推得，此外長期已公告的休市日請放在 "
+                         "<root>\\config\\announced_closures.json。格式 YYYY-MM-DD；無法解析的值會被忽略、"
                          "以 calendar_gate 的 closed_day_cli_invalid 註記並照常發布（不中止）")
     ap.add_argument("--resettle", action="store_true", help="settle: 重算帳冊全部列（含已結算列）")
     ap.add_argument("--price-source", default="panel", choices=["panel", "cache"],
