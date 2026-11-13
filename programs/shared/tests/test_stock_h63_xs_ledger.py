@@ -468,6 +468,21 @@ def test_pending_stock_that_leaves_the_head_is_archived_once(tmp_path):
     assert len(archived) == 1
 
 
+def test_calendar_ahead_of_the_panel_does_not_freeze_early(tmp_path):
+    # 已驗證日曆比價格新（例如價格路由停滯 6 個交易日）：日曆上決策日後已有 68 個交易日，面板只有 62 個，
+    # 第 63 個自身價格列還沒進來。凍結只寫一次，提前凍結會讓這個決策日永久以空標籤離開事先登記的檢討
+    write_fixture(tmp_path, signal_date="2026-10-16")
+    decision = pd.Timestamp("2026-10-16")
+    calendar = pd.bdate_range(decision, periods=1 + ledger.core.HORIZON + ledger.FREEZE_EXTRA_SESSIONS)
+    stocks = {"2330": None, "2317": None, "6488": None, "2454": None}
+    out = ledger.settle(tmp_path, _panel(calendar[:-6], decision, stocks), calendar, price_vintage="lagging")
+    assert out["frozen_now"] == 0 and out["status_counts"] == {"pending": 4}
+    assert not list((tmp_path / "state" / "settlement" / "frozen").glob("*.parquet"))
+    # 價格補齊、第 63 個自身價格列到了以後才凍結，標籤是成熟值
+    out = ledger.settle(tmp_path, _panel(calendar, decision, dict.fromkeys(stocks, 0.05)), calendar, price_vintage="caught_up")
+    assert out["frozen_now"] == 1 and out["status_counts"] == {"matured": 4}
+
+
 def test_verdict_rules_on_synthetic_blocks():
     blocks = pd.DataFrame({"valid": [True] * 4, "ic": [0.1] * 4, "auc": [0.56] * 4, "brier": [0.247] * 4,
                            "coverage": [0.80] * 4, "accuracy": [0.55] * 4, "always_beats": [0.5] * 4,

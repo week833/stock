@@ -475,12 +475,19 @@ def settle(root: Any, P: pd.DataFrame, sessions: Optional[pd.DatetimeIndex], *, 
            ) -> Dict[str, Any]:
     """Derived settlement of every indexed block against the current panel P (r63 and label_end of the 63rd own
     price row, one vintage).  Writes state\\settlement\\settled_rows.parquet (replaced), freezes matured blocks
-    once (frozen\\<block>.parquet + maturity_log.jsonl) and archives prices of pending stocks that left the head."""
+    once (frozen\\<block>.parquet + maturity_log.jsonl) and archives prices of pending stocks that left the head.
+
+    ``sessions`` (verified, already-traded sessions) is cut at the panel's last date: the session counts behind
+    no_label, freezing, prospective and void use only sessions the panel also has.  A calendar ahead of the prices
+    (e.g. a stalled price route) must not freeze a block whose 63rd own price row is not in the panel yet — a frozen
+    block is written once, so it would leave the pre-registered review for good."""
     paths = Paths(root)
     lines, chain = read_index(paths)
     out: Dict[str, Any] = {"blocks": len(lines), "chain": chain, "frozen_now": 0, "errors": []}
     if not lines:
         return out
+    if sessions is not None and len(P):
+        sessions = sessions[sessions <= pd.Timestamp(P["decision_date"].max())]
     key = P[["stock_id", "decision_date", "r63", "label_end", "close"]].copy()
     key["decision_date"] = key["decision_date"].dt.strftime("%Y-%m-%d")
     key["label_end"] = [_iso(v) for v in key["label_end"]]

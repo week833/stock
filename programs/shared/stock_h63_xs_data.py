@@ -327,7 +327,15 @@ def prune_object_cache(cache_dir: Path, sig: str, keep: Sequence[str] = ()) -> L
 # verified calendar
 # ------------------------------------------------------------------------------------------------------------------
 def verified_calendar(head: PinnedHead) -> Dict[str, Any]:
-    """{'status', 'sessions' (DatetimeIndex, TWSE = TPEx), 'verified_asof', 'sha256'}; never raises."""
+    """{'status', 'sessions' (DatetimeIndex of verified, already-traded sessions, TWSE = TPEx), 'verified_asof',
+    'sha256'}; never raises.
+
+    Since 2026-11-11 the central v2 calendar lists ``sessions = historical_sessions + future_sessions`` per market;
+    the future part is the exchanges' announced schedule (not traded yet, and of different length per market: TWSE
+    about 63 sessions, TPEx only to the end of its last published year).  Only ``historical_sessions`` are used: the
+    calendar check compares them with the panel, and settlement counts the sessions elapsed since a decision date
+    (no_label, freeze, prospective), which must never include sessions that have not happened.  A market without
+    ``historical_sessions`` makes the calendar unavailable rather than falling back to ``sessions``."""
     ref = head.calendar or {}
     out: Dict[str, Any] = {"status": "calendar_unavailable", "sessions": None, "verified_asof": ref.get("verified_asof"),
                            "sha256": ref.get("sha256"), "ref": ref.get("ref")}
@@ -343,12 +351,16 @@ def verified_calendar(head: PinnedHead) -> Dict[str, Any]:
             if m.get("calendar_verified") is not True:
                 out["detail"] = market + " calendar not verified"
                 return out
-            sets.append(pd.DatetimeIndex(pd.to_datetime([str(x) for x in m.get("sessions") or []])).normalize())
+            days = m.get("historical_sessions")
+            if not isinstance(days, list) or not days:  # empty: nothing to check the panel against
+                out["detail"] = market + " historical_sessions missing"
+                return out
+            sets.append(pd.DatetimeIndex(pd.to_datetime([str(x) for x in days])).normalize())
         if not sets[0].equals(sets[1]):
-            out["detail"] = "TWSE and TPEx sessions differ"
+            out["detail"] = "TWSE and TPEx historical sessions differ"
             return out
         out.update(status="ok", sessions=sets[0].sort_values(), verified_asof=doc.get("verified_asof"))
-    except (OSError, KeyError, TypeError, ValueError) as exc:
+    except (OSError, KeyError, TypeError, ValueError, AttributeError) as exc:  # e.g. markets that are not objects
         out["detail"] = type(exc).__name__ + ": " + str(exc)
     return out
 
