@@ -1,0 +1,39 @@
+{
+  "schema_version": "h63_xs_daily_schedule_definition_v1",
+  "purpose": "H63 三個月相對強弱（U7，ADR-0009）每日流程的工作排程定義：結算前瞻紀錄、每 63 個交易日例行重擬、產生今日全市場快照（同時是前瞻紀錄區塊）、檢討。目前使用者（互動式登入、一般權限）執行，週一至週五，台北時間。需使用者另行同意才註冊（INSTALL_H63_XS_SCHEDULE.ps1 -Register -ConfirmRegister）。",
+  "timezone": "Taipei Standard Time",
+  "plan_document": "D:\\stock\\docs\\decisions\\ADR-0009-h63-u7-cross-sectional-parallel-model.md",
+  "principal": {
+    "run_as": "current_user",
+    "logon_type": "Interactive",
+    "run_level": "Limited"
+  },
+  "common_settings": {
+    "days_of_week": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "start_when_available": true,
+    "wake_to_run": true,
+    "multiple_instances": "IgnoreNew",
+    "allow_start_if_on_batteries": true,
+    "dont_stop_if_going_on_batteries": true,
+    "dont_stop_on_idle_end": true
+  },
+  "tasks": [
+    {
+      "task_name": "TWStock H63 XS Daily 07-20",
+      "start_time": "07:20",
+      "description": "H63 三個月相對強弱（U7）：結算 → 到期才重擬斜率 → 今日全市場快照（前瞻紀錄區塊）→ 檢討。07:20 晚於前一晚 23:00 中央更新、早於 09:00 開盤，紀錄一定在次一交易日開盤前。",
+      "executable": "C:\\Windows\\System32\\cmd.exe",
+      "arguments": "/d /c call D:\\stock\\programs\\shared\\RUN_H63_XS_DAILY.cmd",
+      "working_directory": "D:\\stock\\programs\\shared",
+      "execution_time_limit": "PT20M"
+    }
+  ],
+  "external_tasks": [],
+  "do_not_register": []
+}

@@ -3,11 +3,15 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('full', 'global')][string]$Mode,
     [int]$MaxAttempts = 3,
     [int]$RetryDelaySeconds = 1800,
+    [int]$MaxWallMinutes = 330,
     [switch]$DryRun
 )
 # Central market-data update wrapper for the pre-open daily schedule (ADR-0008).
 #   full   : enabled-route incremental update (prices, chips, global, revenue, ...). Retries when the
-#            exit code is not 0 (success) or 10 (published with a partial route).
+#            exit code is not 0 (success) or 10 (published with a partial route), except 27
+#            (publication/refinement incomplete for this scope; a same-night retry repeats it) and 28.
+#            A retry is started only if the last attempt's duration still fits inside MaxWallMinutes
+#            (below the task's 6h limit), so an attempt is never killed mid-run by the scheduler.
 #   global : single-route update of global_market_history (last night's US close). No retry.
 # Both run D:\TWStockUpdater with its own venv and TWSTOCK_UPDATER_ROOT=D:\TWStockData\updater_runtime,
 # exactly the commands documented in PREOPEN_DAILY_SCHEDULE_PLAN_20261018.md. ASCII only on purpose.
@@ -60,10 +64,15 @@ if ($DryRun) {
 }
 
 Set-Location -LiteralPath $updaterRoot
+# Python writes UTF-8 (PYTHONIOENCODING); decode it as UTF-8, not the console code page.
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) }
+catch { Write-Log ("WARN: console output encoding not set: {0}" -f $_.Exception.Message) }
+$wallStart = Get-Date
 $exitCode = 1
 try {
     for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
         Write-Log ("attempt {0}/{1} start" -f $attempt, $MaxAttempts)
+        $attemptStart = Get-Date
         $nativeFailure = $null
         $previousErrorPreference = $ErrorActionPreference
         try {
@@ -97,7 +106,17 @@ try {
             Write-Log 'WAITING_CAPACITY: stopping automatic retries; non-success exit preserved'
             break
         }
+        if ($exitCode -eq 27) {
+            Write-Log 'PUBLICATION_INCOMPLETE: exit=27; stopping automatic retries (same scope repeats it); non-success exit preserved'
+            break
+        }
         if ($attempt -lt $MaxAttempts) {
+            $attemptSeconds = ((Get-Date) - $attemptStart).TotalSeconds
+            $projectedEnd = (Get-Date).AddSeconds($RetryDelaySeconds + $attemptSeconds)
+            if ($projectedEnd -gt $wallStart.AddMinutes($MaxWallMinutes)) {
+                Write-Log ("NO_TIME_FOR_RETRY: last attempt took {0:N0}s; a retry would end after the {1}-minute budget; non-success exit preserved" -f $attemptSeconds, $MaxWallMinutes)
+                break
+            }
             Write-Log ("waiting {0}s before retry" -f $RetryDelaySeconds)
             Start-Sleep -Seconds $RetryDelaySeconds
         }

@@ -106,9 +106,10 @@ def test_choose_reports_each_unavailable_reason(preopen_fixture):
     fresh = preopen_source.choose("auto", "default", D)
     assert fresh.active and fresh.status == "available" and fresh.engine in {"pyarrow", "fastparquet", "duckdb"}
     stale = preopen_source.choose("auto", "default", NEXT_D)
-    assert stale.reason == "preopen_stale" and not stale.active
-    with pytest.raises(preopen_source.PreopenRequiredError, match="preopen_required_unavailable:preopen_stale"):
-        preopen_source.choose("preopen", "cli", NEXT_D)
+    assert stale.active and stale.reason is None
+    assert stale.snapshot.meta["snapshot_freshness"]["status"] == "stale"
+    assert "沿用較舊快照" in stale.describe_text
+    assert preopen_source.choose("preopen", "cli", NEXT_D).active
     snapshot = root / meta["snapshot"]
     snapshot.write_bytes(snapshot.read_bytes() + b"tampered")
     tampered = preopen_source.choose("auto", "default", D)
@@ -306,24 +307,32 @@ def test_predict_uses_neutral_disclosure_for_unknown_recipe(loaded_scope, model,
         assert text not in html and text not in strings
 
 
-def test_predict_auto_falls_back_to_c0_when_snapshot_is_stale(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+def test_predict_auto_reuses_an_older_snapshot_with_a_note(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
     _write(preopen_fixture, signal_date=T, target_date=D)
     captured, payload, html, output, manifest = _run(loaded_scope(tpex_index=fx.D_INDEX), model, monkeypatch, tmp_path)
     context = payload["report_context"]
-    assert payload["model_source"] == manifest["model_source"] == context["model_source"] == "c0"
-    assert payload["preopen_status"]["status"] == "unavailable"
-    assert payload["preopen_status"]["reason"] == manifest["preopen_status"]["reason"] == "preopen_stale"
-    assert payload["preopen_meta"] is None and payload["model_disclosure"] is None
-    assert context["ranking_status"] != "preopen_model_ranking"
-    assert context["ranking_status"] == context["c0_ranking_status"]
-    banner = "開盤前版不可用（preopen_stale：開盤前版快照的訊號日不是本次台股最新交易日），本次 H1 改用 C0 基準"
-    assert banner in html and re.search(r'class="fallback">開盤前版不可用（preopen_stale', html)
-    assert banner in _xlsx_strings(output)
-    assert "研究展示（最多十檔）" in html and "可交易名次" not in html
-    assert len(payload["predictions"]) == len(fx.STOCKS)
-    # 回退警示（含原因代碼）只在紅色提示寫一次；meta.warnings 只留上游資料警告。
-    assert payload["model_source_note"] == banner and html.count(banner) == 1
-    assert not any(str(line).startswith("開盤前版不可用") for line in payload["meta"]["warnings"])
+    assert payload["model_source"] == manifest["model_source"] == context["model_source"] == "preopen"
+    assert payload["preopen_status"]["status"] == "available" and payload["preopen_status"]["reason"] is None
+    assert payload["preopen_meta"]["signal_date"] == T and payload["preopen_meta"]["target_date"] == D
+    assert context["ranking_status"] == "preopen_model_ranking"
+    assert "沿用較舊快照" in html and "沿用較舊快照" in _xlsx_strings(output)
+    assert "原目標日" in html and "開盤前版可交易 Top10" in html
+    assert {row["snapshot_signal_date"] for row in payload["predictions"] if row["model_source"] == "preopen"} == {T.replace("-", "")}
+
+
+def test_predict_stale_snapshot_states_original_target_once(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+    # 共用 reader 的「沿用較舊快照…保留原目標日」與日期提醒同時出現：HTML、Excel 各只在完整日期提醒寫一次原目標日，
+    # 沿用較舊快照警示照列；原始說明保留於報告資料。
+    _write(preopen_fixture, signal_date=T, target_date=D)
+    _, payload, html, output, _ = _run(loaded_scope(tpex_index=fx.D_INDEX), model, monkeypatch, tmp_path)
+    note, strings = payload["preopen_meta"]["target_note_zh"], _xlsx_strings(output)
+    signal, original = T.replace("-", ""), D.replace("-", "")
+    assert note.startswith(reporting.PREOPEN_DATE_REMINDER + original + "；")
+    for text in (html, strings):
+        assert text.count(note) == 1 and text.count("原目標日") == 1 and "保留原目標日" not in text
+        assert "沿用較舊快照：訊號日 " + signal in text and "訊號日 " + signal + " → 目標日" not in text
+    assert "（本報告日曆；" not in html
+    assert "保留原目標日 " + original in payload["preopen_meta"]["describe"]
 
 
 def test_predict_preopen_required_fails_before_forward_ledger(loaded_scope, model, monkeypatch, tmp_path):
@@ -370,19 +379,25 @@ def test_predict_forced_c0_keeps_old_behaviour_with_fresh_snapshot(loaded_scope,
         assert {key: value for key, value in top_row.items() if key not in comparison_fields} == prediction
 
 
-def test_predict_falls_back_when_snapshot_target_differs_from_verified_session(loaded_scope, model, monkeypatch,
-                                                                              tmp_path, preopen_fixture):
+def test_predict_keeps_preopen_when_snapshot_target_differs_from_verified_session(loaded_scope, model, monkeypatch,
+                                                                                 tmp_path, preopen_fixture):
     _write(preopen_fixture, target_date=fx.DATES[fx.D_INDEX + 2])
-    _, payload, html, _, _ = _run(loaded_scope(), model, monkeypatch, tmp_path)
-    assert payload["model_source"] == "c0"
-    assert payload["preopen_status"]["reason"] == "preopen_target_mismatch"
-    assert "開盤前版不可用（preopen_target_mismatch" in html
+    _, payload, html, output, _ = _run(loaded_scope(), model, monkeypatch, tmp_path)
+    assert payload["model_source"] == "preopen"
+    assert payload["preopen_status"]["reason"] is None
+    assert "原目標日" in payload["preopen_meta"]["target_note_zh"] and "原目標日" in html
+    assert payload["preopen_meta"]["target_date"] == fx.DATES[fx.D_INDEX + 2]
+    # 日期提醒接在快照說明的模型雜湊之後；顯示時只去掉雜湊，日期提醒在 HTML 與 Excel 各保留一次。
+    note = payload["preopen_meta"]["target_note_zh"]
+    assert html.count(note) == 1 and _xlsx_strings(output).count(note) == 1
+    assert "｜模型 " not in html and "｜模型 " not in _xlsx_strings(output)
 
 
-def test_predict_preopen_required_target_mismatch_raises(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
+def test_predict_preopen_required_target_mismatch_keeps_preopen(loaded_scope, model, monkeypatch, tmp_path, preopen_fixture):
     _write(preopen_fixture, target_date=fx.DATES[fx.D_INDEX + 2])
-    with pytest.raises(preopen_source.PreopenRequiredError, match="preopen_target_mismatch"):
-        _run(loaded_scope(), model, monkeypatch, tmp_path, source="preopen")
+    _, payload, html, _, _ = _run(loaded_scope(), model, monkeypatch, tmp_path, source="preopen")
+    assert payload["model_source"] == "preopen" and "原目標日" in html
+    assert payload["preopen_meta"]["target_date"] == fx.DATES[fx.D_INDEX + 2]
 
 
 # ---------------------------------------------------------------- report contract units
@@ -523,9 +538,8 @@ def test_check_preopen_reports_availability_and_fails_only_when_required(preopen
     assert summary["status"] == "available" and summary["preopen_meta"]["run_id"].startswith("fixture_")
     assert "開盤前版快照可用" in capsys.readouterr().out
     stale = app.check_preopen(NEXT_D, "auto", "default")
-    assert stale["reason"] == "preopen_stale" and "auto 模式執行時 H1 會改用 C0 基準" in stale["line"]
-    with pytest.raises(RuntimeError, match="preopen_required_unavailable:preopen_stale"):
-        app.check_preopen(NEXT_D, "preopen", "cli")
+    assert stale["reason"] is None and stale["status"] == "available" and "沿用較舊快照" in stale["line"]
+    assert app.check_preopen(NEXT_D, "preopen", "cli")["status"] == "available"
     # 檢查不寫任何檔案。
     files = sorted(path.relative_to(preopen_fixture.root).as_posix() for path in preopen_fixture.root.rglob("*") if path.is_file())
     stem = "predictions/" + D + "/fixture_" + D.replace("-", "")

@@ -497,7 +497,8 @@ def _h1_summary_lines(manifest, payload, asof) -> tuple[str, ...]:
 
     Reports written before MIX recorded ``h1_model_source`` get no line, so their summary
     text -- and therefore an existing delivery's dedup key -- is unchanged.  Same-run
-    consistency (manifest/payload source, pre-open rows only on H1, fresh signal day) is KEEP.
+    consistency (manifest/payload source, pre-open rows only on H1, signal day) is KEEP: the
+    signal day is the report day, or an older one that MIX labelled and noted as reused.
     """
     if "h1_model_source" not in payload and "h1_model_source" not in manifest:
         return ()
@@ -515,7 +516,14 @@ def _h1_summary_lines(manifest, payload, asof) -> tuple[str, ...]:
         # 「代碼：中文」(the same wording MIX prints); changing this text changes the summary's dedup key.
         return (f"H1：開盤前版不可用（{_h1_reason_text(info.get('fallback_reason'))}），本次 H1 改用 C0 基準",)
     meta = payload.get("preopen_meta") if isinstance(payload.get("preopen_meta"), Mapping) else {}
-    if not preopen_rows or not _same_date(meta.get("signal_date"), asof):
+    # 2026-11-01 裁示：舊資料不阻擋報告發布。MIX 已標示並註記沿用的較舊快照照常傳送，摘要附一句說明；
+    # 訊號日晚於報告資料日（未來資料），或較舊卻沒有沿用標示與註記，仍視為報告不一致。
+    signal, report_day = cd.to_day(meta.get("signal_date")), cd.to_day(asof)
+    reused = (signal is not None and report_day is not None and signal < report_day
+              and isinstance(info.get("snapshot_note_zh"), str) and bool(info["snapshot_note_zh"].strip())
+              and any(isinstance(label, Mapping) and label.get("code") == "h1_preopen_snapshot_reused"
+                      for label in payload.get("version_labels") or []))
+    if not preopen_rows or not (_same_date(meta.get("signal_date"), asof) or reused):
         raise MixReportIntegrityError("MIX 開盤前版訊號日與報告資料日不一致")
     gate = meta.get("gate_us_up")
     gate_text = "前一晚美股收漲" if gate is True else "前一晚美股未收漲，非建議日" if gate is False else "前一晚美股漲跌未知"
@@ -526,6 +534,8 @@ def _h1_summary_lines(manifest, payload, asof) -> tuple[str, ...]:
         for item in top) or "無"
     lines = [f"H1：開盤前版（訊號日 {cd.display_day(meta.get('signal_date'))} → 目標日 "
              f"{cd.display_day(meta.get('target_date'))}；{gate_text}）",
+             # 訊號日與報告資料日已各寫一次，這裡只說明沿用。
+             *(["H1 沿用較舊開盤前版：訊號日早於報告資料日，預測日期與數值維持原值"] if reused else []),
              f"H1 可交易 Top10（依上漲機率→預估報酬）：{names}",
              "H5／H20／H60：C0 有限基準"]
     disclosure = info.get("disclosure") if isinstance(info.get("disclosure"), Mapping) else {}
@@ -721,6 +731,7 @@ _HUMAN_LABELS = {
     "preopen_no_latest": "找不到開盤前版最新快照",
     "preopen_schema_mismatch": "開盤前版快照格式不符",
     "preopen_stale": "開盤前版快照不是本次資料日，已過期",
+    "preopen_future_signal": "開盤前版快照的訊號日晚於本次分析資料日",
     "preopen_snapshot_missing": "開盤前版快照檔缺漏",
     "preopen_snapshot_sha_mismatch": "開盤前版快照雜湊不符",
     "preopen_snapshot_columns": "開盤前版快照欄位不足",
@@ -741,6 +752,8 @@ _HUMAN_LABELS = {
     "h1_preopen_market_asof_differs": "各市場資料日不同，開盤前版以訊號日為準",
     "h1_preopen_root_override": "開盤前版讀取非正式路徑（測試或 QA）",
     "h1_preopen_rank_inconsistent": "開盤前版可交易名次與排序不一致",
+    "h1_preopen_snapshot_reused": "沿用較舊開盤前版，預測日期與數值維持原值",
+    "h1_preopen_target_differs": "開盤前版原目標日與本報告日曆不同，保留原日期",
     "preopen_calibrated": "開盤前版校準後機率",
     "preopen_holdout_evaluated": "開盤前版保留期已評估（2026 年 1～10 月）",
     "preopen_open_entry_negative": "隔日開盤買進 Top10 平均報酬為負",

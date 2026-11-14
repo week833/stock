@@ -243,9 +243,9 @@ def test_stale_fallback_keeps_the_observed_recipe(snapshot_root):
     write_fixture(snapshot_root, signal_date="2026-10-15")
     _set_recipe(snapshot_root, V2_RECIPE)
     block = preopen.build_h1_block(STOCK_6488, "2026-10-16")
-    assert block["status"] == "fallback" and block["reason"] == "preopen_stale"
-    assert block["observed_meta"]["recipe"] == V2_RECIPE
-    assert "disclosure" not in block and "disclosure_rows" not in block  # 回退不帶揭露（與改版前相同）
+    assert block["status"] == "used" and block["reason"] is None
+    assert block["meta"]["recipe"] == V2_RECIPE and block["disclosure"]["recipe"] == preopen.RECIPE_V2
+    assert block["signal_date"] == "2026-10-15" and "沿用較舊快照" in block["snapshot_note_zh"]
 
 
 def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
@@ -266,7 +266,7 @@ def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
 
 @pytest.mark.parametrize("case,reason", [
     ("missing_root", "preopen_no_latest"),
-    ("stale", "preopen_stale"),
+    ("future", "preopen_future_signal"),
     ("not_in_snapshot", "preopen_stock_not_in_snapshot"),
     ("market_mismatch", "preopen_market_mismatch"),
     ("sha_mismatch", "preopen_snapshot_sha_mismatch"),
@@ -276,7 +276,7 @@ def test_non_tradable_row_has_no_tradable_rank(snapshot_root):
 def test_unavailable_snapshot_falls_back_to_c0_with_reason(snapshot_root, case, reason):
     stock, asof = dict(STOCK_6488), "2026-10-16"
     if case != "missing_root":
-        write_fixture(snapshot_root, signal_date="2026-10-15" if case == "stale" else "2026-10-16")
+        write_fixture(snapshot_root, signal_date="2026-10-17" if case == "future" else "2026-10-16")
     if case == "not_in_snapshot":
         stock = {"stock_id": "1234", "market": "TWSE"}
     elif case == "market_mismatch":
@@ -294,8 +294,8 @@ def test_unavailable_snapshot_falls_back_to_c0_with_reason(snapshot_root, case, 
     assert block["reason_zh"]
     # 主控台一行：原因代碼之後一定有中文說明
     assert preopen.display_lines(block) == [f"H1 來源：{block['notice']}。原因：{block['reason_zh']}"]
-    if case == "stale":
-        assert block["observed_meta"]["signal_date"] == "2026-10-15"
+    if case == "future":
+        assert "preopen_future_signal" in block["notice"]
     assert _native_json(block) == block
 
 
@@ -363,10 +363,10 @@ def test_c0_h1_stale_snapshot_falls_back_with_notice(current_case, snapshot_root
     write_fixture(snapshot_root, signal_date="2026-10-07", target_date="2026-10-08")
     h1 = single.generate_estimate("H1", "6488", output_dir=current_case["output"])
     block = h1["preopen_h1"]
-    assert h1["h1_display_source"] == "c0" and block["reason"] == "preopen_stale"
-    assert block["notice"] == "開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準"
-    assert block["observed_meta"]["signal_date"] == "2026-10-07"
-    assert _sealed(h1["output_json"])["preopen_h1"]["reason"] == "preopen_stale"
+    assert h1["h1_display_source"] == "preopen" and block["reason"] is None
+    assert block["signal_date"] == "2026-10-07" and block["target_date"] == "2026-10-08"
+    assert "沿用較舊快照" in block["snapshot_note_zh"]
+    assert _sealed(h1["output_json"])["preopen_h1"]["snapshot_note_zh"] == block["snapshot_note_zh"]
 
 
 @pytest.mark.parametrize("recipe", [V2_RECIPE, UNKNOWN_RECIPE], ids=["v2", "unknown"])
@@ -454,7 +454,7 @@ def test_candidate_research_rejects_h1_source():
 @pytest.mark.parametrize("status", ["used", "fallback"])
 def test_c0_pdf_renders_the_preopen_summary_or_notice(snapshot_root, tmp_path, status):
     pytest.importorskip("reportlab")
-    write_fixture(snapshot_root, signal_date="2026-10-16" if status == "used" else "2026-10-15")
+    write_fixture(snapshot_root, signal_date="2026-10-16" if status == "used" else "2026-10-17")
     block = preopen.build_h1_block(STOCK_6488, "2026-10-16")
     payload = {"stock": dict(STOCK_6488), "horizon_sessions": 1, "estimate_status": "estimated",
                "latest_data_date": "2026-10-16", "prediction": {"prob_up": 0.5, "expected_return": 0.0},
@@ -556,7 +556,7 @@ def test_selected_h1_report_discloses_the_snapshot_recipe(formal_payload, snapsh
 
 def test_selected_fallback_notice_and_h63_untouched(formal_payload, snapshot_root, tmp_path, monkeypatch):
     _stub_rendering(monkeypatch)
-    write_fixture(snapshot_root, signal_date="2026-10-15")
+    write_fixture(snapshot_root, signal_date="2026-10-17")
     h1 = _sign(copy.deepcopy(formal_payload))
     h63 = _sign(dict(copy.deepcopy(formal_payload), horizon_sessions=63))
     original_h63 = copy.deepcopy(h63)
@@ -564,9 +564,9 @@ def test_selected_fallback_notice_and_h63_untouched(formal_payload, snapshot_roo
         report.write_candidate_report(h1, tmp_path / "reports")
         report.write_candidate_report(h63, tmp_path / "reports")
     assert h63 == original_h63
-    assert h1["preopen_h1"]["reason"] == "preopen_stale"
+    assert h1["preopen_h1"]["reason"] == "preopen_future_signal"
     summary = report.build_report_sections(h1)[0]
-    assert summary["paragraphs"][0].startswith("【注意】開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準，單股已啟用選定模型。原因：")
+    assert summary["paragraphs"][0].startswith("【注意】開盤前版不可用（preopen_future_signal），本次 H1 改用 C0 基準，單股已啟用選定模型。原因：")
     assert summary["tables"][0]["title"] == "本股預測（C0 基準，單股已啟用選定模型）"  # 不再有巢狀括號
 
 
@@ -860,10 +860,11 @@ def test_c0_pdf_keeps_every_warning_after_trimming(snapshot_root, tmp_path, monk
 @pytest.mark.parametrize("case", ["fallback", "forced_c0", "no_estimate"])
 def test_c0_pdf_fallback_and_no_estimate_keep_their_reasons(snapshot_root, tmp_path, monkeypatch, case):
     pytest.importorskip("reportlab")
-    write_fixture(snapshot_root, signal_date="2026-10-15")
+    # 訊號日晚於分析資料日才是真正不可用而回退（較舊但可用的快照改為沿用並註記）。
+    write_fixture(snapshot_root, signal_date="2026-10-17")
     if case == "fallback":
         payload = _c0_report_payload(preopen_h1=preopen.build_h1_block(STOCK_6488, "2026-10-16"))
-        needles = ("【注意】開盤前版不可用（preopen_stale），本次 H1 改用 C0 基準。原因：開盤前版快照的訊號日與本次分析資料日不同。",
+        needles = ("【注意】開盤前版不可用（preopen_future_signal），本次 H1 改用 C0 基準。原因：開盤前版快照的訊號日晚於本次分析資料日。",
                    "本報告目標：", "到期交易日\n20261019", "模型效果及交易效益未驗證", "機率校準\n尚未校準",
                    "上漲機率\n53.00%", "預估報酬\n+0.10%")
         missing = ("開盤前版必要揭露", "C0 基準（備援）", "本次結果", "已產生估計")
@@ -945,3 +946,47 @@ def test_selected_h1_reminder_names_the_backup_probability_for_an_unmapped_statu
     # 「機率校準」列顯示不出未校準：保留完整提醒，並註明是備援對照表的機率
     assert dict(summary["tables"][1]["rows"])["機率校準"] == "未確認（原始狀態見資料檔）"
     assert "備援對照表的機率尚未校準，不能直接視為實際命中率。" in summary["paragraphs"]
+
+
+@pytest.mark.parametrize("base_target", ["2026-10-19", None], ids=["calendar_differs", "calendar_unknown"])
+def test_selected_h1_older_snapshot_writes_the_original_target_once(formal_payload, snapshot_root, monkeypatch, base_target):
+    """沿用較舊快照：有日期提醒時原目標日只在該列寫一次（列值不重複列名）；沒有日期提醒時快照註記保留原目標日。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(snapshot_root, signal_date="2026-10-15", target_date="2026-10-16")
+    item = copy.deepcopy(formal_payload)
+    item["target_session_date"] = base_target
+    item["preopen_h1"] = block = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                        base_target_date=base_target)
+    summary = report.build_report_sections(item)[0]
+    main = dict(summary["tables"][0]["rows"])
+    visible = "\n".join(report._visible_strings([summary]))
+    # 封存的原文不變，只在顯示時精簡；沿用較舊快照的警示一定保留一次
+    assert block["snapshot_note_zh"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016；保留原目標日 20261016"
+    assert visible.count("沿用較舊快照：訊號日 20261015；本次分析資料日 20261016") == 1
+    if base_target is None:
+        assert block["target_note_zh"] is None and "日期提醒" not in visible
+        assert main["資料註記"] == block["snapshot_note_zh"]
+        return
+    assert block["target_note_zh"].startswith("日期提醒：沿用開盤前版原目標日 20261016")
+    assert main["資料註記"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016"
+    assert main["日期提醒"] == "沿用開盤前版原目標日 20261016；本報告日曆目標日 20261019，預測日期與數值維持原值。"
+    assert "保留原目標日" not in visible and visible.count("原目標日 20261016") == 1 and visible.count("日期提醒") == 1
+    # describe 沒有快照註記時改列「資料沿用」，同樣不重複原目標日
+    block["describe"] = block["describe"].replace("｜" + block["snapshot_note_zh"], "")
+    main = dict(report.build_report_sections(item)[0]["tables"][0]["rows"])
+    assert main["資料沿用"] == "沿用較舊快照：訊號日 20261015；本次分析資料日 20261016" and "資料註記" not in main
+
+
+def test_selected_h1_date_mismatch_without_note_keeps_the_original_target(formal_payload, snapshot_root, monkeypatch):
+    """目標日不一致但區塊沒有日期提醒文字（舊區塊）時，快照註記保留原目標日，日期提醒列改用固定說明。"""
+    monkeypatch.setattr(report, "_converter", lambda: lambda text: text)
+    write_fixture(snapshot_root, signal_date="2026-10-15", target_date="2026-10-16")
+    item = copy.deepcopy(formal_payload)
+    item["target_session_date"] = "2026-10-19"
+    item["preopen_h1"] = block = preopen.build_h1_block(STOCK_2330, "2026-10-16", base_label=preopen.SELECTED_BASE_LABEL,
+                                                        base_target_date="2026-10-19")
+    assert block["target_date_consistent"] is False
+    block["target_note_zh"] = None
+    main = dict(report.build_report_sections(item)[0]["tables"][0]["rows"])
+    assert main["資料註記"] == block["snapshot_note_zh"] and "保留原目標日 20261016" in main["資料註記"]
+    assert main["日期提醒"] == "開盤前版目標日與本報告日曆推得的目標交易日不同，請以各自來源核對"

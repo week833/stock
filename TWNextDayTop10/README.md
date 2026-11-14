@@ -4,12 +4,12 @@
 
 ## H1 模型來源（2026-10-18 起）
 
-H1 顯示改用「開盤前版」（HGB，含前一晚美股），C0 保留為備援：C0 推論與共用前瞻帳冊每次照常執行。開盤前版只透過共用唯讀 API `D:\stock\programs\shared\stock_daily_preopen_reader.py` 讀取產製端每天 08:30 前寫出的快照（預設 `D:\TWStockData\program_data\stock_daily_preopen`，可用環境變數 `STOCK_DAILY_PREOPEN_ROOT` 改寫，僅供 QA）。新鮮度以本次 C0 輸入的台股最新交易日為 expected_signal_date；已驗證的下一交易日存在時，快照目標日也必須一致。
+H1 顯示改用「開盤前版」（HGB，含前一晚美股），C0 保留為備援：C0 推論與共用前瞻帳冊每次照常執行。開盤前版只透過共用唯讀 API `D:\stock\programs\shared\stock_daily_preopen_reader.py` 讀取產製端每天 08:30 前寫出的快照（預設 `D:\TWStockData\program_data\stock_daily_preopen`，可用環境變數 `STOCK_DAILY_PREOPEN_ROOT` 改寫，僅供 QA）。以本次 C0 輸入的台股最新交易日為 expected_signal_date。依 2026-11-01 裁示（舊資料不阻擋報告發布）：快照較舊但可用時沿用原訊號日／目標日並註記「沿用較舊快照」；已驗證的下一交易日與快照目標日不同時也沿用原目標日，並加一則日期提醒。快照訊號日晚於本次資料日（未來資料）、缺檔、雜湊不符、讀取失敗或內容檢查不通過（欄位、數值、名次、市場等）才算不可用。
 
 開關 `--model-source`（或環境變數 `TOP10_MODEL_SOURCE`；命令列優先）：
 
-- `auto`（預設）：快照可用且新鮮 → H1 顯示開盤前版；否則報告醒目標示「開盤前版不可用（原因代碼），本次 H1 改用 C0 基準」。
-- `preopen`：必須使用開盤前版；不可用時在 C0 前瞻帳冊寫入前即失敗。
+- `auto`（預設）：快照可用（含較舊或目標日不同時沿用並註記）→ H1 顯示開盤前版；不可用 → 報告醒目標示「開盤前版不可用（原因代碼），本次 H1 改用 C0 基準」。
+- `preopen`：必須使用開盤前版；不可用時在 C0 前瞻帳冊寫入前即失敗（較舊或目標日不同只註記，不失敗）。
 - `c0`：強制舊行為，不讀取快照。
 
 開盤前版啟用時：每檔 probability／expected_return 改為 p_up／exp_ret；ranking_status 為 `preopen_model_ranking`；Top10 為可交易母體（20 日均成交金額 ≥ 2,000 萬且收盤 ≥ 10）依 p_up→exp_ret 前 10 名，其餘股票依同排序列在後面；每列另保留 C0 數值（c0_probability／c0_expected_return）。HTML、Excel、JSON payload 與 manifest 顯示模型來源、快照說明、前一晚美股閘門（收漲＝建議日；未收漲＝非建議日；未知）與必要揭露（文字依快照配方，見下節）；payload 與 manifest 含 `model_source`、`preopen_meta`（run_id、model_sha256、snapshot_sha256；快照有 `recipe` 時一併保留）。本 .venv 沒有 pyarrow／fastparquet 時，以既有相依 duckdb 解碼 parquet（仍由共用 reader 驗證雜湊、欄位與數值）。
@@ -22,7 +22,7 @@ H1 顯示改用「開盤前版」（HGB，含前一晚美股），C0 保留為�
 - `h1pre_v2_ens`（v2）：保留期 2026-01-02～2026-10-19（191 個交易日）方向準確率 60.0%（一律猜跌 56.1%）、AUC 0.619；美股收漲夜 Top10 命中 65.3%、其他夜 49.1%、全部日子 57.1%；隔日開盤買進 Top10 約為零（約 +0.01%／日），不是交易獲利的證據；Top10 MAE 2.71%。出處 `h1_improve_20261021\report\H1改良研究報告_20261021.md`。
 - 其他名稱（或 `recipe` 格式不符）：中性文字，顯示配方名稱並說明本程式沒有該配方的驗證數字（準確率、命中率與開盤買進效果皆未知）。
 
-CHECK_ENV.cmd 另以唯讀方式檢查開盤前版快照是否可用且新鮮；`--model-source preopen` 時不可用即失敗。
+CHECK_ENV.cmd 另以唯讀方式檢查開盤前版快照是否可用（較舊只註記）；`--model-source preopen` 時不可用即失敗。
 
 CHECK_ENV.cmd 驗共用 C0 模型、現行契約採納與六核心來源 context，不建立 price panel、不推論或寫前瞻帳冊。缺少專案環境時只提示明確執行 SETUP_ENV.cmd；入口不自動安裝或替換其他專案環境。
 
